@@ -6,6 +6,7 @@
     "module": "commonjs",
     "outDir": "build",
     "lib": ["ES2023"],
+    "sourceMap": true,
 
     /* Strict Type-Checking Options */
     "strict": true,
