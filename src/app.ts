@@ -1,7 +1,7 @@
 import express, {json, urlencoded, Response as ExResponse, Request as ExRequest, NextFunction} from "express";
 import swaggerUi from "swagger-ui-express";
 import { ValidateError } from "tsoa";
-import { RegisterRoutes } from "../build/routes";
+import { RegisterRoutes } from "../generated/routes";
 import cors from "cors";
 
 export const app = express();
@@ -14,7 +14,7 @@ app.use(
 app.use(json());
 app.use("/docs", swaggerUi.serve, async (_req: ExRequest, res: ExResponse) => {
   return res.send(
-    swaggerUi.generateHTML(await import("../build/swagger.json"))
+    swaggerUi.generateHTML(await import("../generated/swagger.json"))
   );
 });
 

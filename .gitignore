@@ -132,3 +132,5 @@ dist
 # Custom ignores
 build/
 /map
+/generated/*
+!**/*.gitkeep
