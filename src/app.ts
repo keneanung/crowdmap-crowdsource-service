@@ -1,20 +1,26 @@
-import express, {json, urlencoded, Response as ExResponse, Request as ExRequest, NextFunction} from "express";
+import cors from "cors";
+import express, {
+  Request as ExRequest,
+  Response as ExResponse,
+  NextFunction,
+  json,
+  urlencoded,
+} from "express";
 import swaggerUi from "swagger-ui-express";
 import { ValidateError } from "tsoa";
 import { RegisterRoutes } from "../generated/routes";
-import cors from "cors";
 
 export const app = express();
 
 app.use(
   urlencoded({
     extended: true,
-  })
+  }),
 );
 app.use(json());
 app.use("/docs", swaggerUi.serve, async (_req: ExRequest, res: ExResponse) => {
   return res.send(
-    swaggerUi.generateHTML(await import("../generated/swagger.json"))
+    swaggerUi.generateHTML(await import("../generated/swagger.json")),
   );
 });
 
@@ -30,7 +36,7 @@ app.use(function errorHandler(
   err: unknown,
   req: ExRequest,
   res: ExResponse,
-  next: NextFunction
+  next: NextFunction,
 ): ExResponse | void {
   if (err instanceof ValidateError) {
     console.warn(`Caught Validation Error for ${req.path}:`, err.fields);
@@ -47,4 +53,4 @@ app.use(function errorHandler(
 
   next();
 });
-app.use(cors())
+app.use(cors());

@@ -7,7 +7,8 @@
     "dev": "concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\"",
     "build": "tsoa spec-and-routes && tsc",
     "start": "node build/src/server.js",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "format": "prettier --write src/"
   },
   "keywords": [],
   "author": "",
@@ -30,7 +31,10 @@
     "@typescript-eslint/parser": "^6.15.0",
     "concurrently": "^8.2.2",
     "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
     "nodemon": "^3.0.2",
+    "prettier": "^3.1.1",
+    "prettier-plugin-organize-imports": "^3.2.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
