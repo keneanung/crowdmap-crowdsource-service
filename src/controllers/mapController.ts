@@ -15,8 +15,8 @@ export class MapController extends Controller {
     const s = fs.createReadStream(__dirname + "/index.html");
     s.on("close", () => {
       fs.unlink(__dirname + "/index.html", (err) => {
-        if(err){
-            throw err;
+        if (err) {
+          throw err;
         }
       });
     });

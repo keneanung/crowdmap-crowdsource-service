@@ -21,14 +21,14 @@ export class ChangeController extends Controller {
   }
 
   @Get("/")
-  public async getChanges(): Promise<Change[]> {
+  public getChanges():Change[] {
     return this.changeService.getChanges();
   }
 
   @SuccessResponse("201", "Created")
   @Response<ValidateErrorJSON>(422, "Validation Failed")
   @Post("/")
-  public async addChange(@Body() change: Change): Promise<void> {
+  public addChange(@Body() change: Change): void {
     this.setStatus(201);
     this.changeService.addChange(change);
   }
