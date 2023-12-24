@@ -21,7 +21,7 @@ export class ChangeController extends Controller {
   }
 
   @Get("/")
-  public getChanges():Change[] {
+  public getChanges(): Change[] {
     return this.changeService.getChanges();
   }
 
