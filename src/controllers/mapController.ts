@@ -1,20 +1,28 @@
 import * as fs from "fs";
+import { inject } from "inversify";
 import { Readable } from "stream";
-import { Controller, Get, Produces, Route } from "tsoa";
+import { Controller, Get, Produces, Query, Route } from "tsoa";
 import { provideSingleton } from "../ioc/provideSingleton";
+import { MapService } from "../services/mapService";
 
 @Route("map")
 @provideSingleton(MapController)
 export class MapController extends Controller {
+  constructor(@inject(MapService) private mapService: MapService) {
+    super();
+  }
+
   @Get("/")
   @Produces("application/octet-stream")
-  public getMap(): Readable {
-    this.setHeader("Content-Type", "application/octet-stream");
-    this.setHeader("Content-Disposition", "attachment; filename=map.html");
+  public getMap(@Query() timesSeen: number): Readable {
+    const file = this.mapService.getChangedMap(timesSeen);
 
-    const s = fs.createReadStream(__dirname + "/index.html");
+    this.setHeader("Content-Type", "application/octet-stream");
+    this.setHeader("Content-Disposition", "attachment; filename=map");
+
+    const s = fs.createReadStream(file);
     s.on("close", () => {
-      fs.unlink(__dirname + "/index.html", (err) => {
+      fs.unlink(file, (err) => {
         if (err) {
           throw err;
         }
