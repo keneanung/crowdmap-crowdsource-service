@@ -2,9 +2,6 @@ export type ChangeType = "room-name" | "add-exit";
 
 export abstract class ChangeBase {
   type!: ChangeType;
-  /**
-   * @isInt room number must be an integer
-   */
   roomNumber: number;
   reporters: string[];
 
@@ -33,15 +30,8 @@ export class ChangeRoomName extends ChangeBase {
 export class AddRoomExit extends ChangeBase {
   type: ChangeType = "add-exit";
   direction: Direction;
-
-  /**
-   * @isInt destination must be an integer
-   */
   destination: number;
 
-  /**
-   *
-   */
   constructor(
     roomNumber: number,
     reporters: string[],
