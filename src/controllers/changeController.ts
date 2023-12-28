@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   Response,
   Route,
   SuccessResponse,
@@ -27,8 +28,8 @@ export class ChangeController extends Controller {
   }
 
   @Get("/")
-  public getChanges(): ChangeResponse[] {
-    const changes = this.changeService.getChanges();
+  public async getChanges(@Query() timesSeen = 0): Promise<ChangeResponse[]> {
+    const changes = await this.changeService.getChanges(timesSeen);
     return changes.map((change) => {
       switch (change.type) {
         case "room-name": {
@@ -36,7 +37,7 @@ export class ChangeController extends Controller {
           return {
             type: "room-name",
             roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.length,
+            reporters: typedChange.reporters.size,
             name: typedChange.name,
           };
         }
@@ -45,7 +46,7 @@ export class ChangeController extends Controller {
           return {
             type: "add-exit",
             roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.length,
+            reporters: typedChange.reporters.size,
             direction: typedChange.direction,
             destination: typedChange.destination,
           };
@@ -60,7 +61,7 @@ export class ChangeController extends Controller {
   @SuccessResponse("201", "Created")
   @Response<ValidateErrorJSON>(422, "Validation Failed")
   @Post("/")
-  public addChange(@Body() change: ChangeSubmission): void {
+  public async addChange(@Body() change: ChangeSubmission): Promise<void> {
     this.setStatus(201);
     const businessChange = (() => {
       switch (change.type) {
@@ -84,6 +85,6 @@ export class ChangeController extends Controller {
         }
       }
     })();
-    this.changeService.addChange(businessChange);
+    await this.changeService.addChange(businessChange);
   }
 }

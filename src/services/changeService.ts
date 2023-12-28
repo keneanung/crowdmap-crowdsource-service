@@ -1,17 +1,72 @@
+import { MongoClient } from "mongodb";
+import { config } from "../config/values";
 import { provideSingleton } from "../ioc/provideSingleton";
 import { Change } from "../models/business/change";
+import {
+  Change as ChangeDb,
+  changeBusinessToDb,
+  changeDbToBusiness,
+} from "../models/db/change";
 
 @provideSingleton(ChangeService)
 export class ChangeService {
-  private changes: Change[];
+  private mongo: MongoClient;
+  private connected = false;
 
   constructor() {
-    this.changes = [];
+    if (!config.connectionString) {
+      throw new Error("Missing connection string");
+    }
+    this.mongo = new MongoClient(config.connectionString);
   }
-  addChange(change: Change) {
-    this.changes.push(change);
+
+  private async connect() {
+    await this.mongo.connect();
+    this.connected = true;
   }
-  getChanges() {
-    return this.changes;
+
+  private async getCollection() {
+    if (!this.connected) {
+      await this.connect();
+    }
+    const db = this.mongo.db(config.dbName);
+    const collection = db.collection<ChangeDb>("changes");
+    return collection;
+  }
+
+  async addChange(change: Change) {
+    const collection = await this.getCollection();
+    const existingChange = await collection.findOne(
+      change.getIdentifyingParts(),
+    );
+    if (existingChange) {
+      const existingChangeBusiness = changeDbToBusiness(existingChange);
+      change.reporters.forEach((reporter) =>
+        existingChangeBusiness.reporters.add(reporter),
+      );
+      await collection.updateOne(
+        { _id: existingChange._id },
+        {
+          $set: {
+            reporters: Array.from(existingChangeBusiness.reporters),
+            numberOfReporters: existingChangeBusiness.reporters.size,
+          },
+        },
+      );
+    } else {
+      const changeDb = changeBusinessToDb(change);
+      await collection.insertOne(changeDb);
+    }
+  }
+
+  async getChanges(timesSeen: number) {
+    const collection = await this.getCollection();
+    const changes = await collection
+      .find({
+        numberOfReporters: { $gte: timesSeen },
+      })
+      .sort({ changeId: 1 })
+      .toArray();
+    return changes.map(changeDbToBusiness);
   }
 }

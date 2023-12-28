@@ -9,4 +9,6 @@ export const config = {
   mapDownloadUrl:
     process.env.MAP_DOWNLOAD_URL ??
     "https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/map",
+  connectionString: process.env.MONGO_CONNECTION_STRING,
+  dbName: process.env.MONGO_DB_NAME,
 };

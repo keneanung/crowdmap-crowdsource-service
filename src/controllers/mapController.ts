@@ -24,11 +24,11 @@ export class MapController extends Controller {
     const s = fs.createReadStream(file);
     s.on("close", () => {
       fs.unlink(file, (err) => {
+        fs.rmdirSync(dirname(file));
         if (err) {
           throw err;
         }
       });
-      fs.rmdirSync(dirname(file));
     });
     return s;
   }

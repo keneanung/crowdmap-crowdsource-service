@@ -16,9 +16,7 @@ export class MapService {
   }
 
   public async getChangedMap(timesSeen: number): Promise<string> {
-    const changes = this.changeService
-      .getChanges()
-      .filter((change) => change.reporters.length >= timesSeen);
+    const changes = await this.changeService.getChanges(timesSeen);
     const map: Mudlet.MudletMap = MudletMapReader.read(config.mapFile);
     changes.forEach((change) => {
       change.apply(map.rooms[change.roomNumber]);
