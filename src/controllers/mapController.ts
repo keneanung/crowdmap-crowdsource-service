@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import { inject } from "inversify";
+import { dirname } from "path";
 import { Readable } from "stream";
 import { Controller, Get, Produces, Query, Route } from "tsoa";
 import { provideSingleton } from "../ioc/provideSingleton";
@@ -14,8 +15,8 @@ export class MapController extends Controller {
 
   @Get("/")
   @Produces("application/octet-stream")
-  public getMap(@Query() timesSeen: number): Readable {
-    const file = this.mapService.getChangedMap(timesSeen);
+  public async getMap(@Query() timesSeen: number): Promise<Readable> {
+    const file = await this.mapService.getChangedMap(timesSeen);
 
     this.setHeader("Content-Type", "application/octet-stream");
     this.setHeader("Content-Disposition", "attachment; filename=map");
@@ -27,6 +28,7 @@ export class MapController extends Controller {
           throw err;
         }
       });
+      fs.rmdirSync(dirname(file));
     });
     return s;
   }

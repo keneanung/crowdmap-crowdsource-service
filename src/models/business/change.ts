@@ -1,15 +1,14 @@
 export type ChangeType = "room-name" | "add-exit";
 
 export abstract class ChangeBase {
-  type: ChangeType;
+  type!: ChangeType;
   /**
    * @isInt room number must be an integer
    */
   roomNumber: number;
   reporters: string[];
 
-  constructor(type: ChangeType, roomNumber: number, reporters: string[]) {
-    this.type = type;
+  constructor(roomNumber: number, reporters: string[]) {
     this.roomNumber = roomNumber;
     this.reporters = reporters;
   }
@@ -18,10 +17,11 @@ export abstract class ChangeBase {
 }
 
 export class ChangeRoomName extends ChangeBase {
+  type: ChangeType = "room-name";
   name: string;
 
   constructor(roomNumber: number, reporters: string[], name: string) {
-    super("room-name", roomNumber, reporters);
+    super(roomNumber, reporters);
     this.name = name;
   }
 
@@ -31,6 +31,7 @@ export class ChangeRoomName extends ChangeBase {
 }
 
 export class AddRoomExit extends ChangeBase {
+  type: ChangeType = "add-exit";
   direction: Direction;
 
   /**
@@ -47,7 +48,7 @@ export class AddRoomExit extends ChangeBase {
     direction: Direction,
     destination: number,
   ) {
-    super("add-exit", roomNumber, reporters);
+    super(roomNumber, reporters);
     this.direction = direction;
     this.destination = destination;
   }

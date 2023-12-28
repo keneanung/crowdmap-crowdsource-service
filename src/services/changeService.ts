@@ -1,5 +1,5 @@
 import { provideSingleton } from "../ioc/provideSingleton";
-import { Change } from "../models/change";
+import { Change } from "../models/business/change";
 
 @provideSingleton(ChangeService)
 export class ChangeService {
