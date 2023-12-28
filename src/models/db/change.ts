@@ -1,8 +1,8 @@
 import { ObjectId } from "mongodb";
 import {
   AddRoomExit as AddRoomExitBusiness,
-  ChangeRoomName as ChangeRoomNameBusiness,
   Change as ChangeBusiness,
+  ChangeRoomName as ChangeRoomNameBusiness,
   ChangeType,
   Direction,
 } from "../business/change";
@@ -65,7 +65,7 @@ export const addExitBusinessToDb = (
     destination: change.destination,
     changeId: change.changeId,
   };
-}
+};
 
 export const addExitDbToBusiness = (
   change: AddRoomExit,
@@ -77,7 +77,7 @@ export const addExitDbToBusiness = (
     change.destination,
     change.changeId,
   );
-}
+};
 
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
@@ -92,19 +92,19 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
       throw new Error(`Unknown change type: ${change.type}`);
     }
   }
-}
+};
 
 export const changeDbToBusiness = (change: Change): ChangeBusiness => {
   switch (change.type) {
     case "room-name": {
-      return roomNameDbToBusiness(change );
+      return roomNameDbToBusiness(change);
     }
     case "add-exit": {
-      return addExitDbToBusiness(change );
+      return addExitDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here
       throw new Error(`Unknown change type: ${change.type}`);
     }
   }
-}
+};

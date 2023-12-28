@@ -23,7 +23,12 @@ export class ChangeRoomName extends ChangeBase<ChangeRoomName> {
   type: ChangeType = "room-name";
   name: string;
 
-  constructor(roomNumber: number, reporters: string[], name: string, changeId?: number) {
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    name: string,
+    changeId?: number,
+  ) {
     super(roomNumber, reporters, changeId);
     this.name = name;
   }

@@ -15,10 +15,16 @@ export class MapController extends Controller {
 
   @Get("/")
   @Produces("application/octet-stream")
-  public async getMap(@Query() timesSeen: number): Promise<Readable> {
-    const file = await this.mapService.getChangedMap(timesSeen);
+  public async getMap(
+    @Query() timesSeen: number,
+    @Query() format: "binary" | "json",
+  ): Promise<Readable> {
+    const file = await this.mapService.getChangedMap(timesSeen, format);
 
-    this.setHeader("Content-Type", "application/octet-stream");
+    this.setHeader(
+      "Content-Type",
+      `application/${format === "binary" ? "octet-stream" : "json"}}`,
+    );
     this.setHeader("Content-Disposition", "attachment; filename=map");
 
     const s = fs.createReadStream(file);

@@ -15,14 +15,21 @@ export class MapService {
     return join(await mkdtemp(join(tmpdir(), "mudlet-map-")), "map");
   }
 
-  public async getChangedMap(timesSeen: number): Promise<string> {
+  public async getChangedMap(
+    timesSeen: number,
+    format: "binary" | "json",
+  ): Promise<string> {
     const changes = await this.changeService.getChanges(timesSeen);
     const map: Mudlet.MudletMap = MudletMapReader.read(config.mapFile);
     changes.forEach((change) => {
       change.apply(map.rooms[change.roomNumber]);
     });
     const file = await this.getTempMapFileName();
-    MudletMapReader.write(map, file);
+    if (format === "binary") {
+      MudletMapReader.write(map, file);
+    } else {
+      MudletMapReader.exportJson(map, file, true);
+    }
     return file;
   }
 }
