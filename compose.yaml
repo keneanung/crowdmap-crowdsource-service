@@ -1,0 +1,10 @@
+services:
+  app:
+    build:
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    environment:
+      - MAP_DOWNLOAD_URL=https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/map
+      - MONGO_CONNECTION_STRING=${MONGO_CONNECTION_STRING}
+      - MONGO_DB_NAME=${MONGO_DB_NAME}
