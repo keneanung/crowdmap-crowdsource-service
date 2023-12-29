@@ -2,6 +2,7 @@ services:
   app:
     build:
       dockerfile: Dockerfile
+    image: ghcr.io/keneanung/crowdmap-crowdsource-service:latest
     ports:
       - 3000:3000
     environment:
