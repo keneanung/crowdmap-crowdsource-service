@@ -17,7 +17,7 @@ jobs:
     - uses: docker/setup-buildx-action@v3.0.0
     - uses: docker/build-push-action@v5.1.0
       with:
-        push: ${{GITHUB_EVENT_NAME == "push" }}
+        push: ${{ github.event_name == 'push' }}
         tags: crowdmap-crowdsource-service:latest,crowdmap-crowdsource-service:$(date +%s)
         target: prod
         
