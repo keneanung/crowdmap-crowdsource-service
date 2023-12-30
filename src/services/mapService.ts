@@ -1,6 +1,6 @@
 import { inject } from "inversify";
 import { MudletMapReader } from "mudlet-map-binary-reader";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config } from "../config/values";
@@ -31,5 +31,13 @@ export class MapService {
       MudletMapReader.exportJson(map, file, true);
     }
     return file;
+  }
+
+  public async getVersion(timesSeen: number): Promise<string> {
+    const changes = await this.changeService.getChanges(timesSeen);
+    const baseVersion = await readFile(config.versionFile, "utf-8");
+    return `${baseVersion.trim()}.${changes[changes.length - 1].changeId}.${
+      changes.length
+    }`;
   }
 }
