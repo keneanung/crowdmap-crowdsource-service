@@ -1,4 +1,8 @@
 export type ChangeType = "room-name" | "add-exit";
+
+/**
+ * An exit direction.
+ */
 export type Direction =
   | "north"
   | "south"

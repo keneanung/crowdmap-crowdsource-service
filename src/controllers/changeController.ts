@@ -8,6 +8,7 @@ import {
   Response,
   Route,
   SuccessResponse,
+  Tags,
 } from "tsoa";
 import { provideSingleton } from "../ioc/provideSingleton";
 import { ValidateErrorJSON } from "../models/api/error";
@@ -21,12 +22,18 @@ function assertUnreachable(x: Change): never {
 }
 
 @Route("change")
+@Tags("change")
 @provideSingleton(ChangeController)
 export class ChangeController extends Controller {
   constructor(@inject(ChangeService) private changeService: ChangeService) {
     super();
   }
 
+  /**
+   * Get all changes that are applied to the base map file. You can configure, how many different people must have vetted the changes by setting the `timesSeen` parameter.
+   * @param timesSeen How often a change has to be seen by different people to return the change.
+   * @returns All changes to the map that are considered vetted by the `timesSeen` amount.
+   */
   @Get("/")
   public async getChanges(@Query() timesSeen = 0): Promise<ChangeResponse[]> {
     const changes = await this.changeService.getChanges(timesSeen);
@@ -58,6 +65,10 @@ export class ChangeController extends Controller {
     });
   }
 
+  /**
+   * Adds/registers a change to the base map file.
+   * @param change The change that should be registered.
+   */
   @SuccessResponse("201", "Created")
   @Response<ValidateErrorJSON>(422, "Validation Failed")
   @Post("/")
