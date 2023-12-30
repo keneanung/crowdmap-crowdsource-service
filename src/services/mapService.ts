@@ -35,9 +35,9 @@ export class MapService {
 
   public async getVersion(timesSeen: number): Promise<string> {
     const changes = await this.changeService.getChanges(timesSeen);
+    const lastChangeId =
+      changes.length > 0 ? changes[changes.length - 1].changeId : 0;
     const baseVersion = await readFile(config.versionFile, "utf-8");
-    return `${baseVersion.trim()}.${changes[changes.length - 1].changeId}.${
-      changes.length
-    }`;
+    return `${baseVersion.trim()}.${lastChangeId}.${changes.length}`;
   }
 }
