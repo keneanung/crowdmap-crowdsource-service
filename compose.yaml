@@ -6,7 +6,17 @@ services:
     ports:
       - 3000:3000
     environment:
+      # The URL where to download the current map file as baseline from
       - MAP_DOWNLOAD_URL=https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/map
+      # The URL where to download the version file of the baseline map from.
       - VERSION_DOWNLOAD_URL=https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/version.txt
+      # The port the node service is listening on. If you change this value, be sure to modify the port mapping above as well.
+      - PORT=3000
+      # The file path where the map file is saved within the container. You should not need to set this.
+      - MAP_FILE=/opt/serve/map
+      # The file path where the version file is saved within the container. You should not need to set this.
+      - VERSION_FILE=/opt/serve/version
+      # The MongoDB connection string. This is read from a .env file. Make sure to set restrictive permissions on that file.
       - MONGO_CONNECTION_STRING=${MONGO_CONNECTION_STRING}
+      # The MongoDB database to use. This is read from a .env file. Make sure to set restrictive permissions on that file.
       - MONGO_DB_NAME=${MONGO_DB_NAME}
