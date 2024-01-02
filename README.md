@@ -51,7 +51,7 @@ $ touch .env
 # the .env file needs to contain the mongo DB connection string from the step before and the mongo database name
 $ curl -o compose.yaml https://raw.githubusercontent.com/keneanung/crowdmap-crowdsource-service/main/compose.yaml
 # modify the variables inside the compose to your needs
-$ docker compose -d up
+$ docker compose up -d
 ```
 
 ## Contributing
