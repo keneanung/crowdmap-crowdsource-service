@@ -5,6 +5,8 @@ services:
     image: ghcr.io/keneanung/crowdmap-crowdsource-service:latest
     ports:
       - 3000:3000
+    # change this if you want to keep your version stable. This will pull a new service image on every start.
+    pull_policy: always
     environment:
       # The URL where to download the current map file as baseline from
       - MAP_DOWNLOAD_URL=https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/map
