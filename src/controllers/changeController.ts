@@ -14,7 +14,14 @@ import { provideSingleton } from "../ioc/provideSingleton";
 import { ValidateErrorJSON } from "../models/api/error";
 import { ChangeResponse } from "../models/api/response";
 import { ChangeSubmission } from "../models/api/submission";
-import { AddRoomExit, Change, ChangeRoomName, ModifySpecialExit } from "../models/business/change";
+import {
+  AddRoomExit,
+  Change,
+  ChangeRoomName,
+  LockSpecialExit,
+  ModifySpecialExit,
+  UnlockSpecialExit,
+} from "../models/business/change";
 import { ChangeService } from "../services/changeService";
 
 function assertUnreachable(x: Change): never {
@@ -68,6 +75,26 @@ export class ChangeController extends Controller {
             destination: typedChange.destination,
           };
         }
+        case "lock-special-exit": {
+          const typedChange = change as LockSpecialExit;
+          return {
+            type: "lock-special-exit",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            exitCommand: typedChange.exitCommand,
+            destination: typedChange.destination,
+          };
+        }
+        case "unlock-special-exit": {
+          const typedChange = change as UnlockSpecialExit;
+          return {
+            type: "unlock-special-exit",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            exitCommand: typedChange.exitCommand,
+            destination: typedChange.destination,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -103,6 +130,22 @@ export class ChangeController extends Controller {
         }
         case "modify-special-exit": {
           return new ModifySpecialExit(
+            change.roomNumber,
+            [change.reporter],
+            change.exitCommand,
+            change.destination,
+          );
+        }
+        case "lock-special-exit": {
+          return new LockSpecialExit(
+            change.roomNumber,
+            [change.reporter],
+            change.exitCommand,
+            change.destination,
+          );
+        }
+        case "unlock-special-exit": {
+          return new UnlockSpecialExit(
             change.roomNumber,
             [change.reporter],
             change.exitCommand,

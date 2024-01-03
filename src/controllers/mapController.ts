@@ -37,7 +37,10 @@ export class MapController extends Controller {
       `application/${format === "binary" ? "octet-stream" : "json"}}`,
     );
     this.setHeader("Content-Disposition", "attachment; filename=map");
-    this.setHeader("X-Map-Version", await this.mapService.getVersion(timesSeen))
+    this.setHeader(
+      "X-Map-Version",
+      await this.mapService.getVersion(timesSeen),
+    );
 
     const s = fs.createReadStream(file);
     s.on("close", () => {

@@ -41,8 +41,11 @@ export interface AddRoomExitSubmission extends ChangeBaseSubmission {
   destination: number;
 }
 
+/**
+ * Submit a change to a special exit. This may create new special exits or modify (overwrite) existing ones.
+ */
 export interface ModifySpecialExitSubmission extends ChangeBaseSubmission {
-  type: "modify-special-exit"
+  type: "modify-special-exit";
   /**
    * The command to trigger the special exit.
    */
@@ -50,7 +53,42 @@ export interface ModifySpecialExitSubmission extends ChangeBaseSubmission {
   /**
    * The destination room of the special exit.
    */
-  destination: number
+  destination: number;
 }
 
-export type ChangeSubmission = ChangeRoomNameSubmission | AddRoomExitSubmission | ModifySpecialExitSubmission;
+/**
+ * Submit a lock to a special exit to avoid a mapper taking it for autowalk.
+ */
+export interface LockSpecialExitSubmission extends ChangeBaseSubmission {
+  type: "lock-special-exit";
+  /**
+   * The command to trigger the special exit.
+   */
+  exitCommand: string;
+  /**
+   * The destination room of the special exit.
+   */
+  destination: number;
+}
+
+/**
+ * Submit a unlock to a special exit to allow a mapper taking it for autowalk.
+ */
+export interface UnlockSpecialExitSubmission extends ChangeBaseSubmission {
+  type: "unlock-special-exit";
+  /**
+   * The command to trigger the special exit.
+   */
+  exitCommand: string;
+  /**
+   * The destination room of the special exit.
+   */
+  destination: number;
+}
+
+export type ChangeSubmission =
+  | ChangeRoomNameSubmission
+  | AddRoomExitSubmission
+  | ModifySpecialExitSubmission
+  | LockSpecialExitSubmission
+  | UnlockSpecialExitSubmission;

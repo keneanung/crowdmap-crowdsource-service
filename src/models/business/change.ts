@@ -1,4 +1,9 @@
-export type ChangeType = "room-name" | "add-exit" | "modify-special-exit";
+export type ChangeType =
+  | "room-name"
+  | "add-exit"
+  | "modify-special-exit"
+  | "lock-special-exit"
+  | "unlock-special-exit";
 
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
@@ -106,7 +111,74 @@ export class ModifySpecialExit extends ChangeBase<ModifySpecialExit> {
   }
 }
 
-export type Change = ChangeRoomName | AddRoomExit | ModifySpecialExit;
+export class LockSpecialExit extends ChangeBase<LockSpecialExit> {
+  type: ChangeType = "lock-special-exit";
+  exitCommand: string;
+  destination: number;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    exitCommand: string,
+    destination: number,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.exitCommand = exitCommand;
+    this.destination = destination;
+  }
+
+  public apply(room: MudletRoom): void {
+    room.mSpecialExitLocks.push(this.destination);
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      exitCommand: this.exitCommand,
+      destination: this.destination,
+    };
+  }
+}
+
+export class UnlockSpecialExit extends ChangeBase<UnlockSpecialExit> {
+  type: ChangeType = "unlock-special-exit";
+  exitCommand: string;
+  destination: number;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    exitCommand: string,
+    destination: number,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.exitCommand = exitCommand;
+    this.destination = destination;
+  }
+
+  public apply(room: MudletRoom): void {
+    room.mSpecialExitLocks = room.mSpecialExitLocks.filter(
+      (roomNumber) => roomNumber !== this.destination,
+    );
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      exitCommand: this.exitCommand,
+      destination: this.destination,
+    };
+  }
+}
+
+export type Change =
+  | ChangeRoomName
+  | AddRoomExit
+  | ModifySpecialExit
+  | LockSpecialExit
+  | UnlockSpecialExit;
 
 export type Direction =
   | "north"
