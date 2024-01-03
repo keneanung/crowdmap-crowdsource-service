@@ -1,4 +1,4 @@
-export type ChangeType = "room-name" | "add-exit";
+export type ChangeType = "room-name" | "add-exit" | "modify-special-exit";
 
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
@@ -76,7 +76,37 @@ export class AddRoomExit extends ChangeBase<AddRoomExit> {
   }
 }
 
-export type Change = ChangeRoomName | AddRoomExit;
+export class ModifySpecialExit extends ChangeBase<ModifySpecialExit> {
+  type: ChangeType = "modify-special-exit";
+  exitCommand: string;
+  destination: number;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    exitCommand: string,
+    destination: number,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.exitCommand = exitCommand;
+    this.destination = destination;
+  }
+
+  public apply(room: MudletRoom): void {
+    room.mSpecialExits[this.exitCommand] = this.destination;
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      exitCommand: this.exitCommand,
+      destination: this.destination,
+    };
+  }
+}
+
+export type Change = ChangeRoomName | AddRoomExit | ModifySpecialExit;
 
 export type Direction =
   | "north"

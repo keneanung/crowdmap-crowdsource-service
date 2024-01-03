@@ -17,4 +17,10 @@ export interface AddRoomExitResponse extends ChangeBaseResponse {
   destination: number;
 }
 
-export type ChangeResponse = ChangeRoomNameResponse | AddRoomExitResponse;
+export interface ModifySpecialExitResponse extends ChangeBaseResponse {
+  type: "modify-special-exit"
+  exitCommand: string;
+  destination: number
+}
+
+export type ChangeResponse = ChangeRoomNameResponse | AddRoomExitResponse | ModifySpecialExitResponse;

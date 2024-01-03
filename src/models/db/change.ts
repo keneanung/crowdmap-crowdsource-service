@@ -5,6 +5,7 @@ import {
   ChangeRoomName as ChangeRoomNameBusiness,
   ChangeType,
   Direction,
+  ModifySpecialExit as ModifySpecialExitBusiness,
 } from "../business/change";
 
 export interface ChangeBase {
@@ -27,7 +28,13 @@ export interface AddRoomExit extends ChangeBase {
   destination: number;
 }
 
-export type Change = ChangeRoomName | AddRoomExit;
+export interface ModifySpecialExit extends ChangeBase {
+  type: "modify-special-exit";
+  exitCommand: string;
+  destination: number;
+}
+
+export type Change = ChangeRoomName | AddRoomExit | ModifySpecialExit;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -79,6 +86,29 @@ export const addExitDbToBusiness = (
   );
 };
 
+export const modifySpecialExitDbToBusiness = (change: ModifySpecialExit): ChangeBusiness =>{
+  return new ModifySpecialExitBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.exitCommand,
+    change.destination,
+    change.changeId,
+  );
+}
+
+export const modifySpecialExitBusinessToDb = (change: ModifySpecialExitBusiness): ModifySpecialExit =>{
+  return {
+    type: "modify-special-exit",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    exitCommand: change.exitCommand,
+    destination: change.destination,
+    changeId: change.changeId,
+  };
+}
+
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -86,6 +116,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     }
     case "add-exit": {
       return addExitBusinessToDb(change as AddRoomExitBusiness);
+    }
+    case "modify-special-exit": {
+      return modifySpecialExitBusinessToDb(change as ModifySpecialExitBusiness);
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -101,6 +134,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "add-exit": {
       return addExitDbToBusiness(change);
+    }
+    case "modify-special-exit": {
+      return modifySpecialExitDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

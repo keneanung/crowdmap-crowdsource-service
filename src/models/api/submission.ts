@@ -41,4 +41,16 @@ export interface AddRoomExitSubmission extends ChangeBaseSubmission {
   destination: number;
 }
 
-export type ChangeSubmission = ChangeRoomNameSubmission | AddRoomExitSubmission;
+export interface ModifySpecialExitSubmission extends ChangeBaseSubmission {
+  type: "modify-special-exit"
+  /**
+   * The command to trigger the special exit.
+   */
+  exitCommand: string;
+  /**
+   * The destination room of the special exit.
+   */
+  destination: number
+}
+
+export type ChangeSubmission = ChangeRoomNameSubmission | AddRoomExitSubmission | ModifySpecialExitSubmission;

@@ -1,4 +1,4 @@
-export type ChangeType = "room-name" | "add-exit";
+export type ChangeType = "room-name" | "add-exit" | "modify-special-exit";
 
 /**
  * An exit direction.
