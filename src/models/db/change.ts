@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import {
-  AddRoomExit as AddRoomExitBusiness,
+  ModifyRoomExit as ModifyRoomExitBusiness,
   Change as ChangeBusiness,
   ChangeRoomName as ChangeRoomNameBusiness,
   ChangeType,
@@ -25,8 +25,8 @@ export interface ChangeRoomName extends ChangeBase {
   name: string;
 }
 
-export interface AddRoomExit extends ChangeBase {
-  type: "add-exit";
+export interface ModifyRoomExit extends ChangeBase {
+  type: "modify-exit";
   direction: Direction;
   destination: number;
 }
@@ -56,7 +56,7 @@ export interface DeleteSpecialExit extends ChangeBase {
 
 export type Change =
   | ChangeRoomName
-  | AddRoomExit
+  | ModifyRoomExit
   | ModifySpecialExit
   | LockSpecialExit
   | UnlockSpecialExit
@@ -86,11 +86,11 @@ export const roomNameDbToBusiness = (
   );
 };
 
-export const addExitBusinessToDb = (
-  change: AddRoomExitBusiness,
-): AddRoomExit => {
+export const modifyExitBusinessToDb = (
+  change: ModifyRoomExitBusiness,
+): ModifyRoomExit => {
   return {
-    type: "add-exit",
+    type: "modify-exit",
     roomNumber: change.roomNumber,
     reporters: Array.from(change.reporters),
     numberOfReporters: change.reporters.size,
@@ -100,10 +100,10 @@ export const addExitBusinessToDb = (
   };
 };
 
-export const addExitDbToBusiness = (
-  change: AddRoomExit,
-): AddRoomExitBusiness => {
-  return new AddRoomExitBusiness(
+export const modifyExitDbToBusiness = (
+  change: ModifyRoomExit,
+): ModifyRoomExitBusiness => {
+  return new ModifyRoomExitBusiness(
     change.roomNumber,
     change.reporters,
     change.direction,
@@ -219,8 +219,8 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     case "room-name": {
       return roomNameBusinessToDb(change as ChangeRoomNameBusiness);
     }
-    case "add-exit": {
-      return addExitBusinessToDb(change as AddRoomExitBusiness);
+    case "modify-exit": {
+      return modifyExitBusinessToDb(change as ModifyRoomExitBusiness);
     }
     case "modify-special-exit": {
       return modifySpecialExitBusinessToDb(change as ModifySpecialExitBusiness);
@@ -246,8 +246,8 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     case "room-name": {
       return roomNameDbToBusiness(change);
     }
-    case "add-exit": {
-      return addExitDbToBusiness(change);
+    case "modify-exit": {
+      return modifyExitDbToBusiness(change);
     }
     case "modify-special-exit": {
       return modifySpecialExitDbToBusiness(change);

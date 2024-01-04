@@ -11,8 +11,8 @@ export interface ChangeRoomNameResponse extends ChangeBaseResponse {
   name: string;
 }
 
-export interface AddRoomExitResponse extends ChangeBaseResponse {
-  type: "add-exit";
+export interface ModifyRoomExitResponse extends ChangeBaseResponse {
+  type: "modify-exit";
   direction: Direction;
   destination: number;
 }
@@ -42,7 +42,7 @@ export interface DeleteSpecialExitResponse extends ChangeBaseResponse {
 
 export type ChangeResponse =
   | ChangeRoomNameResponse
-  | AddRoomExitResponse
+  | ModifyRoomExitResponse
   | ModifySpecialExitResponse
   | LockSpecialExitResponse
   | UnlockSpecialExitResponse

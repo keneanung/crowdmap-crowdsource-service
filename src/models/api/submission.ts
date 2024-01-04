@@ -29,8 +29,8 @@ export interface ChangeRoomNameSubmission extends ChangeBaseSubmission {
 /**
  * Submit a new exit for a room.
  */
-export interface AddRoomExitSubmission extends ChangeBaseSubmission {
-  type: "add-exit";
+export interface ModifyRoomExitSubmission extends ChangeBaseSubmission {
+  type: "modify-exit";
   /**
    * The direction to add the new exit.
    */
@@ -99,7 +99,7 @@ export interface DeleteSpecialExitSubmission extends ChangeBaseSubmission {
 
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
-  | AddRoomExitSubmission
+  | ModifyRoomExitSubmission
   | ModifySpecialExitSubmission
   | LockSpecialExitSubmission
   | UnlockSpecialExitSubmission

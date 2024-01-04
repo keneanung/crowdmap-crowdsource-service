@@ -1,6 +1,6 @@
 export type ChangeType =
   | "room-name"
-  | "add-exit"
+  | "modify-exit"
   | "modify-special-exit"
   | "lock-special-exit"
   | "unlock-special-exit"
@@ -52,8 +52,8 @@ export class ChangeRoomName extends ChangeBase<ChangeRoomName> {
   }
 }
 
-export class AddRoomExit extends ChangeBase<AddRoomExit> {
-  type: ChangeType = "add-exit";
+export class ModifyRoomExit extends ChangeBase<ModifyRoomExit> {
+  type: ChangeType = "modify-exit";
   direction: Direction;
   destination: number;
 
@@ -205,7 +205,7 @@ export class DeleteSpecialExit extends ChangeBase<DeleteSpecialExit> {
 
 export type Change =
   | ChangeRoomName
-  | AddRoomExit
+  | ModifyRoomExit
   | ModifySpecialExit
   | LockSpecialExit
   | UnlockSpecialExit

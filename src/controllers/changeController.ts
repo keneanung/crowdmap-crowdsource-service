@@ -15,7 +15,7 @@ import { ValidateErrorJSON } from "../models/api/error";
 import { ChangeResponse } from "../models/api/response";
 import { ChangeSubmission } from "../models/api/submission";
 import {
-  AddRoomExit,
+  ModifyRoomExit,
   Change,
   ChangeRoomName,
   DeleteSpecialExit,
@@ -56,10 +56,10 @@ export class ChangeController extends Controller {
             name: typedChange.name,
           };
         }
-        case "add-exit": {
-          const typedChange = change as AddRoomExit;
+        case "modify-exit": {
+          const typedChange = change as ModifyRoomExit;
           return {
-            type: "add-exit",
+            type: "modify-exit",
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
             direction: typedChange.direction,
@@ -130,8 +130,8 @@ export class ChangeController extends Controller {
             change.name,
           );
         }
-        case "add-exit": {
-          return new AddRoomExit(
+        case "modify-exit": {
+          return new ModifyRoomExit(
             change.roomNumber,
             [change.reporter],
             change.direction,
