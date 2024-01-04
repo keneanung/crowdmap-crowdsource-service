@@ -35,9 +35,15 @@ export interface UnlockSpecialExitResponse extends ChangeBaseResponse {
   destination: number;
 }
 
+export interface DeleteSpecialExitResponse extends ChangeBaseResponse {
+  type: "delete-special-exit";
+  exitCommand: string;
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | AddRoomExitResponse
   | ModifySpecialExitResponse
   | LockSpecialExitResponse
-  | UnlockSpecialExitResponse;
+  | UnlockSpecialExitResponse
+  | DeleteSpecialExitResponse;

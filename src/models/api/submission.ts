@@ -86,9 +86,21 @@ export interface UnlockSpecialExitSubmission extends ChangeBaseSubmission {
   destination: number;
 }
 
+/**
+ * Submit the deletion of a special exit.
+ */
+export interface DeleteSpecialExitSubmission extends ChangeBaseSubmission {
+  type: "delete-special-exit";
+  /**
+   * The command to trigger the special exit.
+   */
+  exitCommand: string;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | AddRoomExitSubmission
   | ModifySpecialExitSubmission
   | LockSpecialExitSubmission
-  | UnlockSpecialExitSubmission;
+  | UnlockSpecialExitSubmission
+  | DeleteSpecialExitSubmission;

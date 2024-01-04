@@ -4,6 +4,7 @@ import {
   Change as ChangeBusiness,
   ChangeRoomName as ChangeRoomNameBusiness,
   ChangeType,
+  DeleteSpecialExit as DeleteSpecialExitBusiness,
   Direction,
   LockSpecialExit as LockSpecialExitBusiness,
   ModifySpecialExit as ModifySpecialExitBusiness,
@@ -48,12 +49,18 @@ export interface UnlockSpecialExit extends ChangeBase {
   destination: number;
 }
 
+export interface DeleteSpecialExit extends ChangeBase {
+  type: "delete-special-exit";
+  exitCommand: string;
+}
+
 export type Change =
   | ChangeRoomName
   | AddRoomExit
   | ModifySpecialExit
   | LockSpecialExit
-  | UnlockSpecialExit;
+  | UnlockSpecialExit
+  | DeleteSpecialExit;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -183,6 +190,30 @@ export const unlockSpecialExitBusinessToDb = (
   };
 };
 
+export const deleteSpecialExitDbToBusiness = (
+  change: DeleteSpecialExit,
+): ChangeBusiness => {
+  return new DeleteSpecialExitBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.exitCommand,
+    change.changeId,
+  );
+};
+
+export const deleteSpecialExitBusinessToDb = (
+  change: DeleteSpecialExitBusiness,
+): DeleteSpecialExit => {
+  return {
+    type: "delete-special-exit",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    exitCommand: change.exitCommand,
+    changeId: change.changeId,
+  };
+};
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -199,6 +230,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     }
     case "unlock-special-exit": {
       return unlockSpecialExitBusinessToDb(change as UnlockSpecialExitBusiness);
+    }
+    case "delete-special-exit": {
+      return deleteSpecialExitBusinessToDb(change as DeleteSpecialExitBusiness);
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -223,6 +257,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "unlock-special-exit": {
       return unlockSpecialExitDbToBusiness(change);
+    }
+    case "delete-special-exit": {
+      return deleteSpecialExitDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

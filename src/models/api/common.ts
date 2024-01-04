@@ -3,7 +3,8 @@ export type ChangeType =
   | "add-exit"
   | "modify-special-exit"
   | "lock-special-exit"
-  | "unlock-special-exit";
+  | "unlock-special-exit"
+  | "delete-special-exit";
 
 /**
  * An exit direction.

@@ -3,7 +3,8 @@ export type ChangeType =
   | "add-exit"
   | "modify-special-exit"
   | "lock-special-exit"
-  | "unlock-special-exit";
+  | "unlock-special-exit"
+  | "delete-special-exit";
 
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
@@ -173,12 +174,42 @@ export class UnlockSpecialExit extends ChangeBase<UnlockSpecialExit> {
   }
 }
 
+export class DeleteSpecialExit extends ChangeBase<DeleteSpecialExit> {
+  type: ChangeType = "delete-special-exit";
+  exitCommand: string;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    exitCommand: string,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.exitCommand = exitCommand;
+  }
+
+  public apply(room: MudletRoom): void {
+    if (Object.hasOwn(room.mSpecialExits, this.exitCommand)) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete room.mSpecialExits[this.exitCommand];
+    }
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      exitCommand: this.exitCommand,
+    };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | AddRoomExit
   | ModifySpecialExit
   | LockSpecialExit
-  | UnlockSpecialExit;
+  | UnlockSpecialExit
+  | DeleteSpecialExit;
 
 export type Direction =
   | "north"

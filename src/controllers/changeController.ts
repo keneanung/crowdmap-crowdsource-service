@@ -18,6 +18,7 @@ import {
   AddRoomExit,
   Change,
   ChangeRoomName,
+  DeleteSpecialExit,
   LockSpecialExit,
   ModifySpecialExit,
   UnlockSpecialExit,
@@ -95,6 +96,15 @@ export class ChangeController extends Controller {
             destination: typedChange.destination,
           };
         }
+        case "delete-special-exit": {
+          const typedChange = change as DeleteSpecialExit;
+          return {
+            type: "delete-special-exit",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            exitCommand: typedChange.exitCommand,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -150,6 +160,13 @@ export class ChangeController extends Controller {
             [change.reporter],
             change.exitCommand,
             change.destination,
+          );
+        }
+        case "delete-special-exit": {
+          return new DeleteSpecialExit(
+            change.roomNumber,
+            [change.reporter],
+            change.exitCommand,
           );
         }
         default: {
