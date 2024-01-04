@@ -1,12 +1,13 @@
 import { ObjectId } from "mongodb";
 import {
-  ModifyRoomExit as ModifyRoomExitBusiness,
   Change as ChangeBusiness,
   ChangeRoomName as ChangeRoomNameBusiness,
   ChangeType,
+  CreateRoom as CreateRoomBusiness,
   DeleteSpecialExit as DeleteSpecialExitBusiness,
   Direction,
   LockSpecialExit as LockSpecialExitBusiness,
+  ModifyRoomExit as ModifyRoomExitBusiness,
   ModifySpecialExit as ModifySpecialExitBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
 } from "../business/change";
@@ -54,13 +55,18 @@ export interface DeleteSpecialExit extends ChangeBase {
   exitCommand: string;
 }
 
+export interface CreateRoom extends ChangeBase {
+  type: "create-room";
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
   | ModifySpecialExit
   | LockSpecialExit
   | UnlockSpecialExit
-  | DeleteSpecialExit;
+  | DeleteSpecialExit
+  | CreateRoom;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -214,6 +220,26 @@ export const deleteSpecialExitBusinessToDb = (
   };
 };
 
+export const crreateRoomDbToBusiness = (change: CreateRoom): ChangeBusiness => {
+  return new CreateRoomBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.changeId,
+  );
+};
+
+export const createRoomBusinessToDb = (
+  change: CreateRoomBusiness,
+): CreateRoom => {
+  return {
+    type: "create-room",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    changeId: change.changeId,
+  };
+};
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -233,6 +259,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     }
     case "delete-special-exit": {
       return deleteSpecialExitBusinessToDb(change as DeleteSpecialExitBusiness);
+    }
+    case "create-room": {
+      return createRoomBusinessToDb(change as CreateRoomBusiness);
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -260,6 +289,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "delete-special-exit": {
       return deleteSpecialExitDbToBusiness(change);
+    }
+    case "create-room": {
+      return crreateRoomDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

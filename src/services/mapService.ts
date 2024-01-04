@@ -22,7 +22,7 @@ export class MapService {
     const changes = await this.changeService.getChanges(timesSeen);
     const map: Mudlet.MudletMap = MudletMapReader.read(config.mapFile);
     changes.forEach((change) => {
-      change.apply(map.rooms[change.roomNumber]);
+      change.apply(map);
     });
     const file = await this.getTempMapFileName();
     if (format === "binary") {

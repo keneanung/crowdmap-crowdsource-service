@@ -40,10 +40,15 @@ export interface DeleteSpecialExitResponse extends ChangeBaseResponse {
   exitCommand: string;
 }
 
+export interface CreateRoomResponse extends ChangeBaseResponse {
+  type: "create-room";
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse
   | ModifySpecialExitResponse
   | LockSpecialExitResponse
   | UnlockSpecialExitResponse
-  | DeleteSpecialExitResponse;
+  | DeleteSpecialExitResponse
+  | CreateRoomResponse;

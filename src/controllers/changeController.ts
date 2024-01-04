@@ -15,11 +15,12 @@ import { ValidateErrorJSON } from "../models/api/error";
 import { ChangeResponse } from "../models/api/response";
 import { ChangeSubmission } from "../models/api/submission";
 import {
-  ModifyRoomExit,
   Change,
   ChangeRoomName,
+  CreateRoom,
   DeleteSpecialExit,
   LockSpecialExit,
+  ModifyRoomExit,
   ModifySpecialExit,
   UnlockSpecialExit,
 } from "../models/business/change";
@@ -105,6 +106,14 @@ export class ChangeController extends Controller {
             exitCommand: typedChange.exitCommand,
           };
         }
+        case "create-room": {
+          const typedChange = change as CreateRoom;
+          return {
+            type: "create-room",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -168,6 +177,9 @@ export class ChangeController extends Controller {
             [change.reporter],
             change.exitCommand,
           );
+        }
+        case "create-room": {
+          return new CreateRoom(change.roomNumber, [change.reporter]);
         }
         default: {
           return assertUnreachable(change);

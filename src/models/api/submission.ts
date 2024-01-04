@@ -97,10 +97,18 @@ export interface DeleteSpecialExitSubmission extends ChangeBaseSubmission {
   exitCommand: string;
 }
 
+/**
+ * Submit the creation of a new room.
+ */
+export interface CreateRoomSubmission extends ChangeBaseSubmission {
+  type: "create-room";
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
   | ModifySpecialExitSubmission
   | LockSpecialExitSubmission
   | UnlockSpecialExitSubmission
-  | DeleteSpecialExitSubmission;
+  | DeleteSpecialExitSubmission
+  | CreateRoomSubmission;
