@@ -44,6 +44,13 @@ export interface CreateRoomResponse extends ChangeBaseResponse {
   type: "create-room";
 }
 
+export interface SetRoomCoordinatesResponse extends ChangeBaseResponse {
+  type: "set-room-coordinates";
+  x: number;
+  y: number;
+  z: number;
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse
@@ -51,4 +58,5 @@ export type ChangeResponse =
   | LockSpecialExitResponse
   | UnlockSpecialExitResponse
   | DeleteSpecialExitResponse
-  | CreateRoomResponse;
+  | CreateRoomResponse
+  | SetRoomCoordinatesResponse;

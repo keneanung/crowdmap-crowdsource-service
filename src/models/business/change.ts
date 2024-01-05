@@ -5,7 +5,8 @@ export type ChangeType =
   | "lock-special-exit"
   | "unlock-special-exit"
   | "delete-special-exit"
-  | "create-room";
+  | "create-room"
+  | "set-room-coordinates";
 
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
@@ -293,6 +294,48 @@ export class CreateRoom extends ChangeBase<CreateRoom> {
   }
 }
 
+export class SetRoomCoordinates extends ChangeBase<SetRoomCoordinates> {
+  type: ChangeType = "set-room-coordinates";
+  x: number;
+  y: number;
+  z: number;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    x: number,
+    y: number,
+    z: number,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!room) {
+      // if the room does not exist for some reason, make this a no-op
+      return;
+    }
+    room.x = this.x;
+    room.y = this.y;
+    room.z = this.z;
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      x: this.x,
+      y: this.y,
+      z: this.z,
+    };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -300,7 +343,8 @@ export type Change =
   | LockSpecialExit
   | UnlockSpecialExit
   | DeleteSpecialExit
-  | CreateRoom;
+  | CreateRoom
+  | SetRoomCoordinates;
 
 export type Direction =
   | "north"

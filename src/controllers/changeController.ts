@@ -22,6 +22,7 @@ import {
   LockSpecialExit,
   ModifyRoomExit,
   ModifySpecialExit,
+  SetRoomCoordinates,
   UnlockSpecialExit,
 } from "../models/business/change";
 import { ChangeService } from "../services/changeService";
@@ -114,6 +115,17 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
           };
         }
+        case "set-room-coordinates": {
+          const typedChange = change as SetRoomCoordinates;
+          return {
+            type: "set-room-coordinates",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            x: typedChange.x,
+            y: typedChange.y,
+            z: typedChange.z,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -180,6 +192,15 @@ export class ChangeController extends Controller {
         }
         case "create-room": {
           return new CreateRoom(change.roomNumber, [change.reporter]);
+        }
+        case "set-room-coordinates": {
+          return new SetRoomCoordinates(
+            change.roomNumber,
+            [change.reporter],
+            change.x,
+            change.y,
+            change.z,
+          );
         }
         default: {
           return assertUnreachable(change);

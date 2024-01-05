@@ -9,6 +9,7 @@ import {
   LockSpecialExit as LockSpecialExitBusiness,
   ModifyRoomExit as ModifyRoomExitBusiness,
   ModifySpecialExit as ModifySpecialExitBusiness,
+  SetRoomCoordinates as SetRoomCoordinatesBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
 } from "../business/change";
 
@@ -59,6 +60,13 @@ export interface CreateRoom extends ChangeBase {
   type: "create-room";
 }
 
+export interface SetRoomCoordinates extends ChangeBase {
+  type: "set-room-coordinates";
+  x: number;
+  y: number;
+  z: number;
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -66,7 +74,8 @@ export type Change =
   | LockSpecialExit
   | UnlockSpecialExit
   | DeleteSpecialExit
-  | CreateRoom;
+  | CreateRoom
+  | SetRoomCoordinates;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -240,6 +249,34 @@ export const createRoomBusinessToDb = (
   };
 };
 
+export const setRoomCoordinatesDbToBusiness = (
+  change: SetRoomCoordinates,
+): ChangeBusiness => {
+  return new SetRoomCoordinatesBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.x,
+    change.y,
+    change.z,
+    change.changeId,
+  );
+}
+
+export const setRoomCoordinatesBusinessToDb = (
+  change: SetRoomCoordinatesBusiness,
+): SetRoomCoordinates => {
+  return {
+    type: "set-room-coordinates",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    x: change.x,
+    y: change.y,
+    z: change.z,
+    changeId: change.changeId,
+  };
+}
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -262,6 +299,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     }
     case "create-room": {
       return createRoomBusinessToDb(change as CreateRoomBusiness);
+    }
+    case "set-room-coordinates": {
+      return setRoomCoordinatesBusinessToDb(change as SetRoomCoordinatesBusiness);
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -292,6 +332,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "create-room": {
       return crreateRoomDbToBusiness(change);
+    }
+    case "set-room-coordinates": {
+      return setRoomCoordinatesDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

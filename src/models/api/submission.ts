@@ -104,6 +104,25 @@ export interface CreateRoomSubmission extends ChangeBaseSubmission {
   type: "create-room";
 }
 
+/**
+ * Submit a change of coordinates of a room.
+ */
+export interface SetRoomCoordinatesSubmission extends ChangeBaseSubmission {
+  type: "set-room-coordinates";
+  /**
+   * The X coordinate of the room.
+   */
+  x: number;
+  /**
+   * The Y coordinate of the room.
+   */
+  y: number;
+  /**
+   * The Z coordinate of the room.
+   */
+  z: number;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -111,4 +130,5 @@ export type ChangeSubmission =
   | LockSpecialExitSubmission
   | UnlockSpecialExitSubmission
   | DeleteSpecialExitSubmission
-  | CreateRoomSubmission;
+  | CreateRoomSubmission
+  | SetRoomCoordinatesSubmission;
