@@ -260,7 +260,7 @@ export const setRoomCoordinatesDbToBusiness = (
     change.z,
     change.changeId,
   );
-}
+};
 
 export const setRoomCoordinatesBusinessToDb = (
   change: SetRoomCoordinatesBusiness,
@@ -275,7 +275,7 @@ export const setRoomCoordinatesBusinessToDb = (
     z: change.z,
     changeId: change.changeId,
   };
-}
+};
 
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
@@ -301,7 +301,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
       return createRoomBusinessToDb(change as CreateRoomBusiness);
     }
     case "set-room-coordinates": {
-      return setRoomCoordinatesBusinessToDb(change as SetRoomCoordinatesBusiness);
+      return setRoomCoordinatesBusinessToDb(
+        change as SetRoomCoordinatesBusiness,
+      );
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions

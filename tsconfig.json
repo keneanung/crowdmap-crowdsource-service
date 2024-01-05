@@ -34,6 +34,7 @@
 
     /* Advanced Options */
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "emitDecoratorMetadata": true,
   }
 }

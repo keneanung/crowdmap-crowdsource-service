@@ -13,4 +13,7 @@ module.exports = {
     tsconfigRootDir: __dirname,
   },
   ignorePatterns: ['node_modules', 'build', 'generated', '.eslintrc.js'],
+  rules: {
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+  },
 };

@@ -15,7 +15,8 @@
 				"esbenp.prettier-vscode",
 				"ms-azuretools.vscode-docker",
 				"github.vscode-github-actions",
-				"GitHub.copilot"
+				"GitHub.copilot",
+				"Orta.vscode-jest"
 			]
 		}
 	}

@@ -8,8 +8,13 @@ import {
   changeDbToBusiness,
 } from "../models/db/change";
 
+export abstract class ChangeService {
+  abstract addChange(change: Change): Promise<void>;
+  abstract getChanges(timesSeen: number): Promise<Change[]>;
+}
+
 @provideSingleton(ChangeService)
-export class ChangeService {
+export class MongoChangeService implements ChangeService {
   private mongo: MongoClient;
   private connected = false;
 
@@ -34,7 +39,7 @@ export class ChangeService {
     return collection;
   }
 
-  async addChange(change: Change) {
+  public async addChange(change: Change) {
     const collection = await this.getCollection();
     const existingChange = await collection.findOne(
       change.getIdentifyingParts(),
@@ -59,7 +64,7 @@ export class ChangeService {
     }
   }
 
-  async getChanges(timesSeen: number) {
+  public async getChanges(timesSeen: number) {
     const collection = await this.getCollection();
     const changes = await collection
       .find({
