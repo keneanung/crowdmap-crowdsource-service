@@ -34,7 +34,7 @@ export class MapController extends Controller {
 
     this.setHeader(
       "Content-Type",
-      `application/${format === "binary" ? "octet-stream" : "json"}}`,
+      `application/${format === "binary" ? "octet-stream" : "json"}`,
     );
     this.setHeader("Content-Disposition", "attachment; filename=map");
     this.setHeader(
