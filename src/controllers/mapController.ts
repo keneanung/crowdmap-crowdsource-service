@@ -3,12 +3,12 @@ import { inject } from "inversify";
 import { dirname } from "path";
 import { Readable } from "stream";
 import { Controller, Get, Produces, Query, Route, Tags } from "tsoa";
-import { provideSingleton } from "../ioc/provideSingleton";
 import { MapService } from "../services/mapService";
+import { provide } from "inversify-binding-decorators";
 
 @Route("map")
 @Tags("map")
-@provideSingleton(MapController)
+@provide(MapController)
 export class MapController extends Controller {
   constructor(@inject(MapService) private mapService: MapService) {
     super();

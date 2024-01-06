@@ -10,7 +10,6 @@ import {
   SuccessResponse,
   Tags,
 } from "tsoa";
-import { provideSingleton } from "../ioc/provideSingleton";
 import { ValidateErrorJSON } from "../models/api/error";
 import { ChangeResponse } from "../models/api/response";
 import { ChangeSubmission } from "../models/api/submission";
@@ -26,6 +25,7 @@ import {
   UnlockSpecialExit,
 } from "../models/business/change";
 import { ChangeService } from "../services/changeService";
+import { provide } from "inversify-binding-decorators";
 
 function assertUnreachable(x: Change): never {
   throw new Error(`Didn't expect to get here ${x.type}`);
@@ -33,7 +33,7 @@ function assertUnreachable(x: Change): never {
 
 @Route("change")
 @Tags("change")
-@provideSingleton(ChangeController)
+@provide(ChangeController)
 export class ChangeController extends Controller {
   constructor(@inject(ChangeService) private changeService: ChangeService) {
     super();

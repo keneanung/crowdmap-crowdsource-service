@@ -5,6 +5,5 @@ import { MockChangeService } from "./mocks/mockChangeService";
 export const setupChangeServiceMock = (): void => {
   iocContainer
     .rebind<ChangeService>(ChangeService)
-    .to(MockChangeService)
-    .inSingletonScope();
+    .toConstantValue(new MockChangeService());
 };
