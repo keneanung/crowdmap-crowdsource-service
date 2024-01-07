@@ -1,4 +1,8 @@
 {
     "javascript.preferences.importModuleSpecifier": "relative",
-    "typescript.preferences.importModuleSpecifier": "relative"
+    "typescript.preferences.importModuleSpecifier": "relative",
+    "coverage-gutters.coverageBaseDir": "coverage",
+    "coverage-gutters.coverageFileNames": [
+        "lcov.info"
+    ]
 }

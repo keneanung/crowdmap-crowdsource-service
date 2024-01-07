@@ -5,6 +5,7 @@
     "ms-azuretools.vscode-docker",
     "github.vscode-github-actions",
     "github.copilot",
-    "orta.vscode-jest"
+    "orta.vscode-jest",
+    "ryanluker.vscode-coverage-gutters"
   ]
 }
