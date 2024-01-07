@@ -51,3 +51,22 @@ test("the map endpoint returns the map version in the header", async () => {
     .expect(200)
     .expect("X-Map-Version", "466.0.0");
 });
+
+test("GET /docs returns the Swagger UI", async () => {
+  await request(app)
+    .get("/docs/")
+    .expect(200)
+    .expect("Content-Type", "text/html; charset=utf-8");
+});
+
+test("GET /unknown-path returns 404 Not Found", async () => {
+  await request(app)
+    .get("/unknown-path")
+    .expect(404)
+    .expect("Content-Type", "application/json; charset=utf-8")
+    .expect((res) => {
+      expect(res.body).toEqual({
+        message: "Not Found",
+      });
+    });
+});
