@@ -1,4 +1,5 @@
 import { inject } from "inversify";
+import { provide } from "inversify-binding-decorators";
 import {
   Body,
   Controller,
@@ -25,7 +26,6 @@ import {
   UnlockSpecialExit,
 } from "../models/business/change";
 import { ChangeService } from "../services/changeService";
-import { provide } from "inversify-binding-decorators";
 
 function assertUnreachable(x: Change): never {
   throw new Error(`Didn't expect to get here ${x.type}`);

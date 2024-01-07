@@ -21,33 +21,32 @@ test("Should accept and return exit changes", async () => {
       destination: 1337,
       reporter: "Test Reporter",
     })
-    .expect(201)
+    .expect(201);
 
   await request(app)
     .get("/change")
     .expect(200)
     .expect((res) => {
-      expect(res.body).toStrictEqual([{
-        type: "modify-exit",
-        roomNumber: 1,
-        direction: "north",
-        destination: 1337,
-        reporters: 1,
-      }]);
+      expect(res.body).toStrictEqual([
+        {
+          type: "modify-exit",
+          roomNumber: 1,
+          direction: "north",
+          destination: 1337,
+          reporters: 1,
+        },
+      ]);
     });
 });
 
 test("Should incorporate exit changes into the map", async () => {
-  await request(app)
-    .post("/change")
-    .send({
-      type: "modify-exit",
-      roomNumber: 1,
-      direction: "north",
-      destination: 1337,
-      reporter: "Test Reporter",
-    })
-    .expect(201)
+  await request(app).post("/change").send({
+    type: "modify-exit",
+    roomNumber: 1,
+    direction: "north",
+    destination: 1337,
+    reporter: "Test Reporter",
+  });
 
   await request(app)
     .get("/map?format=json&timesSeen=0")
@@ -60,4 +59,4 @@ test("Should incorporate exit changes into the map", async () => {
       const room: any = area.rooms[0];
       expect(room).toMatchSnapshot();
     });
-})
+});

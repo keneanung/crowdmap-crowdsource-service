@@ -11,11 +11,11 @@ beforeEach(() => {
   setupChangeServiceMock();
 });
 
-test("Should accept and return special exit changes", async () => {
+test("Should accept and return special exit unlocking", async () => {
   await request(app)
     .post("/change")
     .send({
-      type: "modify-special-exit",
+      type: "unlock-special-exit",
       roomNumber: 1,
       exitCommand: "worm warp",
       destination: 1337,
@@ -29,7 +29,7 @@ test("Should accept and return special exit changes", async () => {
     .expect((res) => {
       expect(res.body).toStrictEqual([
         {
-          type: "modify-special-exit",
+          type: "unlock-special-exit",
           roomNumber: 1,
           exitCommand: "worm warp",
           destination: 1337,
@@ -39,9 +39,23 @@ test("Should accept and return special exit changes", async () => {
     });
 });
 
-test("Should incorporate special exit changes into the map", async () => {
+test("Should incorporate special exit unlocking into the map", async () => {
   await request(app).post("/change").send({
     type: "modify-special-exit",
+    roomNumber: 1,
+    exitCommand: "worm warp",
+    destination: 1337,
+    reporter: "Test Reporter",
+  });
+  await request(app).post("/change").send({
+    type: "lock-special-exit",
+    roomNumber: 1,
+    exitCommand: "north",
+    destination: 1337,
+    reporter: "Test Reporter",
+  });
+  await request(app).post("/change").send({
+    type: "unlock-special-exit",
     roomNumber: 1,
     exitCommand: "north",
     destination: 1337,
@@ -51,7 +65,7 @@ test("Should incorporate special exit changes into the map", async () => {
   await request(app)
     .get("/map?format=json&timesSeen=0")
     .expect(200)
-    .expect("X-Map-Version", "466.1.1")
+    .expect("X-Map-Version", "466.3.3")
     .expect((res) => {
       const responseText = res.text;
       const map: any = JSON.parse(responseText);

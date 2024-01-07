@@ -20,31 +20,30 @@ test("Should accept and return room name changes", async () => {
       name: "New Room Name",
       reporter: "Test Reporter",
     })
-    .expect(201)
+    .expect(201);
 
   await request(app)
     .get("/change")
     .expect(200)
     .expect((res) => {
-      expect(res.body).toStrictEqual([{
-        type: "room-name",
-        roomNumber: 1,
-        name: "New Room Name",
-        reporters: 1,
-      }]);
+      expect(res.body).toStrictEqual([
+        {
+          type: "room-name",
+          roomNumber: 1,
+          name: "New Room Name",
+          reporters: 1,
+        },
+      ]);
     });
 });
 
 test("Should incorporate room name changes into the map", async () => {
-  await request(app)
-    .post("/change")
-    .send({
-      type: "room-name",
-      roomNumber: 1,
-      name: "New Room Name",
-      reporter: "Test Reporter",
-    })
-    .expect(201)
+  await request(app).post("/change").send({
+    type: "room-name",
+    roomNumber: 1,
+    name: "New Room Name",
+    reporter: "Test Reporter",
+  });
 
   await request(app)
     .get("/map?format=json&timesSeen=0")
@@ -57,4 +56,4 @@ test("Should incorporate room name changes into the map", async () => {
       const room: any = area.rooms[0];
       expect(room).toMatchSnapshot();
     });
-})
+});

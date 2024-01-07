@@ -21,42 +21,39 @@ test("Should accept and return special exit locking", async () => {
       destination: 1337,
       reporter: "Test Reporter",
     })
-    .expect(201)
+    .expect(201);
 
   await request(app)
     .get("/change")
     .expect(200)
     .expect((res) => {
-      expect(res.body).toStrictEqual([{
-        type: "lock-special-exit",
-        roomNumber: 1,
-        exitCommand: "worm warp",
-        destination: 1337,
-        reporters: 1,
-      }]);
+      expect(res.body).toStrictEqual([
+        {
+          type: "lock-special-exit",
+          roomNumber: 1,
+          exitCommand: "worm warp",
+          destination: 1337,
+          reporters: 1,
+        },
+      ]);
     });
 });
 
 test.skip("Should incorporate special exit locks into the map", async () => {
-  await request(app)
-  .post("/change")
-  .send({
+  await request(app).post("/change").send({
     type: "modify-special-exit",
     roomNumber: 1,
     exitCommand: "worm warp",
     destination: 1337,
     reporter: "Test Reporter",
-  })
-  await request(app)
-    .post("/change")
-    .send({
-      type: "lock-special-exit",
-      roomNumber: 1,
-      exitCommand: "north",
-      destination: 1337,
-      reporter: "Test Reporter",
-    })
-    .expect(201)
+  });
+  await request(app).post("/change").send({
+    type: "lock-special-exit",
+    roomNumber: 1,
+    exitCommand: "north",
+    destination: 1337,
+    reporter: "Test Reporter",
+  });
 
   await request(app)
     .get("/map?format=json&timesSeen=0")
@@ -69,4 +66,4 @@ test.skip("Should incorporate special exit locks into the map", async () => {
       const room: any = area.rooms[0];
       expect(room).toMatchSnapshot();
     });
-})
+});

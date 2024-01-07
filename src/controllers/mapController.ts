@@ -1,10 +1,10 @@
 import * as fs from "fs";
 import { inject } from "inversify";
+import { provide } from "inversify-binding-decorators";
 import { dirname } from "path";
 import { Readable } from "stream";
 import { Controller, Get, Produces, Query, Route, Tags } from "tsoa";
 import { MapService } from "../services/mapService";
-import { provide } from "inversify-binding-decorators";
 
 @Route("map")
 @Tags("map")
