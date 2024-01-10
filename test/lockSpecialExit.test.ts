@@ -39,7 +39,7 @@ test("Should accept and return special exit locking", async () => {
     });
 });
 
-test.skip("Should incorporate special exit locks into the map", async () => {
+test("Should incorporate special exit locks into the map", async () => {
   await request(app).post("/change").send({
     type: "modify-special-exit",
     roomNumber: 1,
