@@ -247,7 +247,7 @@ export class CreateRoom extends ChangeBase<CreateRoom> {
   public apply(map: Mudlet.MudletMap): void {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (map.rooms[this.roomNumber]) {
-      // if the room already exists, don't make this a no-op
+      // if the room already exists, make this a no-op
       return;
     }
     map.rooms[this.roomNumber] = {
