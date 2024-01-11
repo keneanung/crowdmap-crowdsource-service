@@ -8,6 +8,7 @@ export interface ChangeBaseResponse {
 export interface CreateAreaResponse extends ChangeBaseResponse {
   type: "create-area";
   name: string;
+  areaId: number;
 }
 
 export interface RoomChangeBaseResponse extends ChangeBaseResponse {

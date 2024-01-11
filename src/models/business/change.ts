@@ -58,24 +58,22 @@ export abstract class ChangeBase<T extends ChangeBase<T>> {
 export class CreateArea extends ChangeBase<CreateArea> {
   type: ChangeType = "create-area";
   name: string;
+  areaId: number;
 
-  constructor(name: string, reporters: string[], changeId?: number) {
+  constructor(name: string, areaId: number, reporters: string[], changeId?: number) {
     super(reporters, changeId);
     this.name = name;
+    this.areaId = areaId;
   }
 
   public apply(map: Mudlet.MudletMap): void {
     for (const area of Object.values(map.areaNames)) {
-      if (area === this.name) {
+      if (area === this.name || map.areaNames[this.areaId]) {
         // if the area already exists, make this a no-op
         return;
       }
     }
-    const maxAreaId = Math.max(
-      ...Object.keys(map.areas).map((x) => parseInt(x)),
-    );
-    const newAreaId = maxAreaId + 1;
-    map.areas[newAreaId] = {
+    map.areas[this.areaId] = {
       rooms: [],
       userData: {},
       zLevels: [],
@@ -96,13 +94,14 @@ export class CreateArea extends ChangeBase<CreateArea> {
       isZone: false,
       zoneAreaRef: 0,
     };
-    map.areaNames[newAreaId] = this.name;
+    map.areaNames[this.areaId] = this.name;
   }
 
   public getIdentifyingParts() {
     return {
       name: this.name,
       type: this.type,
+      areaId: this.areaId,
     };
   }
 }

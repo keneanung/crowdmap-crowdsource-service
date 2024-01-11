@@ -20,6 +20,10 @@ export interface CreateAreaSubmission extends ChangeBaseSubmission {
    * The name of the area.
    */
   name: string;
+  /**
+   * The ID of the new area.
+   */
+  areaId: number;
 }
 
 export interface RoomChangeBaseSubmission extends ChangeBaseSubmission {

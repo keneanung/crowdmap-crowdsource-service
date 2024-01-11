@@ -74,6 +74,7 @@ export interface SetRoomCoordinates extends RoomChangeBase {
 export interface CreateArea extends ChangeBase {
   type: "create-area";
   name: string;
+  areaId: number;
 }
 
 export type Change =
@@ -288,7 +289,7 @@ export const setRoomCoordinatesBusinessToDb = (
 };
 
 export const createAreaDbToBusiness = (change: CreateArea): ChangeBusiness => {
-  return new CreateAreaBusiness(change.name, change.reporters, change.changeId);
+  return new CreateAreaBusiness(change.name, change.areaId, change.reporters, change.changeId);
 };
 
 export const createAreaBusinessToDb = (
@@ -297,6 +298,7 @@ export const createAreaBusinessToDb = (
   return {
     type: "create-area",
     name: change.name,
+    areaId: change.areaId,
     reporters: Array.from(change.reporters),
     numberOfReporters: change.reporters.size,
     changeId: change.changeId,

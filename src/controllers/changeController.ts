@@ -132,6 +132,7 @@ export class ChangeController extends Controller {
           return {
             type: "create-area",
             name: typedChange.name,
+            areaId: typedChange.areaId,
             reporters: typedChange.reporters.size,
           };
         }
@@ -212,7 +213,7 @@ export class ChangeController extends Controller {
           );
         }
         case "create-area": {
-          return new CreateArea(change.name, [change.reporter]);
+          return new CreateArea(change.name, change.areaId, [change.reporter]);
         }
         default: {
           return assertUnreachable(change);

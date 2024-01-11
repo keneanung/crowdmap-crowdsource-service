@@ -17,6 +17,7 @@ test("Should accept and return creation of new areas", async () => {
     .send({
       type: "create-area",
       name: "Test Area",
+      areaId: 497,
       reporter: "Test Reporter",
     })
     .expect(201);
@@ -29,6 +30,7 @@ test("Should accept and return creation of new areas", async () => {
         {
           type: "create-area",
           name: "Test Area",
+          areaId: 497,
           reporters: 1,
         },
       ]);
@@ -38,6 +40,7 @@ test("Should accept and return creation of new areas", async () => {
 test("Should incorporate new areas into the map", async () => {
   await request(app).post("/change").send({
     type: "create-area",
+    areaId: 497,
     name: "Test Area",
     reporter: "Test Reporter",
   });
