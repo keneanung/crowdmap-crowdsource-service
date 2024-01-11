@@ -9,6 +9,35 @@ export type ChangeType =
   | "set-room-coordinates"
   | "create-area";
 
+const calculateNewAreaSize = (
+  map: Mudlet.MudletMap,
+  area: MudletArea,
+) => {
+  const areaRooms = area.rooms.map((roomNumber) => map.rooms[roomNumber]);
+  const xCoordinates = new Set(areaRooms.map((room) => room.x));
+  const yCoordinates = new Set(areaRooms.map((room) => room.y));
+  const zCoordinates = new Set(areaRooms.map((room) => room.z))
+  area.max_x = Math.max(...xCoordinates);
+  area.max_y = Math.max(...yCoordinates);
+  area.max_z = Math.max(...zCoordinates);
+  area.min_x = Math.min(...xCoordinates);
+  area.min_y = Math.min(...yCoordinates);
+  area.min_z = Math.min(...zCoordinates);
+  for (const z of zCoordinates) {
+    if (!area.zLevels.includes(z)) {
+      area.zLevels.push(z);
+      area.zLevels.sort();
+    }
+    const roomsOnThisZLevel = areaRooms.filter((room) => room.z === z);
+    const xFOrZ = roomsOnThisZLevel.map((room) => room.x);
+    const yFOrZ = roomsOnThisZLevel.map((room) => room.y);
+    area.xmaxForZ[z] = Math.max(...xFOrZ);
+    area.ymaxForZ[z] = Math.max(...yFOrZ);
+    area.xminForZ[z] = Math.min(...xFOrZ);
+    area.yminForZ[z] = Math.min(...yFOrZ);
+  }
+};
+
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
   reporters = new Set<string>();
@@ -386,7 +415,11 @@ export class SetRoomCoordinates extends RoomChangeBase<SetRoomCoordinates> {
     room.x = this.x;
     room.y = this.y;
     room.z = this.z;
+    // This may not be strictly necessary due to the way the Mudlet importer is written,
+    // but let's be nice and make sure the provided data is accurate.
+    calculateNewAreaSize(map, map.areas[room.area]);
   }
+
   public getIdentifyingParts() {
     return {
       type: this.type,
