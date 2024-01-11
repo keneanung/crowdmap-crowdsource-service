@@ -6,16 +6,15 @@ export type ChangeType =
   | "unlock-special-exit"
   | "delete-special-exit"
   | "create-room"
-  | "set-room-coordinates";
+  | "set-room-coordinates"
+  | "create-area";
 
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
-  roomNumber: number;
   reporters = new Set<string>();
   changeId?: number;
 
-  constructor(roomNumber: number, reporters: string[], changeId?: number) {
-    this.roomNumber = roomNumber;
+  constructor(reporters: string[], changeId?: number) {
     reporters.forEach((reporter) => this.reporters.add(reporter));
     this.changeId = changeId;
   }
@@ -23,11 +22,74 @@ export abstract class ChangeBase<T extends ChangeBase<T>> {
   public abstract apply(map: Mudlet.MudletMap): void;
   public abstract getIdentifyingParts(): Omit<
     T,
-    "reporters" | "_id" | "changeId" | "apply" | "getIdentifyingParts"
+    "reporters" | "changeId" | "apply" | "getIdentifyingParts"
   >;
 }
 
-export class ChangeRoomName extends ChangeBase<ChangeRoomName> {
+export class CreateArea extends ChangeBase<CreateArea> {
+  type: ChangeType = "create-area";
+  name: string;
+
+  constructor(name: string, reporters: string[], changeId?: number) {
+    super(reporters, changeId);
+    this.name = name;
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    for (const area of Object.values(map.areaNames)) {
+      if (area === this.name) {
+        // if the area already exists, make this a no-op
+        return;
+      }
+    }
+    const maxAreaId = Math.max(
+      ...Object.keys(map.areas).map((x) => parseInt(x)),
+    );
+    const newAreaId = maxAreaId + 1;
+    map.areas[newAreaId] = {
+      rooms: [],
+      userData: {},
+      zLevels: [],
+      mAreaExits: [],
+      gridMode: false,
+      max_x: 0,
+      max_y: 0,
+      max_z: 0,
+      min_x: 0,
+      min_y: 0,
+      min_z: 0,
+      span: [],
+      xmaxForZ: {},
+      ymaxForZ: {},
+      xminForZ: {},
+      yminForZ: {},
+      pos: [],
+      isZone: false,
+      zoneAreaRef: 0,
+    };
+    map.areaNames[newAreaId] = this.name;
+  }
+
+  public getIdentifyingParts() {
+    return {
+      name: this.name,
+      type: this.type,
+    };
+  }
+}
+
+export abstract class RoomChangeBase<
+  T extends RoomChangeBase<T>,
+> extends ChangeBase<T> {
+  roomNumber: number;
+
+  constructor(roomNumber: number, reporters: string[], changeId?: number) {
+    super(reporters, changeId);
+    this.roomNumber = roomNumber;
+  }
+}
+
+export class ChangeRoomName extends RoomChangeBase<ChangeRoomName> {
   type: ChangeType = "room-name";
   name: string;
 
@@ -60,7 +122,7 @@ export class ChangeRoomName extends ChangeBase<ChangeRoomName> {
   }
 }
 
-export class ModifyRoomExit extends ChangeBase<ModifyRoomExit> {
+export class ModifyRoomExit extends RoomChangeBase<ModifyRoomExit> {
   type: ChangeType = "modify-exit";
   direction: Direction;
   destination: number;
@@ -96,7 +158,7 @@ export class ModifyRoomExit extends ChangeBase<ModifyRoomExit> {
   }
 }
 
-export class ModifySpecialExit extends ChangeBase<ModifySpecialExit> {
+export class ModifySpecialExit extends RoomChangeBase<ModifySpecialExit> {
   type: ChangeType = "modify-special-exit";
   exitCommand: string;
   destination: number;
@@ -132,7 +194,7 @@ export class ModifySpecialExit extends ChangeBase<ModifySpecialExit> {
   }
 }
 
-export class LockSpecialExit extends ChangeBase<LockSpecialExit> {
+export class LockSpecialExit extends RoomChangeBase<LockSpecialExit> {
   type: ChangeType = "lock-special-exit";
   exitCommand: string;
   destination: number;
@@ -168,7 +230,7 @@ export class LockSpecialExit extends ChangeBase<LockSpecialExit> {
   }
 }
 
-export class UnlockSpecialExit extends ChangeBase<UnlockSpecialExit> {
+export class UnlockSpecialExit extends RoomChangeBase<UnlockSpecialExit> {
   type: ChangeType = "unlock-special-exit";
   exitCommand: string;
   destination: number;
@@ -206,7 +268,7 @@ export class UnlockSpecialExit extends ChangeBase<UnlockSpecialExit> {
   }
 }
 
-export class DeleteSpecialExit extends ChangeBase<DeleteSpecialExit> {
+export class DeleteSpecialExit extends RoomChangeBase<DeleteSpecialExit> {
   type: ChangeType = "delete-special-exit";
   exitCommand: string;
 
@@ -241,7 +303,7 @@ export class DeleteSpecialExit extends ChangeBase<DeleteSpecialExit> {
   }
 }
 
-export class CreateRoom extends ChangeBase<CreateRoom> {
+export class CreateRoom extends RoomChangeBase<CreateRoom> {
   type: ChangeType = "create-room";
 
   public apply(map: Mudlet.MudletMap): void {
@@ -294,7 +356,7 @@ export class CreateRoom extends ChangeBase<CreateRoom> {
   }
 }
 
-export class SetRoomCoordinates extends ChangeBase<SetRoomCoordinates> {
+export class SetRoomCoordinates extends RoomChangeBase<SetRoomCoordinates> {
   type: ChangeType = "set-room-coordinates";
   x: number;
   y: number;
@@ -344,7 +406,8 @@ export type Change =
   | UnlockSpecialExit
   | DeleteSpecialExit
   | CreateRoom
-  | SetRoomCoordinates;
+  | SetRoomCoordinates
+  | CreateArea;
 
 export type Direction =
   | "north"

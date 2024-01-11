@@ -17,6 +17,7 @@ import { ChangeSubmission } from "../models/api/submission";
 import {
   Change,
   ChangeRoomName,
+  CreateArea,
   CreateRoom,
   DeleteSpecialExit,
   LockSpecialExit,
@@ -126,6 +127,14 @@ export class ChangeController extends Controller {
             z: typedChange.z,
           };
         }
+        case "create-area": {
+          const typedChange = change as CreateArea;
+          return {
+            type: "create-area",
+            name: typedChange.name,
+            reporters: typedChange.reporters.size,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -201,6 +210,9 @@ export class ChangeController extends Controller {
             change.y,
             change.z,
           );
+        }
+        case "create-area": {
+          return new CreateArea(change.name, [change.reporter]);
         }
         default: {
           return assertUnreachable(change);

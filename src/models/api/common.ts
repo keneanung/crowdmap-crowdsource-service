@@ -6,7 +6,8 @@ export type ChangeType =
   | "unlock-special-exit"
   | "delete-special-exit"
   | "create-room"
-  | "set-room-coordinates";
+  | "set-room-coordinates"
+  | "create-area";
 
 /**
  * An exit direction.

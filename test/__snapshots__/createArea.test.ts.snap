@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Should incorporate new areas into the map 1`] = `
+{
+  "id": 497,
+  "name": "Test Area",
+  "roomCount": 0,
+  "rooms": [],
+}
+`;

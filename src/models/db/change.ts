@@ -3,6 +3,7 @@ import {
   Change as ChangeBusiness,
   ChangeRoomName as ChangeRoomNameBusiness,
   ChangeType,
+  CreateArea as CreateAreaBusiness,
   CreateRoom as CreateRoomBusiness,
   DeleteSpecialExit as DeleteSpecialExitBusiness,
   Direction,
@@ -16,55 +17,63 @@ import {
 export interface ChangeBase {
   _id?: ObjectId;
   type: ChangeType;
-  roomNumber: number;
   reporters: string[];
   numberOfReporters: number;
   changeId?: number;
 }
 
-export interface ChangeRoomName extends ChangeBase {
+export interface RoomChangeBase extends ChangeBase {
+  roomNumber: number;
+}
+
+export interface ChangeRoomName extends RoomChangeBase {
   type: "room-name";
   name: string;
 }
 
-export interface ModifyRoomExit extends ChangeBase {
+export interface ModifyRoomExit extends RoomChangeBase {
   type: "modify-exit";
   direction: Direction;
   destination: number;
 }
 
-export interface ModifySpecialExit extends ChangeBase {
+export interface ModifySpecialExit extends RoomChangeBase {
   type: "modify-special-exit";
   exitCommand: string;
   destination: number;
 }
 
-export interface LockSpecialExit extends ChangeBase {
+export interface LockSpecialExit extends RoomChangeBase {
   type: "lock-special-exit";
   exitCommand: string;
   destination: number;
 }
 
-export interface UnlockSpecialExit extends ChangeBase {
+export interface UnlockSpecialExit extends RoomChangeBase {
   type: "unlock-special-exit";
   exitCommand: string;
   destination: number;
 }
 
-export interface DeleteSpecialExit extends ChangeBase {
+export interface DeleteSpecialExit extends RoomChangeBase {
   type: "delete-special-exit";
   exitCommand: string;
 }
 
-export interface CreateRoom extends ChangeBase {
+export interface CreateRoom extends RoomChangeBase {
   type: "create-room";
 }
 
-export interface SetRoomCoordinates extends ChangeBase {
+export interface SetRoomCoordinates extends RoomChangeBase {
   type: "set-room-coordinates";
   x: number;
   y: number;
   z: number;
+}
+
+export interface CreateArea extends ChangeBase {
+  type: "create-area";
+  name: string;
 }
 
 export type Change =
@@ -75,7 +84,8 @@ export type Change =
   | UnlockSpecialExit
   | DeleteSpecialExit
   | CreateRoom
-  | SetRoomCoordinates;
+  | SetRoomCoordinates
+  | CreateArea;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -277,6 +287,22 @@ export const setRoomCoordinatesBusinessToDb = (
   };
 };
 
+export const createAreaDbToBusiness = (change: CreateArea): ChangeBusiness => {
+  return new CreateAreaBusiness(change.name, change.reporters, change.changeId);
+};
+
+export const createAreaBusinessToDb = (
+  change: CreateAreaBusiness,
+): CreateArea => {
+  return {
+    type: "create-area",
+    name: change.name,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    changeId: change.changeId,
+  };
+};
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -304,6 +330,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
       return setRoomCoordinatesBusinessToDb(
         change as SetRoomCoordinatesBusiness,
       );
+    }
+    case "create-area": {
+      return createAreaBusinessToDb(change as CreateAreaBusiness);
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -337,6 +366,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "set-room-coordinates": {
       return setRoomCoordinatesDbToBusiness(change);
+    }
+    case "create-area": {
+      return createAreaDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

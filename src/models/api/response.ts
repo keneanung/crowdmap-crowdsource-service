@@ -2,49 +2,57 @@ import { ChangeType, Direction } from "./common";
 
 export interface ChangeBaseResponse {
   type: ChangeType;
-  roomNumber: number;
   reporters: number;
 }
 
-export interface ChangeRoomNameResponse extends ChangeBaseResponse {
+export interface CreateAreaResponse extends ChangeBaseResponse {
+  type: "create-area";
+  name: string;
+}
+
+export interface RoomChangeBaseResponse extends ChangeBaseResponse {
+  roomNumber: number;
+}
+
+export interface ChangeRoomNameResponse extends RoomChangeBaseResponse {
   type: "room-name";
   name: string;
 }
 
-export interface ModifyRoomExitResponse extends ChangeBaseResponse {
+export interface ModifyRoomExitResponse extends RoomChangeBaseResponse {
   type: "modify-exit";
   direction: Direction;
   destination: number;
 }
 
-export interface ModifySpecialExitResponse extends ChangeBaseResponse {
+export interface ModifySpecialExitResponse extends RoomChangeBaseResponse {
   type: "modify-special-exit";
   exitCommand: string;
   destination: number;
 }
 
-export interface LockSpecialExitResponse extends ChangeBaseResponse {
+export interface LockSpecialExitResponse extends RoomChangeBaseResponse {
   type: "lock-special-exit";
   exitCommand: string;
   destination: number;
 }
 
-export interface UnlockSpecialExitResponse extends ChangeBaseResponse {
+export interface UnlockSpecialExitResponse extends RoomChangeBaseResponse {
   type: "unlock-special-exit";
   exitCommand: string;
   destination: number;
 }
 
-export interface DeleteSpecialExitResponse extends ChangeBaseResponse {
+export interface DeleteSpecialExitResponse extends RoomChangeBaseResponse {
   type: "delete-special-exit";
   exitCommand: string;
 }
 
-export interface CreateRoomResponse extends ChangeBaseResponse {
+export interface CreateRoomResponse extends RoomChangeBaseResponse {
   type: "create-room";
 }
 
-export interface SetRoomCoordinatesResponse extends ChangeBaseResponse {
+export interface SetRoomCoordinatesResponse extends RoomChangeBaseResponse {
   type: "set-room-coordinates";
   x: number;
   y: number;
@@ -59,4 +67,5 @@ export type ChangeResponse =
   | UnlockSpecialExitResponse
   | DeleteSpecialExitResponse
   | CreateRoomResponse
-  | SetRoomCoordinatesResponse;
+  | SetRoomCoordinatesResponse
+  | CreateAreaResponse;
