@@ -23,6 +23,7 @@ import {
   LockSpecialExit,
   ModifyRoomExit,
   ModifySpecialExit,
+  SetRoomArea,
   SetRoomCoordinates,
   UnlockSpecialExit,
 } from "../models/business/change";
@@ -136,6 +137,15 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
           };
         }
+        case "set-room-area": {
+          const typedChange = change as SetRoomArea;
+          return {
+            type: "set-room-area",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            areaId: typedChange.areaId,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -214,6 +224,13 @@ export class ChangeController extends Controller {
         }
         case "create-area": {
           return new CreateArea(change.name, change.areaId, [change.reporter]);
+        }
+        case "set-room-area": {
+          return new SetRoomArea(
+            change.roomNumber,
+            [change.reporter],
+            change.areaId,
+          );
         }
         default: {
           return assertUnreachable(change);

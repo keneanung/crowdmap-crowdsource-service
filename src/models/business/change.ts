@@ -7,7 +7,8 @@ export type ChangeType =
   | "delete-special-exit"
   | "create-room"
   | "set-room-coordinates"
-  | "create-area";
+  | "create-area"
+  | "set-room-area";
 
 const calculateNewAreaSize = (
   map: Mudlet.MudletMap,
@@ -430,6 +431,50 @@ export class SetRoomCoordinates extends RoomChangeBase<SetRoomCoordinates> {
   }
 }
 
+export class SetRoomArea extends RoomChangeBase<SetRoomArea> {
+  type: ChangeType = "set-room-area";
+  areaId: number;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    areaId: number,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.areaId = areaId;
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!room) {
+      // if the room does not exist for some reason, make this a no-op
+      return;
+    }
+    const oldArea = map.areas[room.area];
+    const newArea = map.areas[this.areaId];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!newArea || oldArea === newArea) {
+      // if the area is already the same, make this a no-op
+      return;
+    }
+    oldArea.rooms = oldArea.rooms.filter((roomNumber) => roomNumber !== this.roomNumber);
+    newArea.rooms.push(this.roomNumber);
+    room.area = this.areaId;
+    calculateNewAreaSize(map, oldArea);
+    calculateNewAreaSize(map, newArea);
+  }
+
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      areaId: this.areaId,
+    };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -439,7 +484,8 @@ export type Change =
   | DeleteSpecialExit
   | CreateRoom
   | SetRoomCoordinates
-  | CreateArea;
+  | CreateArea
+  | SetRoomArea;
 
 export type Direction =
   | "north"

@@ -141,6 +141,17 @@ export interface SetRoomCoordinatesSubmission extends RoomChangeBaseSubmission {
   z: number;
 }
 
+/**
+ * Submit a change of a rooms area.
+ */
+export interface SetRoomAreaSubmission extends RoomChangeBaseSubmission {
+  type: "set-room-area";
+  /**
+   * The ID of the new area the room belongs to.
+   */
+  areaId: number;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -150,4 +161,5 @@ export type ChangeSubmission =
   | DeleteSpecialExitSubmission
   | CreateRoomSubmission
   | SetRoomCoordinatesSubmission
-  | CreateAreaSubmission;
+  | CreateAreaSubmission
+  | SetRoomAreaSubmission;

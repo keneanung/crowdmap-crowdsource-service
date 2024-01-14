@@ -10,6 +10,7 @@ import {
   LockSpecialExit as LockSpecialExitBusiness,
   ModifyRoomExit as ModifyRoomExitBusiness,
   ModifySpecialExit as ModifySpecialExitBusiness,
+  SetRoomArea as SetRoomAreaBusiness,
   SetRoomCoordinates as SetRoomCoordinatesBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
 } from "../business/change";
@@ -71,6 +72,11 @@ export interface SetRoomCoordinates extends RoomChangeBase {
   z: number;
 }
 
+export interface SetRoomArea extends RoomChangeBase {
+  type: "set-room-area";
+  areaId: number;
+}
+
 export interface CreateArea extends ChangeBase {
   type: "create-area";
   name: string;
@@ -86,7 +92,8 @@ export type Change =
   | DeleteSpecialExit
   | CreateRoom
   | SetRoomCoordinates
-  | CreateArea;
+  | CreateArea
+  | SetRoomArea;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -305,6 +312,30 @@ export const createAreaBusinessToDb = (
   };
 };
 
+export const setRoomAreaDbToBusiness = (
+  change: SetRoomArea,
+): ChangeBusiness => {
+  return new SetRoomAreaBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.areaId,
+    change.changeId,
+  );
+}
+
+export const setRoomAreaBusinessToDb = (
+  change: SetRoomAreaBusiness,
+): SetRoomArea => {
+  return {
+    type: "set-room-area",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    areaId: change.areaId,
+    changeId: change.changeId,
+  };
+}
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -335,6 +366,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     }
     case "create-area": {
       return createAreaBusinessToDb(change as CreateAreaBusiness);
+    }
+    case "set-room-area": {
+      return setRoomAreaBusinessToDb(change as SetRoomAreaBusiness);
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -371,6 +405,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "create-area": {
       return createAreaDbToBusiness(change);
+    }
+    case "set-room-area": {
+      return setRoomAreaDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here
