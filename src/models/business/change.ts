@@ -8,7 +8,8 @@ export type ChangeType =
   | "create-room"
   | "set-room-coordinates"
   | "create-area"
-  | "set-room-area";
+  | "set-room-area"
+  | "delete-exit";
 
 const calculateNewAreaSize = (
   map: Mudlet.MudletMap,
@@ -475,6 +476,38 @@ export class SetRoomArea extends RoomChangeBase<SetRoomArea> {
   }
 }
 
+export class DeleteExit extends RoomChangeBase<DeleteExit> {
+  type: ChangeType = "delete-exit";
+  direction: Direction;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    direction: Direction,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.direction = direction;
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!room || room[this.direction] === -1) {
+      // if the room does not exist or the exit is already deleted, make this a no-op
+      return;
+    }
+    room[this.direction] = -1;
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      direction: this.direction,
+    };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -485,7 +518,8 @@ export type Change =
   | CreateRoom
   | SetRoomCoordinates
   | CreateArea
-  | SetRoomArea;
+  | SetRoomArea
+  | DeleteExit;
 
 export type Direction =
   | "north"

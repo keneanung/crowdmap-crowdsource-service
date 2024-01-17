@@ -19,6 +19,7 @@ import {
   ChangeRoomName,
   CreateArea,
   CreateRoom,
+  DeleteExit,
   DeleteSpecialExit,
   LockSpecialExit,
   ModifyRoomExit,
@@ -146,6 +147,15 @@ export class ChangeController extends Controller {
             areaId: typedChange.areaId,
           };
         }
+        case "delete-exit": {
+          const typedChange = change as DeleteExit;
+          return {
+            type: "delete-exit",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            direction: typedChange.direction,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -230,6 +240,13 @@ export class ChangeController extends Controller {
             change.roomNumber,
             [change.reporter],
             change.areaId,
+          );
+        }
+        case "delete-exit": {
+          return new DeleteExit(
+            change.roomNumber,
+            [change.reporter],
+            change.direction,
           );
         }
         default: {

@@ -8,7 +8,8 @@ export type ChangeType =
   | "create-room"
   | "set-room-coordinates"
   | "create-area"
-  | "set-room-area";
+  | "set-room-area"
+  | "delete-exit";
 
 /**
  * An exit direction.

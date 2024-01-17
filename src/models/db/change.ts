@@ -5,6 +5,7 @@ import {
   ChangeType,
   CreateArea as CreateAreaBusiness,
   CreateRoom as CreateRoomBusiness,
+  DeleteExit as DeleteExitBusiness,
   DeleteSpecialExit as DeleteSpecialExitBusiness,
   Direction,
   LockSpecialExit as LockSpecialExitBusiness,
@@ -83,6 +84,11 @@ export interface CreateArea extends ChangeBase {
   areaId: number;
 }
 
+export interface DeleteExit extends RoomChangeBase {
+  type: "delete-exit";
+  direction: Direction;
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -93,7 +99,8 @@ export type Change =
   | CreateRoom
   | SetRoomCoordinates
   | CreateArea
-  | SetRoomArea;
+  | SetRoomArea
+  | DeleteExit;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -336,6 +343,28 @@ export const setRoomAreaBusinessToDb = (
   };
 }
 
+export const deleteExitDbToBusiness = (change: DeleteExit): ChangeBusiness => {
+  return new DeleteExitBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.direction,
+    change.changeId,
+  );
+}
+
+export const deleteExitBusinessToDb = (
+  change: DeleteExitBusiness,
+): DeleteExit => {
+  return {
+    type: "delete-exit",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    direction: change.direction,
+    changeId: change.changeId,
+  };
+}
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -369,6 +398,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     }
     case "set-room-area": {
       return setRoomAreaBusinessToDb(change as SetRoomAreaBusiness);
+    }
+    case "delete-exit": {
+      return deleteExitBusinessToDb(change as DeleteExitBusiness);
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -408,6 +440,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "set-room-area": {
       return setRoomAreaDbToBusiness(change);
+    }
+    case "delete-exit": {
+      return deleteExitDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

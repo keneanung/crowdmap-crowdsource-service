@@ -152,6 +152,17 @@ export interface SetRoomAreaSubmission extends RoomChangeBaseSubmission {
   areaId: number;
 }
 
+/**
+ * Submit a deletion of an exit.
+ */
+export interface DeleteExitSubmission extends RoomChangeBaseSubmission {
+  type: "delete-exit";
+  /**
+   * The direction of the exit to delete.
+   */
+  direction: Direction;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -162,4 +173,5 @@ export type ChangeSubmission =
   | CreateRoomSubmission
   | SetRoomCoordinatesSubmission
   | CreateAreaSubmission
-  | SetRoomAreaSubmission;
+  | SetRoomAreaSubmission
+  | DeleteExitSubmission;

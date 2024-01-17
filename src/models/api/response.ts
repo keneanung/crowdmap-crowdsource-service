@@ -65,6 +65,11 @@ export interface SetRoomAreaResponse extends RoomChangeBaseResponse {
   areaId: number;
 }
 
+export interface DeleteExitResponse extends RoomChangeBaseResponse {
+  type: "delete-exit";
+  direction: Direction;
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse
@@ -75,4 +80,5 @@ export type ChangeResponse =
   | CreateRoomResponse
   | SetRoomCoordinatesResponse
   | CreateAreaResponse
-  | SetRoomAreaResponse;
+  | SetRoomAreaResponse
+  | DeleteExitResponse;
