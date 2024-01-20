@@ -9,16 +9,14 @@ export type ChangeType =
   | "set-room-coordinates"
   | "create-area"
   | "set-room-area"
-  | "delete-exit";
+  | "delete-exit"
+  | "modify-exit-weight";
 
-const calculateNewAreaSize = (
-  map: Mudlet.MudletMap,
-  area: MudletArea,
-) => {
+const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
   const areaRooms = area.rooms.map((roomNumber) => map.rooms[roomNumber]);
   const xCoordinates = new Set(areaRooms.map((room) => room.x));
   const yCoordinates = new Set(areaRooms.map((room) => room.y));
-  const zCoordinates = new Set(areaRooms.map((room) => room.z))
+  const zCoordinates = new Set(areaRooms.map((room) => room.z));
   area.max_x = Math.max(...xCoordinates);
   area.max_y = Math.max(...yCoordinates);
   area.max_z = Math.max(...zCoordinates);
@@ -62,7 +60,12 @@ export class CreateArea extends ChangeBase<CreateArea> {
   name: string;
   areaId: number;
 
-  constructor(name: string, areaId: number, reporters: string[], changeId?: number) {
+  constructor(
+    name: string,
+    areaId: number,
+    reporters: string[],
+    changeId?: number,
+  ) {
     super(reporters, changeId);
     this.name = name;
     this.areaId = areaId;
@@ -460,7 +463,9 @@ export class SetRoomArea extends RoomChangeBase<SetRoomArea> {
       // if the area is already the same, make this a no-op
       return;
     }
-    oldArea.rooms = oldArea.rooms.filter((roomNumber) => roomNumber !== this.roomNumber);
+    oldArea.rooms = oldArea.rooms.filter(
+      (roomNumber) => roomNumber !== this.roomNumber,
+    );
     newArea.rooms.push(this.roomNumber);
     room.area = this.areaId;
     calculateNewAreaSize(map, oldArea);
@@ -508,6 +513,42 @@ export class DeleteExit extends RoomChangeBase<DeleteExit> {
   }
 }
 
+export class ModifyExitWeight extends RoomChangeBase<ModifyExitWeight> {
+  type: ChangeType = "modify-exit-weight";
+  direction: Direction;
+  weight: number;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    direction: Direction,
+    weight: number,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.direction = direction;
+    this.weight = weight;
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!room || room[this.direction] === -1) {
+      // if the room does not exist or the exit is already deleted, make this a no-op
+      return;
+    }
+    room.exitWeights[this.direction] = this.weight;
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      direction: this.direction,
+      weight: this.weight,
+    };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -519,7 +560,8 @@ export type Change =
   | SetRoomCoordinates
   | CreateArea
   | SetRoomArea
-  | DeleteExit;
+  | DeleteExit
+  | ModifyExitWeight;
 
 export type Direction =
   | "north"

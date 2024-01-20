@@ -1,0 +1,56 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Should incorporate exit weight changes into the map 1`] = `
+{
+  "coordinates": [
+    -2,
+    7,
+    0,
+  ],
+  "environment": 10,
+  "exits": [
+    {
+      "exitId": 20171,
+      "name": "north",
+    },
+    {
+      "exitId": 13868,
+      "name": "northeast",
+    },
+    {
+      "exitId": 28837,
+      "name": "northwest",
+    },
+    {
+      "exitId": 19795,
+      "name": "east",
+    },
+    {
+      "exitId": 30231,
+      "name": "west",
+    },
+    {
+      "exitId": 21236,
+      "name": "south",
+    },
+    {
+      "exitId": 36129,
+      "name": "southeast",
+    },
+    {
+      "exitId": 26343,
+      "name": "southwest",
+    },
+    {
+      "exitId": 4882,
+      "name": "down",
+    },
+  ],
+  "id": 39478,
+  "name": "Upon a floating island",
+  "userData": {
+    "Game Area": "the Skies",
+    "indoors": "y",
+  },
+}
+`;

@@ -70,6 +70,12 @@ export interface DeleteExitResponse extends RoomChangeBaseResponse {
   direction: Direction;
 }
 
+export interface ModifyExitWeightResponse extends RoomChangeBaseResponse {
+  type: "modify-exit-weight";
+  direction: Direction;
+  weight: number;
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse
@@ -81,4 +87,5 @@ export type ChangeResponse =
   | SetRoomCoordinatesResponse
   | CreateAreaResponse
   | SetRoomAreaResponse
-  | DeleteExitResponse;
+  | DeleteExitResponse
+  | ModifyExitWeightResponse;

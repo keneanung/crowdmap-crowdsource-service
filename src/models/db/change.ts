@@ -9,6 +9,7 @@ import {
   DeleteSpecialExit as DeleteSpecialExitBusiness,
   Direction,
   LockSpecialExit as LockSpecialExitBusiness,
+  ModifyExitWeight as ModifyExitWeightBusiness,
   ModifyRoomExit as ModifyRoomExitBusiness,
   ModifySpecialExit as ModifySpecialExitBusiness,
   SetRoomArea as SetRoomAreaBusiness,
@@ -89,6 +90,12 @@ export interface DeleteExit extends RoomChangeBase {
   direction: Direction;
 }
 
+export interface ModifyExitWeight extends RoomChangeBase {
+  type: "modify-exit-weight";
+  direction: Direction;
+  weight: number;
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -100,7 +107,8 @@ export type Change =
   | SetRoomCoordinates
   | CreateArea
   | SetRoomArea
-  | DeleteExit;
+  | DeleteExit
+  | ModifyExitWeight;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -303,7 +311,12 @@ export const setRoomCoordinatesBusinessToDb = (
 };
 
 export const createAreaDbToBusiness = (change: CreateArea): ChangeBusiness => {
-  return new CreateAreaBusiness(change.name, change.areaId, change.reporters, change.changeId);
+  return new CreateAreaBusiness(
+    change.name,
+    change.areaId,
+    change.reporters,
+    change.changeId,
+  );
 };
 
 export const createAreaBusinessToDb = (
@@ -328,7 +341,7 @@ export const setRoomAreaDbToBusiness = (
     change.areaId,
     change.changeId,
   );
-}
+};
 
 export const setRoomAreaBusinessToDb = (
   change: SetRoomAreaBusiness,
@@ -341,7 +354,7 @@ export const setRoomAreaBusinessToDb = (
     areaId: change.areaId,
     changeId: change.changeId,
   };
-}
+};
 
 export const deleteExitDbToBusiness = (change: DeleteExit): ChangeBusiness => {
   return new DeleteExitBusiness(
@@ -350,7 +363,7 @@ export const deleteExitDbToBusiness = (change: DeleteExit): ChangeBusiness => {
     change.direction,
     change.changeId,
   );
-}
+};
 
 export const deleteExitBusinessToDb = (
   change: DeleteExitBusiness,
@@ -363,7 +376,33 @@ export const deleteExitBusinessToDb = (
     direction: change.direction,
     changeId: change.changeId,
   };
-}
+};
+
+export const modifyExitWeightDbToBusiness = (
+  change: ModifyExitWeight,
+): ChangeBusiness => {
+  return new ModifyExitWeightBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.direction,
+    change.weight,
+    change.changeId,
+  );
+};
+
+export const modifyExitWeightBusinessToDb = (
+  change: ModifyExitWeightBusiness,
+): ModifyExitWeight => {
+  return {
+    type: "modify-exit-weight",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    direction: change.direction,
+    weight: change.weight,
+    changeId: change.changeId,
+  };
+};
 
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
@@ -401,6 +440,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     }
     case "delete-exit": {
       return deleteExitBusinessToDb(change as DeleteExitBusiness);
+    }
+    case "modify-exit-weight": {
+      return modifyExitWeightBusinessToDb(change as ModifyExitWeightBusiness);
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -443,6 +485,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "delete-exit": {
       return deleteExitDbToBusiness(change);
+    }
+    case "modify-exit-weight": {
+      return modifyExitWeightDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

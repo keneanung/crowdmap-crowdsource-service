@@ -163,6 +163,21 @@ export interface DeleteExitSubmission extends RoomChangeBaseSubmission {
   direction: Direction;
 }
 
+/**
+ * Submit a change of an exits weight.
+ */
+export interface ModifyExitWeightSubmission extends RoomChangeBaseSubmission {
+  type: "modify-exit-weight";
+  /**
+   * The direction of the exit to change.
+   */
+  direction: Direction;
+  /**
+   * The new weight of the exit.
+   */
+  weight: number;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -174,4 +189,5 @@ export type ChangeSubmission =
   | SetRoomCoordinatesSubmission
   | CreateAreaSubmission
   | SetRoomAreaSubmission
-  | DeleteExitSubmission;
+  | DeleteExitSubmission
+  | ModifyExitWeightSubmission;

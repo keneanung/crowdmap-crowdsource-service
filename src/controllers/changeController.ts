@@ -22,6 +22,7 @@ import {
   DeleteExit,
   DeleteSpecialExit,
   LockSpecialExit,
+  ModifyExitWeight,
   ModifyRoomExit,
   ModifySpecialExit,
   SetRoomArea,
@@ -156,6 +157,16 @@ export class ChangeController extends Controller {
             direction: typedChange.direction,
           };
         }
+        case "modify-exit-weight": {
+          const typedChange = change as ModifyExitWeight;
+          return {
+            type: "modify-exit-weight",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            direction: typedChange.direction,
+            weight: typedChange.weight,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -247,6 +258,14 @@ export class ChangeController extends Controller {
             change.roomNumber,
             [change.reporter],
             change.direction,
+          );
+        }
+        case "modify-exit-weight": {
+          return new ModifyExitWeight(
+            change.roomNumber,
+            [change.reporter],
+            change.direction,
+            change.weight,
           );
         }
         default: {
