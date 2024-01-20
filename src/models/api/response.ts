@@ -76,6 +76,13 @@ export interface ModifyExitWeightResponse extends RoomChangeBaseResponse {
   weight: number;
 }
 
+export interface ModifySpecialExitWeightResponse
+  extends RoomChangeBaseResponse {
+  type: "modify-special-exit-weight";
+  exitCommand: string;
+  weight: number;
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse
@@ -88,4 +95,5 @@ export type ChangeResponse =
   | CreateAreaResponse
   | SetRoomAreaResponse
   | DeleteExitResponse
-  | ModifyExitWeightResponse;
+  | ModifyExitWeightResponse
+  | ModifySpecialExitWeightResponse;

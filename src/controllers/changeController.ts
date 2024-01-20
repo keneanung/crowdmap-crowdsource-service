@@ -25,6 +25,7 @@ import {
   ModifyExitWeight,
   ModifyRoomExit,
   ModifySpecialExit,
+  ModifySpecialExitWeight,
   SetRoomArea,
   SetRoomCoordinates,
   UnlockSpecialExit,
@@ -167,6 +168,16 @@ export class ChangeController extends Controller {
             weight: typedChange.weight,
           };
         }
+        case "modify-special-exit-weight": {
+          const typedChange = change as ModifySpecialExitWeight;
+          return {
+            type: "modify-special-exit-weight",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            exitCommand: typedChange.exitCommand,
+            weight: typedChange.weight,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -265,6 +276,14 @@ export class ChangeController extends Controller {
             change.roomNumber,
             [change.reporter],
             change.direction,
+            change.weight,
+          );
+        }
+        case "modify-special-exit-weight": {
+          return new ModifySpecialExitWeight(
+            change.roomNumber,
+            [change.reporter],
+            change.exitCommand,
             change.weight,
           );
         }

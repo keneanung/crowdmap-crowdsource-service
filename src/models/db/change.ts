@@ -12,6 +12,7 @@ import {
   ModifyExitWeight as ModifyExitWeightBusiness,
   ModifyRoomExit as ModifyRoomExitBusiness,
   ModifySpecialExit as ModifySpecialExitBusiness,
+  ModifySpecialExitWeight as ModifySpecialExitWeightBusiness,
   SetRoomArea as SetRoomAreaBusiness,
   SetRoomCoordinates as SetRoomCoordinatesBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
@@ -96,6 +97,12 @@ export interface ModifyExitWeight extends RoomChangeBase {
   weight: number;
 }
 
+export interface ModifySpecialExitWeight extends RoomChangeBase {
+  type: "modify-special-exit-weight";
+  exitCommand: string;
+  weight: number;
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -108,7 +115,8 @@ export type Change =
   | CreateArea
   | SetRoomArea
   | DeleteExit
-  | ModifyExitWeight;
+  | ModifyExitWeight
+  | ModifySpecialExitWeight;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -404,6 +412,32 @@ export const modifyExitWeightBusinessToDb = (
   };
 };
 
+export const modifySpecialExitWeightDbToBusiness = (
+  change: ModifySpecialExitWeight,
+): ChangeBusiness => {
+  return new ModifySpecialExitWeightBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.exitCommand,
+    change.weight,
+    change.changeId,
+  );
+};
+
+export const modifySpecialExitWeightBusinessToDb = (
+  change: ModifySpecialExitWeightBusiness,
+): ModifySpecialExitWeight => {
+  return {
+    type: "modify-special-exit-weight",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    exitCommand: change.exitCommand,
+    weight: change.weight,
+    changeId: change.changeId,
+  };
+};
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -443,6 +477,11 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     }
     case "modify-exit-weight": {
       return modifyExitWeightBusinessToDb(change as ModifyExitWeightBusiness);
+    }
+    case "modify-special-exit-weight": {
+      return modifySpecialExitWeightBusinessToDb(
+        change as ModifySpecialExitWeightBusiness,
+      );
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -488,6 +527,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "modify-exit-weight": {
       return modifyExitWeightDbToBusiness(change);
+    }
+    case "modify-special-exit-weight": {
+      return modifySpecialExitWeightDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

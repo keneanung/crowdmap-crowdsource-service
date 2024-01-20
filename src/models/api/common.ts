@@ -10,7 +10,8 @@ export type ChangeType =
   | "create-area"
   | "set-room-area"
   | "delete-exit"
-  | "modify-exit-weight";
+  | "modify-exit-weight"
+  | "modify-special-exit-weight";
 
 /**
  * An exit direction.

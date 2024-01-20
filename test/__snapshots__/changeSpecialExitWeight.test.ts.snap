@@ -1,0 +1,54 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Should incorporate special exit weight changes into the map 1`] = `
+{
+  "coordinates": [
+    -4,
+    -8,
+    0,
+  ],
+  "environment": 5,
+  "exits": [
+    {
+      "exitId": 12499,
+      "name": "west",
+    },
+    {
+      "customLine": {
+        "color24RGB": [
+          255,
+          0,
+          0,
+        ],
+        "coordinates": [
+          [
+            -4,
+            -7,
+          ],
+        ],
+        "endsInArrow": false,
+        "style": "dot line",
+      },
+      "exitId": 8089,
+      "name": "up",
+    },
+    {
+      "exitId": 6557,
+      "name": "buy passage to aalen",
+      "weight": 200,
+    },
+    {
+      "exitId": 14200,
+      "locked": true,
+      "name": "worm warp",
+      "weight": 4,
+    },
+  ],
+  "id": 17676,
+  "name": "A tranquil cove",
+  "userData": {
+    "Game Area": "the Rainforest of Shala-Khulia",
+    "outdoors": "y",
+  },
+}
+`;

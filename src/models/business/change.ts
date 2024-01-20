@@ -10,7 +10,8 @@ export type ChangeType =
   | "create-area"
   | "set-room-area"
   | "delete-exit"
-  | "modify-exit-weight";
+  | "modify-exit-weight"
+  | "modify-special-exit-weight";
 
 const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
   const areaRooms = area.rooms.map((roomNumber) => map.rooms[roomNumber]);
@@ -549,6 +550,46 @@ export class ModifyExitWeight extends RoomChangeBase<ModifyExitWeight> {
   }
 }
 
+export class ModifySpecialExitWeight extends RoomChangeBase<ModifySpecialExitWeight> {
+  type: ChangeType = "modify-special-exit-weight";
+  exitCommand: string;
+  weight: number;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    exitCommand: string,
+    weight: number,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.exitCommand = exitCommand;
+    this.weight = weight;
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    if (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      !room ||
+      !Object.hasOwn(room.mSpecialExits, this.exitCommand) ||
+      room.mSpecialExits[this.exitCommand] === -1
+    ) {
+      // if the room does not exist or the exit is already deleted, make this a no-op
+      return;
+    }
+    room.exitWeights[this.exitCommand] = this.weight;
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      exitCommand: this.exitCommand,
+      weight: this.weight,
+    };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -561,7 +602,8 @@ export type Change =
   | CreateArea
   | SetRoomArea
   | DeleteExit
-  | ModifyExitWeight;
+  | ModifyExitWeight
+  | ModifySpecialExitWeight;
 
 export type Direction =
   | "north"

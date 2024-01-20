@@ -178,6 +178,22 @@ export interface ModifyExitWeightSubmission extends RoomChangeBaseSubmission {
   weight: number;
 }
 
+/**
+ * Submit a change of a special exits weight
+ */
+export interface ModifySpecialExitWeightSubmission
+  extends RoomChangeBaseSubmission {
+  type: "modify-special-exit-weight";
+  /**
+   * The command of the special exit to change.
+   */
+  exitCommand: string;
+  /**
+   * The new weight of the special exit.
+   */
+  weight: number;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -190,4 +206,5 @@ export type ChangeSubmission =
   | CreateAreaSubmission
   | SetRoomAreaSubmission
   | DeleteExitSubmission
-  | ModifyExitWeightSubmission;
+  | ModifyExitWeightSubmission
+  | ModifySpecialExitWeightSubmission;
