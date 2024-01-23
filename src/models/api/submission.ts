@@ -205,6 +205,21 @@ export interface SetRoomEnvironmentSubmission extends RoomChangeBaseSubmission {
   environmentId: number;
 }
 
+/**
+ * Submits a change to a rooms user data.
+ */
+export interface ModifyRoomUserDataSubmission extends RoomChangeBaseSubmission {
+  type: "modify-room-user-data";
+  /**
+   * The key of the user data to modify.
+   */
+  key: string;
+  /**
+   * The new value of the user data.
+   */
+  value: string;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -219,4 +234,5 @@ export type ChangeSubmission =
   | DeleteExitSubmission
   | ModifyExitWeightSubmission
   | ModifySpecialExitWeightSubmission
-  | SetRoomEnvironmentSubmission;
+  | SetRoomEnvironmentSubmission
+  | ModifyRoomUserDataSubmission;

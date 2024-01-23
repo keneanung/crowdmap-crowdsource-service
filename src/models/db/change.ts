@@ -11,6 +11,7 @@ import {
   LockSpecialExit as LockSpecialExitBusiness,
   ModifyExitWeight as ModifyExitWeightBusiness,
   ModifyRoomExit as ModifyRoomExitBusiness,
+  ModifyRoomUserData as ModifyRoomUserDataBusiness,
   ModifySpecialExit as ModifySpecialExitBusiness,
   ModifySpecialExitWeight as ModifySpecialExitWeightBusiness,
   SetRoomArea as SetRoomAreaBusiness,
@@ -109,6 +110,12 @@ export interface SetRoomEnvironment extends RoomChangeBase {
   environmentId: number;
 }
 
+export interface ModifyRoomUserData extends RoomChangeBase {
+  type: "modify-room-user-data";
+  key: string;
+  value: string;
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -123,7 +130,8 @@ export type Change =
   | DeleteExit
   | ModifyExitWeight
   | ModifySpecialExitWeight
-  | SetRoomEnvironment;
+  | SetRoomEnvironment
+  | ModifyRoomUserData;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -469,6 +477,32 @@ export const setRoomEnvironmentBusinessToDb = (
   };
 };
 
+export const modifyRoomUserDataDbToBusiness = (
+  change: ModifyRoomUserData,
+): ChangeBusiness => {
+  return new ModifyRoomUserDataBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.key,
+    change.value,
+    change.changeId,
+  );
+};
+
+export const modifyRoomUserDataBusinessToDb = (
+  change: ModifyRoomUserDataBusiness,
+): ModifyRoomUserData => {
+  return {
+    type: "modify-room-user-data",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    key: change.key,
+    value: change.value,
+    changeId: change.changeId,
+  };
+};
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -517,6 +551,11 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     case "set-room-environment": {
       return setRoomEnvironmentBusinessToDb(
         change as SetRoomEnvironmentBusiness,
+      );
+    }
+    case "modify-room-user-data": {
+      return modifyRoomUserDataBusinessToDb(
+        change as ModifyRoomUserDataBusiness,
       );
     }
     default: {
@@ -569,6 +608,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "set-room-environment": {
       return setRoomEnvironmentDbToBusiness(change);
+    }
+    case "modify-room-user-data": {
+      return modifyRoomUserDataDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

@@ -24,6 +24,7 @@ import {
   LockSpecialExit,
   ModifyExitWeight,
   ModifyRoomExit,
+  ModifyRoomUserData,
   ModifySpecialExit,
   ModifySpecialExitWeight,
   SetRoomArea,
@@ -188,6 +189,16 @@ export class ChangeController extends Controller {
             environmentId: typedChange.environmentId,
           };
         }
+        case "modify-room-user-data": {
+          const typedChange = change as ModifyRoomUserData;
+          return {
+            type: "modify-room-user-data",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            key: typedChange.key,
+            value: typedChange.value,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -302,6 +313,14 @@ export class ChangeController extends Controller {
             change.roomNumber,
             [change.reporter],
             change.environmentId,
+          );
+        }
+        case "modify-room-user-data": {
+          return new ModifyRoomUserData(
+            change.roomNumber,
+            [change.reporter],
+            change.key,
+            change.value,
           );
         }
         default: {

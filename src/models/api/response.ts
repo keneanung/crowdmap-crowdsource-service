@@ -88,6 +88,12 @@ export interface SetRoomEnvironmentResponse extends RoomChangeBaseResponse {
   environmentId: number;
 }
 
+export interface ModifyRoomUserDataResponse extends RoomChangeBaseResponse {
+  type: "modify-room-user-data";
+  key: string;
+  value: string;
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse
@@ -102,4 +108,5 @@ export type ChangeResponse =
   | DeleteExitResponse
   | ModifyExitWeightResponse
   | ModifySpecialExitWeightResponse
-  | SetRoomEnvironmentResponse;
+  | SetRoomEnvironmentResponse
+  | ModifyRoomUserDataResponse;
