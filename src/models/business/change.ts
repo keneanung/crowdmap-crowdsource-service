@@ -13,7 +13,8 @@ export type ChangeType =
   | "modify-exit-weight"
   | "modify-special-exit-weight"
   | "set-room-environment"
-  | "modify-room-user-data";
+  | "modify-room-user-data"
+  | "delete-room-user-data";
 
 const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
   const areaRooms = area.rooms.map((roomNumber) => map.rooms[roomNumber]);
@@ -660,6 +661,42 @@ export class ModifyRoomUserData extends RoomChangeBase<ModifyRoomUserData> {
   }
 }
 
+export class DeleteRoomUserData extends RoomChangeBase<DeleteRoomUserData> {
+  type: ChangeType = "delete-room-user-data";
+  key: string;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    key: string,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.key = key;
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    if (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      !room ||
+      !Object.hasOwn(room.userData, this.key)
+    ) {
+      // if the room does not exist or the key is not present, make this a no-op
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete room.userData[this.key];
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      key: this.key,
+    };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -675,7 +712,8 @@ export type Change =
   | ModifyExitWeight
   | ModifySpecialExitWeight
   | SetRoomEnvironment
-  | ModifyRoomUserData;
+  | ModifyRoomUserData
+  | DeleteRoomUserData;
 
 export type Direction =
   | "north"

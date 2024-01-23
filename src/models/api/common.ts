@@ -13,7 +13,8 @@ export type ChangeType =
   | "modify-exit-weight"
   | "modify-special-exit-weight"
   | "set-room-environment"
-  | "modify-room-user-data";
+  | "modify-room-user-data"
+  | "delete-room-user-data";
 
 /**
  * An exit direction.

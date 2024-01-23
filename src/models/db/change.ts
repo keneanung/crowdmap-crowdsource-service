@@ -6,6 +6,7 @@ import {
   CreateArea as CreateAreaBusiness,
   CreateRoom as CreateRoomBusiness,
   DeleteExit as DeleteExitBusiness,
+  DeleteRoomUserData as DeleteRoomUserDataBusiness,
   DeleteSpecialExit as DeleteSpecialExitBusiness,
   Direction,
   LockSpecialExit as LockSpecialExitBusiness,
@@ -116,6 +117,11 @@ export interface ModifyRoomUserData extends RoomChangeBase {
   value: string;
 }
 
+export interface DeleteRoomUserData extends RoomChangeBase {
+  type: "delete-room-user-data";
+  key: string;
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -131,7 +137,8 @@ export type Change =
   | ModifyExitWeight
   | ModifySpecialExitWeight
   | SetRoomEnvironment
-  | ModifyRoomUserData;
+  | ModifyRoomUserData
+  | DeleteRoomUserData;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -503,6 +510,30 @@ export const modifyRoomUserDataBusinessToDb = (
   };
 };
 
+export const deleteRoomUserDataDbToBusiness = (
+  change: DeleteRoomUserData,
+): ChangeBusiness => {
+  return new DeleteRoomUserDataBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.key,
+    change.changeId,
+  );
+};
+
+export const deleteRoomUserDataBusinessToDb = (
+  change: DeleteRoomUserDataBusiness,
+): DeleteRoomUserData => {
+  return {
+    type: "delete-room-user-data",
+    roomNumber: change.roomNumber,
+    reporters: Array.from(change.reporters),
+    numberOfReporters: change.reporters.size,
+    key: change.key,
+    changeId: change.changeId,
+  };
+};
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -558,6 +589,11 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
         change as ModifyRoomUserDataBusiness,
       );
     }
+    case "delete-room-user-data": {
+      return deleteRoomUserDataBusinessToDb(
+        change as DeleteRoomUserDataBusiness,
+      );
+    }
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Unknown change type: ${change.type}`);
@@ -611,6 +647,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     case "modify-room-user-data": {
       return modifyRoomUserDataDbToBusiness(change);
+    }
+    case "delete-room-user-data": {
+      return deleteRoomUserDataDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here

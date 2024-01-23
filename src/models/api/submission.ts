@@ -220,6 +220,17 @@ export interface ModifyRoomUserDataSubmission extends RoomChangeBaseSubmission {
   value: string;
 }
 
+/**
+ * Submits a deletion of a rooms user data.
+ */
+export interface DeleteRoomUserDataSubmission extends RoomChangeBaseSubmission {
+  type: "delete-room-user-data";
+  /**
+   * The key of the user data to delete.
+   */
+  key: string;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -235,4 +246,5 @@ export type ChangeSubmission =
   | ModifyExitWeightSubmission
   | ModifySpecialExitWeightSubmission
   | SetRoomEnvironmentSubmission
-  | ModifyRoomUserDataSubmission;
+  | ModifyRoomUserDataSubmission
+  | DeleteRoomUserDataSubmission;

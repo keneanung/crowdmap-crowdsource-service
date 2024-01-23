@@ -94,6 +94,11 @@ export interface ModifyRoomUserDataResponse extends RoomChangeBaseResponse {
   value: string;
 }
 
+export interface DeleteRoomUserDataResponse extends RoomChangeBaseResponse {
+  type: "delete-room-user-data";
+  key: string;
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse
@@ -109,4 +114,5 @@ export type ChangeResponse =
   | ModifyExitWeightResponse
   | ModifySpecialExitWeightResponse
   | SetRoomEnvironmentResponse
-  | ModifyRoomUserDataResponse;
+  | ModifyRoomUserDataResponse
+  | DeleteRoomUserDataResponse;
