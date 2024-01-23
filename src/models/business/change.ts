@@ -11,7 +11,8 @@ export type ChangeType =
   | "set-room-area"
   | "delete-exit"
   | "modify-exit-weight"
-  | "modify-special-exit-weight";
+  | "modify-special-exit-weight"
+  | "set-room-environment";
 
 const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
   const areaRooms = area.rooms.map((roomNumber) => map.rooms[roomNumber]);
@@ -590,6 +591,38 @@ export class ModifySpecialExitWeight extends RoomChangeBase<ModifySpecialExitWei
   }
 }
 
+export class SetRoomEnvironment extends RoomChangeBase<SetRoomEnvironment> {
+  type: ChangeType = "set-room-environment";
+  environmentId: number;
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    environment: number,
+    changeId?: number,
+  ) {
+    super(roomNumber, reporters, changeId);
+    this.environmentId = environment;
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!room) {
+      // if the room does not exist, make this a no-op
+      return;
+    }
+    room.environment = this.environmentId;
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      environmentId: this.environmentId,
+    };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -603,7 +636,8 @@ export type Change =
   | SetRoomArea
   | DeleteExit
   | ModifyExitWeight
-  | ModifySpecialExitWeight;
+  | ModifySpecialExitWeight
+  | SetRoomEnvironment;
 
 export type Direction =
   | "north"

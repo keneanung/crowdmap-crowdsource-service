@@ -194,6 +194,17 @@ export interface ModifySpecialExitWeightSubmission
   weight: number;
 }
 
+/**
+ * Submit a change of a rooms environment.
+ */
+export interface SetRoomEnvironmentSubmission extends RoomChangeBaseSubmission {
+  type: "set-room-environment";
+  /**
+   * The ID of the environment to set.
+   */
+  environmentId: number;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -207,4 +218,5 @@ export type ChangeSubmission =
   | SetRoomAreaSubmission
   | DeleteExitSubmission
   | ModifyExitWeightSubmission
-  | ModifySpecialExitWeightSubmission;
+  | ModifySpecialExitWeightSubmission
+  | SetRoomEnvironmentSubmission;

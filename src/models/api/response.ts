@@ -83,6 +83,11 @@ export interface ModifySpecialExitWeightResponse
   weight: number;
 }
 
+export interface SetRoomEnvironmentResponse extends RoomChangeBaseResponse {
+  type: "set-room-environment";
+  environmentId: number;
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse
@@ -96,4 +101,5 @@ export type ChangeResponse =
   | SetRoomAreaResponse
   | DeleteExitResponse
   | ModifyExitWeightResponse
-  | ModifySpecialExitWeightResponse;
+  | ModifySpecialExitWeightResponse
+  | SetRoomEnvironmentResponse;

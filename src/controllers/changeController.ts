@@ -28,6 +28,7 @@ import {
   ModifySpecialExitWeight,
   SetRoomArea,
   SetRoomCoordinates,
+  SetRoomEnvironment,
   UnlockSpecialExit,
 } from "../models/business/change";
 import { ChangeService } from "../services/changeService";
@@ -178,6 +179,15 @@ export class ChangeController extends Controller {
             weight: typedChange.weight,
           };
         }
+        case "set-room-environment": {
+          const typedChange = change as SetRoomEnvironment;
+          return {
+            type: "set-room-environment",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            environmentId: typedChange.environmentId,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -285,6 +295,13 @@ export class ChangeController extends Controller {
             [change.reporter],
             change.exitCommand,
             change.weight,
+          );
+        }
+        case "set-room-environment": {
+          return new SetRoomEnvironment(
+            change.roomNumber,
+            [change.reporter],
+            change.environmentId,
           );
         }
         default: {
