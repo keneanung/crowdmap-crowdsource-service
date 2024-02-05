@@ -6,6 +6,7 @@ import express, {
   json,
   urlencoded,
 } from "express";
+import path from "node:path";
 import swaggerUi from "swagger-ui-express";
 import { ValidateError } from "tsoa";
 import { RegisterRoutes } from "../generated/routes";
@@ -24,6 +25,8 @@ app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
 });
 
 RegisterRoutes(app);
+
+app.use(express.static(path.join(path.dirname(__dirname), "website")));
 
 app.use(function notFoundHandler(_req, res: ExResponse) {
   res.status(404).send({

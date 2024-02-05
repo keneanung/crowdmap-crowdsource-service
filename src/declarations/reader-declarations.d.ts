@@ -9,5 +9,17 @@ declare module "mudlet-map-binary-reader" {
       file: string,
       minified: boolean,
     ) => string;
+    export: (
+      map: Mudlet.MudletMap,
+      dir?: string,
+    ) => { mapData: ExportedMap; colors: { envId: number; colors: number[] } };
   };
+
+  export type ExportedMap = Record<number, ExportedArea>;
+  export interface ExportedArea {
+    areaName: string;
+    areaId: number;
+    rooms: object[];
+    labels: object[];
+  }
 }

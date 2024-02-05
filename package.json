@@ -5,7 +5,7 @@
   "main": "build/src/server.js",
   "scripts": {
     "dev": "concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\"",
-    "build": "tsoa spec-and-routes && tsc",
+    "build": "tsoa spec-and-routes && tsc && cp -R website/ build/website/",
     "start": "node build/src/server.js",
     "lint": "eslint .",
     "format": "prettier --write src/ test/",

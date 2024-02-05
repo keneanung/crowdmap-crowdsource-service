@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import { inject } from "inversify";
 import { provide } from "inversify-binding-decorators";
+import { MudletMapReader } from "mudlet-map-binary-reader";
 import { dirname } from "path";
 import { Readable } from "stream";
 import { Controller, Get, Produces, Query, Route, Tags } from "tsoa";
@@ -30,7 +31,7 @@ export class MapController extends Controller {
     @Query() timesSeen: number,
     @Query() format: "binary" | "json",
   ): Promise<Readable> {
-    const file = await this.mapService.getChangedMap(timesSeen, format);
+    const file = await this.mapService.getChangedMapFile(timesSeen, format);
 
     this.setHeader(
       "Content-Type",
@@ -62,5 +63,31 @@ export class MapController extends Controller {
   @Get("/version")
   public async getVersion(@Query() timesSeen: number): Promise<string> {
     return await this.mapService.getVersion(timesSeen);
+  }
+
+  /**
+   * Returns the map in a format appropriate for the Mudlet map renderer, which allows rendering the map in the browser.
+   * The default implementation has the map, colors and a default position in three different files. This method returns a single file with all the data.
+   *
+   * @param timesSeen How many times a change must have been seen by different people to cosider it vetted.
+   * @returns A map file with all vetted changes applied.
+   */
+  @Get("/renderer")
+  @Produces("text/javascript")
+  public async getRendererMap(@Query() timesSeen: number): Promise<Readable> {
+    const map = await this.mapService.getChangedMap(timesSeen);
+    this.setHeader(
+      "X-Map-Version",
+      await this.mapService.getVersion(timesSeen),
+    );
+    this.setHeader("Content-Type", "text/javascript");
+    const exportedMap = MudletMapReader.export(map);
+    const stringifiedMap = JSON.stringify(exportedMap.mapData);
+    const stringifiedColors = JSON.stringify(exportedMap.colors);
+    const stringifiedPosition = JSON.stringify({
+      area: exportedMap.mapData[0].areaId,
+    });
+    const resString = `mapData = ${stringifiedMap}; colors = ${stringifiedColors}; position = ${stringifiedPosition};`;
+    return Readable.from(Buffer.from(resString));
   }
 }

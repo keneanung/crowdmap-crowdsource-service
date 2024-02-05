@@ -8,6 +8,7 @@ COPY package.json package-lock.json /source/
 RUN npm ci
 COPY tsconfig.json tsoa.json ./
 COPY src/ /source/src/
+COPY website/ /source/website/
 RUN npm run build
 
 FROM node:21-alpine3.18 AS prod-content
