@@ -24236,6 +24236,7 @@ var PageControls = /*#__PURE__*/function () {
     this.settingsForm = jQuery("#settings form");
     this.versions = jQuery("#versions");
     this.settings = new _mudletMapRenderer.Settings();
+    this.settings.timesSeen = 0;
     this.preview = new Preview(this.map);
     this.versionBadge = jQuery(".version-number");
     this.zIndex = 0;
@@ -24286,10 +24287,10 @@ var PageControls = /*#__PURE__*/function () {
 
       _this.settingsModal.find("input").first().focus();
     });
-    this.settingsForm.on("submit", function (event) {
+    this.settingsForm.on("submit", async function (event) {
       event.preventDefault();
 
-      _this.handleSaveSettings();
+      await _this.handleSaveSettings();
     });
     jQuery(window).on("resize", function () {
       _this.render();
@@ -24324,7 +24325,7 @@ var PageControls = /*#__PURE__*/function () {
     }
   }, {
     key: "handleSaveSettings",
-    value: function handleSaveSettings() {
+    value: async function handleSaveSettings() {
       var inputs = this.settingsModal.find("input");
       var formData = {};
       inputs.each(function (index, element) {
@@ -24339,10 +24340,14 @@ var PageControls = /*#__PURE__*/function () {
           formData[name] = jQuery(element).val();
         }
       });
+      const oldTimesSeen = this.settings.timesSeen;
       Object.assign(this.settings, formData);
-      this.showToast("Zapisano ustawienia");
+      this.showToast(translateString("Zapisano ustawienia"));
       this.settingsModal.modal("toggle");
       this.saveSettings();
+      if(oldTimesSeen !== this.settings.timesSeen){
+        await setTimesSeen(this.settings.timesSeen);
+      }
       this.render(true);
     }
   }, {
@@ -24539,7 +24544,7 @@ var PageControls = /*#__PURE__*/function () {
           _this4.renderer.controls.centerRoom(id);
         });
       } else {
-        this.showToast("Nie znaleziono takiej lokacji");
+        this.showToast(translateString("Nie znaleziono takiej lokacji"));
       }
     }
   }, {
@@ -24562,7 +24567,7 @@ var PageControls = /*#__PURE__*/function () {
           _this5.renderer.controls.centerOnItem(_this5.renderer.highlights);
         });
       } else {
-        this.showToast("Nie znaleziono takiej lokacji");
+        this.showToast(translateString("Nie znaleziono takiej lokacji"));
       }
     }
   }, {
@@ -24729,7 +24734,7 @@ var PageControls = /*#__PURE__*/function () {
         });
         this.showToast(translateString("Skopiowano do schowka"));
       } else {
-        this.showToast("Twoja przeglądarka nie wspiera kopiowania do schowka");
+        this.showToast(translateString("Twoja przeglądarka nie wspiera kopiowania do schowka"));
       }
 
       this.toastContainer.toast("show");
@@ -24903,6 +24908,13 @@ function getKeyByValue(obj, val) {
 function dirsShortToLong(dir) {
   var result = getKeyByValue(dirs, dir);
   return result !== undefined ? result : dir;
+}
+
+async function setTimesSeen(timesSeen){
+  const response = await fetch(`map/renderer?timesSeen=${timesSeen}`);
+  const data = await response.text();
+  eval(data);
+  window.controls.reader = new _mudletMapRenderer.MapReader(mapData, colors);
 }
 
 },{"./npc":49,"./preview":50,"./versions":51,"mudlet-map-renderer":1}],9:[function(require,module,exports){
