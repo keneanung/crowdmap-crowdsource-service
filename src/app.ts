@@ -12,6 +12,7 @@ import { ValidateError } from "tsoa";
 import { RegisterRoutes } from "../generated/routes";
 import * as swaggerJson from "../generated/swagger.json";
 import { AuthorizationError, ConflictError } from "./models/api/error";
+import rateLimit from "express-rate-limit";
 
 export const app = express();
 
@@ -21,6 +22,18 @@ app.use(
   }),
 );
 app.use(json());
+app.use(rateLimit({
+  // use a 15 minute window
+  windowMs: 15 * 60 * 1000,
+  // allow ten requests per second
+  max: 15 * 60 * 10,
+  standardHeaders: true,
+  keyGenerator: (req) => {
+    const corwardedIp = req.headers['x-forwarded-for'];
+    const forwardedIpSingle = typeof corwardedIp === 'string' ? corwardedIp : corwardedIp?.join();
+    return `${req.ip},${forwardedIpSingle}`
+  },
+}))
 app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
   return res.send(swaggerUi.generateHTML(swaggerJson));
 });
