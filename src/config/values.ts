@@ -15,4 +15,5 @@ export const config = {
     "https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/version.txt",
   connectionString: process.env.MONGO_CONNECTION_STRING,
   dbName: process.env.MONGO_DB_NAME,
+  trustProxy: parseInt(process.env.TRUST_PROXY ?? '0'),
 };

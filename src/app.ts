@@ -13,8 +13,11 @@ import { RegisterRoutes } from "../generated/routes";
 import * as swaggerJson from "../generated/swagger.json";
 import { AuthorizationError, ConflictError } from "./models/api/error";
 import rateLimit from "express-rate-limit";
+import { config } from "./config/values";
 
 export const app = express();
+
+app.set("trust proxy", config.trustProxy);
 
 app.use(
   urlencoded({
@@ -28,11 +31,6 @@ app.use(rateLimit({
   // allow ten requests per second
   max: 15 * 60 * 10,
   standardHeaders: true,
-  keyGenerator: (req) => {
-    const corwardedIp = req.headers['x-forwarded-for'];
-    const forwardedIpSingle = typeof corwardedIp === 'string' ? corwardedIp : corwardedIp?.join();
-    return `${req.ip},${forwardedIpSingle}`
-  },
 }))
 app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
   return res.send(swaggerUi.generateHTML(swaggerJson));

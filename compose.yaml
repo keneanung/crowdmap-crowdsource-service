@@ -22,3 +22,7 @@ services:
       - MONGO_CONNECTION_STRING=${MONGO_CONNECTION_STRING}
       # The MongoDB database to use. This is read from a .env file. Make sure to set restrictive permissions on that file.
       - MONGO_DB_NAME=${MONGO_DB_NAME}
+      # Which reverse proxy to trust to return the real IP address of the client. Set to 0 to trust no proxy. See https://expressjs.com/en/guide/behind-proxies.html for further documentation.
+      # This implementation uses the number option only.
+      # Use the /utility/ip endpoint to check if the real IP is returned correctly.
+      - TRUST_PROXY=0
