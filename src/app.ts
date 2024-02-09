@@ -11,6 +11,7 @@ import swaggerUi from "swagger-ui-express";
 import { ValidateError } from "tsoa";
 import { RegisterRoutes } from "../generated/routes";
 import * as swaggerJson from "../generated/swagger.json";
+import { AuthenticationError } from "./middlewares/security";
 
 export const app = express();
 
@@ -45,6 +46,12 @@ app.use(function errorHandler(
     return res.status(422).json({
       message: "Validation Failed",
       details: err.fields,
+    });
+  }
+  if (err instanceof AuthenticationError) {
+    console.warn(`Caught Authentication Error for ${req.path}:`, err.message);
+    return res.status(403).json({
+      message: err.message,
     });
   }
   if (err instanceof Error) {

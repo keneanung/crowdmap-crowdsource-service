@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Container, decorate, injectable } from "inversify";
 import { buildProviderModule } from "inversify-binding-decorators";
 import "reflect-metadata";
