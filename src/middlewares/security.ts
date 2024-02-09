@@ -1,14 +1,8 @@
 import * as express from "express";
 import { iocContainer } from "../ioc/ioc";
+import { AuthorizationError } from "../models/api/error";
 import { User } from "../models/business/user";
 import { UserService } from "../services/userService";
-
-export class AuthenticationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AuthenticationError";
-  }
-}
 
 export async function expressAuthentication(
   request: express.Request,
@@ -20,7 +14,7 @@ export async function expressAuthentication(
     const userService = iocContainer.get<UserService>(UserService);
 
     if (!token || typeof token !== "string") {
-      throw new AuthenticationError("Invalid Token: Access Denied")
+      throw new AuthorizationError("Invalid Token: Access Denied");
     }
 
     const user = await userService.getUserByApiKey(token);
@@ -28,8 +22,8 @@ export async function expressAuthentication(
     if (user) {
       return user;
     } else {
-      throw new AuthenticationError("Invalid Token: Access Denied")
+      throw new AuthorizationError("Invalid Token: Access Denied");
     }
   }
-  throw new AuthenticationError("Invalid Security");
+  throw new AuthorizationError("Invalid Security");
 }

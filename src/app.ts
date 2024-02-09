@@ -11,7 +11,7 @@ import swaggerUi from "swagger-ui-express";
 import { ValidateError } from "tsoa";
 import { RegisterRoutes } from "../generated/routes";
 import * as swaggerJson from "../generated/swagger.json";
-import { AuthenticationError } from "./middlewares/security";
+import { AuthorizationError, ConflictError } from "./models/api/error";
 
 export const app = express();
 
@@ -48,9 +48,15 @@ app.use(function errorHandler(
       details: err.fields,
     });
   }
-  if (err instanceof AuthenticationError) {
+  if (err instanceof AuthorizationError) {
     console.warn(`Caught Authentication Error for ${req.path}:`, err.message);
     return res.status(403).json({
+      message: err.message,
+    });
+  }
+  if (err instanceof ConflictError) {
+    console.error(err);
+    return res.status(409).json({
       message: err.message,
     });
   }

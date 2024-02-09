@@ -50,7 +50,7 @@ test("Should incorporate special exit locks into the map", async () => {
   await request(app).post("/change").send({
     type: "lock-special-exit",
     roomNumber: 1,
-    exitCommand: "north",
+    exitCommand: "worm warp",
     destination: 1337,
     reporter: "Test Reporter",
   });

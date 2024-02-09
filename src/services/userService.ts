@@ -1,10 +1,10 @@
 import * as crypto from "crypto";
 import { inject } from "inversify";
-import { provideSingleton } from "../ioc/provideSingleton";
+import { provide } from "inversify-binding-decorators";
 import { Role, User } from "../models/business/user";
 import { UserDbService } from "./userDbService";
 
-@provideSingleton(UserService)
+@provide(UserService)
 export class UserService {
   constructor(
     @inject<UserDbService>(UserDbService)
