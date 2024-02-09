@@ -7,7 +7,7 @@ import { provideSingleton } from "../ioc/provideSingleton";
 @provideSingleton(UtilityController)
 export class UtilityController extends Controller{
 
-  @Get("healthCheck")
+  @Get("healthcheck")
   public healthCheck() {
     return true;
   }
