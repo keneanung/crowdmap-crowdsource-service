@@ -20,4 +20,12 @@ export class MockUserDbService implements UserDbService {
   getUsers(): Promise<User[]> {
     return Promise.resolve(this.users);
   }
+  updateApiKey(user: User, newApiKey: string): Promise<void> {
+    const foundUser = this.users.find((u) => u.name === user.name);
+    if (!foundUser) {
+      return Promise.reject(new Error("Unknown User"));
+    }
+    foundUser.hashed_api_key = newApiKey;
+    return Promise.resolve();
+  }
 }

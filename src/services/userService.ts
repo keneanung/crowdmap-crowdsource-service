@@ -45,11 +45,29 @@ export class UserService {
     );
   }
 
+  public async getUser(name: string): Promise<User | undefined> {
+    const users = await this.userDbService.getUsers();
+    return users.find((user) => user.name === name);
+  }
+
   public async getUsers(): Promise<User[]> {
     return await this.userDbService.getUsers();
   }
 
   public generateApiKey() {
     return crypto.randomUUID();
+  }
+
+  public async createUser(name: string, roles: Role[]) {
+    const api_key = this.generateApiKey();
+    await this.addUser(name, api_key, roles);
+    return api_key;
+  }
+
+  public async updateApiKey(user: User) {
+    const newApiKey = this.generateApiKey();
+    const hashedApiKey = this.hashApiKey(newApiKey, user.salt).toString("hex");
+    await this.userDbService.updateApiKey(user, hashedApiKey);
+    return newApiKey;
   }
 }

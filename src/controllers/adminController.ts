@@ -5,7 +5,9 @@ import {
   Body,
   Controller,
   Get,
+  Path,
   Post,
+  Put,
   Request,
   Response,
   Route,
@@ -13,7 +15,11 @@ import {
   SuccessResponse,
   Tags,
 } from "tsoa";
-import { AuthorizationError, ConflictError } from "../models/api/error";
+import {
+  AuthorizationError,
+  ConflictError,
+  NotFoundError,
+} from "../models/api/error";
 import { UserRequest, UserResponse } from "../models/api/user";
 import { User } from "../models/business/user";
 import { UserService } from "../services/userService";
@@ -32,9 +38,9 @@ export class AdminController extends Controller {
   @Get("user")
   @Response<{ message: string }>(403, "Authorization Error")
   public async getUsers(
-    @Request() reqest: express.Request & { user: User },
+    @Request() request: express.Request & { user: User },
   ): Promise<UserResponse[]> {
-    if (!reqest.user.roles.includes("site_admin")) {
+    if (!request.user.roles.includes("site_admin")) {
       throw new AuthorizationError("Access Denied");
     }
     const users = await this.userService.getUsers();
@@ -51,18 +57,46 @@ export class AdminController extends Controller {
   @Response<{ message: string }>(409, "Resource already exists")
   @SuccessResponse("201", "User created")
   public async addUser(
-    @Request() reqest: express.Request & { user: User },
+    @Request() request: express.Request & { user: User },
     @Body() body: UserRequest,
   ): Promise<string> {
-    if (!reqest.user.roles.includes("site_admin")) {
+    if (!request.user.roles.includes("site_admin")) {
       throw new AuthorizationError("Access Denied");
     }
     const users = await this.userService.getUsers();
     if (users.find((user) => user.name === body.name)) {
       throw new ConflictError("User already exists");
     }
-    const api_key = this.userService.generateApiKey();
-    await this.userService.addUser(body.name, api_key, body.roles);
-    return api_key;
+    const apiKey = await this.userService.createUser(body.name, body.roles);
+    return apiKey;
+  }
+
+  @Get("user/me")
+  public getMe(
+    @Request() request: express.Request & { user: User },
+  ): UserResponse {
+    return {
+      name: request.user.name,
+      roles: request.user.roles,
+    };
+  }
+
+  @Put("user/{user}/api-key")
+  @Response<{ message: string }>(403, "Authorization Error")
+  @Response<{ message: string }>(404, "User not found")
+  public async updateApiKey(
+    @Request() request: express.Request & { user: User },
+    @Path() user: string,
+  ): Promise<string> {
+    if (!request.user.roles.includes("site_admin") && user !== "me") {
+      throw new AuthorizationError("Access Denied");
+    }
+    const userToChange =
+      user === "me" ? request.user : await this.userService.getUser(user);
+    if (!userToChange) {
+      throw new NotFoundError("User not found");
+    }
+    const apiKey = await this.userService.updateApiKey(userToChange);
+    return apiKey;
   }
 }

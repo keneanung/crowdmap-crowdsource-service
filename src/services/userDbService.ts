@@ -6,6 +6,7 @@ import { User } from "../models/business/user";
 export abstract class UserDbService {
   abstract addUser(user: User): Promise<void>;
   abstract getUsers(): Promise<User[]>;
+  abstract updateApiKey(user: User, newApiKey: string): Promise<void>;
 }
 
 @provideSingleton(UserDbService)
@@ -42,5 +43,13 @@ export class MongoUserDbService implements UserDbService {
   private async connect() {
     await this.mongo.connect();
     this.connected = true;
+  }
+
+  public async updateApiKey(user: User, newApiKey: string) {
+    const collection = await this.getCollection();
+    await collection.updateOne(
+      { name: user.name },
+      { $set: { api_key: newApiKey } },
+    );
   }
 }

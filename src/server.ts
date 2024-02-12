@@ -79,7 +79,9 @@ Promise.all([
 ]).then(
   () => {
     app.listen(config.port, () => {
-      console.log(`Crowdmap service listening at http://localhost:${config.port}`);
+      console.log(
+        `Crowdmap service listening at http://localhost:${config.port}`,
+      );
     });
   },
   (err) => {

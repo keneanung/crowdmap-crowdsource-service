@@ -6,14 +6,18 @@ import express, {
   json,
   urlencoded,
 } from "express";
+import rateLimit from "express-rate-limit";
 import path from "node:path";
 import swaggerUi from "swagger-ui-express";
 import { ValidateError } from "tsoa";
 import { RegisterRoutes } from "../generated/routes";
 import * as swaggerJson from "../generated/swagger.json";
-import { AuthorizationError, ConflictError } from "./models/api/error";
-import rateLimit from "express-rate-limit";
 import { config } from "./config/values";
+import {
+  AuthorizationError,
+  ConflictError,
+  NotFoundError,
+} from "./models/api/error";
 
 export const app = express();
 
@@ -25,13 +29,15 @@ app.use(
   }),
 );
 app.use(json());
-app.use(rateLimit({
-  // use a 15 minute window
-  windowMs: 15 * 60 * 1000,
-  // allow ten requests per second
-  max: 15 * 60 * 10,
-  standardHeaders: true,
-}))
+app.use(
+  rateLimit({
+    // use a 15 minute window
+    windowMs: 15 * 60 * 1000,
+    // allow ten requests per second
+    max: 15 * 60 * 10,
+    standardHeaders: true,
+  }),
+);
 app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
   return res.send(swaggerUi.generateHTML(swaggerJson));
 });
@@ -68,6 +74,12 @@ app.use(function errorHandler(
   if (err instanceof ConflictError) {
     console.error(err);
     return res.status(409).json({
+      message: err.message,
+    });
+  }
+  if (err instanceof NotFoundError) {
+    console.error(err);
+    return res.status(404).json({
       message: err.message,
     });
   }
