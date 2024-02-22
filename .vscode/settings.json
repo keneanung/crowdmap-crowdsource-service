@@ -4,5 +4,11 @@
     "coverage-gutters.coverageBaseDir": "coverage",
     "coverage-gutters.coverageFileNames": [
         "lcov.info"
-    ]
+    ],
+    "jest.runMode": "on-demand",
+    "testing.openTesting": "neverOpen",
+    "jest.outputConfig": {
+      "revealOn": "error",
+      "revealWithFocus": "test-results"
+    }
 }
