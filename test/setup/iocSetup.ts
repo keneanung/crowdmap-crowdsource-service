@@ -1,8 +1,8 @@
-import { iocContainer } from "../src/ioc/ioc";
-import { ChangeService } from "../src/services/changeService";
-import { UserDbService } from "../src/services/userDbService";
-import { MockChangeService } from "./mocks/mockChangeService";
-import { MockUserDbService } from "./mocks/mockUserDbService";
+import { iocContainer } from "../../src/ioc/ioc";
+import { ChangeService } from "../../src/services/changeService";
+import { UserDbService } from "../../src/services/userDbService";
+import { MockChangeService } from "../mocks/mockChangeService";
+import { MockUserDbService } from "../mocks/mockUserDbService";
 
 export const setupChangeServiceMock = (): void => {
   iocContainer

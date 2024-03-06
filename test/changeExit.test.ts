@@ -5,7 +5,7 @@
 import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
 import { app } from "../src/app";
-import { setupChangeServiceMock } from "./iocSetup";
+import { setupChangeServiceMock } from "./setup/iocSetup";
 
 beforeEach(() => {
   setupChangeServiceMock();

@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
 import { app } from "../src/app";
-import { setupUserDbServiceMock } from "./iocSetup";
+import { setupUserDbServiceMock } from "./setup/iocSetup";
 
 beforeEach(() => {
   setupUserDbServiceMock();
