@@ -30,6 +30,31 @@ test("Should return a 403 if wrong api token is provided", async () => {
     });
 });
 
+test("Should return a 403 if a user with an invalid role tries to access the user list", async () => {
+  let apiKey = "";
+  await request(app)
+    .post("/admin/user")
+    .set("x-api-key", "abc123456")
+    .send({
+      name: "new_user",
+      roles: ["map_admin"],
+    })
+    .expect(201)
+    .then((res) => {
+      apiKey = res.body as string;
+    });
+
+  await request(app)
+    .get("/admin/user")
+    .set("x-api-key", apiKey)
+    .expect(403)
+    .expect((res) => {
+      expect(res.body).toStrictEqual({
+        message: "Access Denied",
+      });
+    });
+});
+
 test("Should return a 200 if correct api token is provided", async () => {
   await request(app)
     .get("/admin/user")
