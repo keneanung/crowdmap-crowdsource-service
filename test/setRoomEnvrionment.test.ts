@@ -32,6 +32,7 @@ test("Should accept and return changes of room envrionments", async () => {
           roomNumber: 1,
           environmentId: 12,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

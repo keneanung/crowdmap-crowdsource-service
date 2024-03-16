@@ -32,6 +32,7 @@ test("Should accept and return exit deletion", async () => {
           roomNumber: 39478,
           direction: "east",
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

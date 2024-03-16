@@ -3,6 +3,7 @@ import { ChangeType, Direction } from "./common";
 export interface ChangeBaseResponse {
   type: ChangeType;
   reporters: number;
+  changeId: number;
 }
 
 export interface CreateAreaResponse extends ChangeBaseResponse {

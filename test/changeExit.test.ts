@@ -34,6 +34,7 @@ test("Should accept and return exit changes", async () => {
           direction: "north",
           destination: 1337,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

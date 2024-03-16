@@ -32,6 +32,7 @@ test("Should accept and return movements of rooms between areas", async () => {
           roomNumber: 1,
           areaId: 55,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

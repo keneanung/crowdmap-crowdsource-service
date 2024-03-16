@@ -34,6 +34,7 @@ test("Should accept and return special exit changes", async () => {
           exitCommand: "worm warp",
           destination: 1337,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

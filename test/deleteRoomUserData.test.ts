@@ -32,6 +32,7 @@ test("Should accept and return room user data deletions", async () => {
           roomNumber: 1,
           key: "test user data",
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

@@ -32,6 +32,7 @@ test("Should accept and return special exit deletion", async () => {
           roomNumber: 1,
           exitCommand: "worm warp",
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

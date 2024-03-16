@@ -56,6 +56,9 @@ export class ChangeController extends Controller {
   public async getChanges(@Query() timesSeen = 0): Promise<ChangeResponse[]> {
     const changes = await this.changeService.getChanges(timesSeen);
     return changes.map((change) => {
+      if(!change.changeId){
+        throw new Error("Change does not have a changeId");
+      }
       switch (change.type) {
         case "room-name": {
           const typedChange = change as ChangeRoomName;
@@ -64,6 +67,7 @@ export class ChangeController extends Controller {
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
             name: typedChange.name,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "modify-exit": {
@@ -74,6 +78,7 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
             direction: typedChange.direction,
             destination: typedChange.destination,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "modify-special-exit": {
@@ -84,6 +89,7 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
             exitCommand: typedChange.exitCommand,
             destination: typedChange.destination,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "lock-special-exit": {
@@ -94,6 +100,7 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
             exitCommand: typedChange.exitCommand,
             destination: typedChange.destination,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "unlock-special-exit": {
@@ -104,6 +111,7 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
             exitCommand: typedChange.exitCommand,
             destination: typedChange.destination,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "delete-special-exit": {
@@ -113,6 +121,7 @@ export class ChangeController extends Controller {
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
             exitCommand: typedChange.exitCommand,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "create-room": {
@@ -121,6 +130,7 @@ export class ChangeController extends Controller {
             type: "create-room",
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "set-room-coordinates": {
@@ -132,6 +142,7 @@ export class ChangeController extends Controller {
             x: typedChange.x,
             y: typedChange.y,
             z: typedChange.z,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "create-area": {
@@ -141,6 +152,7 @@ export class ChangeController extends Controller {
             name: typedChange.name,
             areaId: typedChange.areaId,
             reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "set-room-area": {
@@ -150,6 +162,7 @@ export class ChangeController extends Controller {
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
             areaId: typedChange.areaId,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "delete-exit": {
@@ -159,6 +172,7 @@ export class ChangeController extends Controller {
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
             direction: typedChange.direction,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "modify-exit-weight": {
@@ -169,6 +183,7 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
             direction: typedChange.direction,
             weight: typedChange.weight,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "modify-special-exit-weight": {
@@ -179,6 +194,7 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
             exitCommand: typedChange.exitCommand,
             weight: typedChange.weight,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "set-room-environment": {
@@ -188,6 +204,7 @@ export class ChangeController extends Controller {
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
             environmentId: typedChange.environmentId,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "modify-room-user-data": {
@@ -198,6 +215,7 @@ export class ChangeController extends Controller {
             reporters: typedChange.reporters.size,
             key: typedChange.key,
             value: typedChange.value,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         case "delete-room-user-data": {
@@ -207,6 +225,7 @@ export class ChangeController extends Controller {
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
             key: typedChange.key,
+            changeId: typedChange.changeId ?? 0,
           };
         }
         default: {

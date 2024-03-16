@@ -34,6 +34,7 @@ test("Should accept and return special exit weight changes", async () => {
           exitCommand: "worm warp",
           weight: 4,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

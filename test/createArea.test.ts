@@ -32,6 +32,7 @@ test("Should accept and return creation of new areas", async () => {
           name: "Test Area",
           areaId: 497,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

@@ -30,6 +30,7 @@ test("Should accept and return room creation", async () => {
           type: "create-room",
           roomNumber: 13372,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

@@ -36,6 +36,7 @@ test("Should accept and return room coordinate changes", async () => {
           y: 2,
           z: 3,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

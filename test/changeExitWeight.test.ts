@@ -34,6 +34,7 @@ test("Should accept and return exit weight changes", async () => {
           direction: "east",
           weight: 4,
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });

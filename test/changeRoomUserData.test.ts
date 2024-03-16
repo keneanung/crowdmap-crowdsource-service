@@ -34,6 +34,7 @@ test("Should accept and return room user data changes", async () => {
           key: "test user data",
           value: "test value",
           reporters: 1,
+          changeId: 1,
         },
       ]);
     });
