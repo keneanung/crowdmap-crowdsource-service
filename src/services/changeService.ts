@@ -17,6 +17,12 @@ export abstract class ChangeService {
   ): Promise<Change[]>;
 }
 
+interface ChangeQuery{
+  numberOfReporters: { $gte: number };
+  changeId?: { $in: number[] } | { $nin: number[] };
+
+}
+
 @provideSingleton(ChangeService)
 export class MongoChangeService implements ChangeService {
   private mongo: MongoClient;
@@ -74,17 +80,17 @@ export class MongoChangeService implements ChangeService {
     exclude: number[] = [],
   ) {
     const collection = await this.getCollection();
-    let changeIdQuery = undefined;
+    
+    const queryObject: ChangeQuery = {
+      numberOfReporters: { $gte: timesSeen },
+    };
     if (include.length > 0) {
-      changeIdQuery = { $in: include };
+      queryObject.changeId = { $in: include };
     } else if (exclude.length > 0) {
-      changeIdQuery = { $nin: exclude };
+      queryObject.changeId = { $nin: exclude };
     }
     const changes = await collection
-      .find({
-        changeId: changeIdQuery,
-        numberOfReporters: { $gte: timesSeen },
-      })
+      .find(queryObject)
       .sort({ changeId: 1 })
       .toArray();
     return changes.map(changeDbToBusiness);
