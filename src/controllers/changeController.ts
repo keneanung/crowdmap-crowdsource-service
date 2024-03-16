@@ -10,6 +10,7 @@ import {
   Route,
   SuccessResponse,
   Tags,
+  ValidateError,
 } from "tsoa";
 import { ValidateErrorJSON } from "../models/api/error";
 import { ChangeResponse } from "../models/api/response";
@@ -50,13 +51,36 @@ export class ChangeController extends Controller {
   /**
    * Get all changes that are applied to the base map file. You can configure, how many different people must have vetted the changes by setting the `timesSeen` parameter.
    * @param timesSeen How often a change has to be seen by different people to return the change.
+   * @param include Only include changes with the given changeIds.
+   * @param exclude Exclude changes with the given changeIds.
    * @returns All changes to the map that are considered vetted by the `timesSeen` amount.
    */
   @Get("/")
-  public async getChanges(@Query() timesSeen = 0): Promise<ChangeResponse[]> {
-    const changes = await this.changeService.getChanges(timesSeen);
+  public async getChanges(
+    @Query() timesSeen = 0,
+    @Query() include: number[] = [],
+    @Query() exclude: number[] = [],
+  ): Promise<ChangeResponse[]> {
+    if (include.length > 0 && exclude.length > 0) {
+      throw new ValidateError(
+        {
+          include: {
+            message: "Unable to include and exclude changes at the same time",
+          },
+          exclude: {
+            message: "Unable to include and exclude changes at the same time",
+          },
+        },
+        "Cannot include and exclude changes at the same time",
+      );
+    }
+    const changes = await this.changeService.getChanges(
+      timesSeen,
+      include,
+      exclude,
+    );
     return changes.map((change) => {
-      if(!change.changeId){
+      if (!change.changeId) {
         throw new Error("Change does not have a changeId");
       }
       switch (change.type) {

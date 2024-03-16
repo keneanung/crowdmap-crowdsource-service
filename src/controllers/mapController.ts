@@ -4,7 +4,15 @@ import { provide } from "inversify-binding-decorators";
 import { MudletMapReader } from "mudlet-map-binary-reader";
 import { dirname } from "path";
 import { Readable } from "stream";
-import { Controller, Get, Produces, Query, Route, Tags } from "tsoa";
+import {
+  Controller,
+  Get,
+  Produces,
+  Query,
+  Route,
+  Tags,
+  ValidateError,
+} from "tsoa";
 import { MapService } from "../services/mapService";
 
 @Route("map")
@@ -23,6 +31,8 @@ export class MapController extends Controller {
    *
    * @param timesSeen How many times a change must have been seen by different people to cosider it vetted.
    * @param format The map format to download. If the format is `json`, a Mudlet map JSON is returned with content type `application/json`. For `binary`, a Mudlet binary map with content type `application/octet-stream` is sent.
+   * @param include Only include changes with the given changeIds.
+   * @param exclude Exclude changes with the given changeIds.
    * @returns A map file with all vetted changes applied.
    */
   @Get("/")
@@ -30,8 +40,28 @@ export class MapController extends Controller {
   public async getMap(
     @Query() timesSeen: number,
     @Query() format: "binary" | "json",
+    @Query() include: number[] = [],
+    @Query() exclude: number[] = [],
   ): Promise<Readable> {
-    const file = await this.mapService.getChangedMapFile(timesSeen, format);
+    if (include.length > 0 && exclude.length > 0) {
+      throw new ValidateError(
+        {
+          include: {
+            message: "Unable to include and exclude changes at the same time",
+          },
+          exclude: {
+            message: "Unable to include and exclude changes at the same time",
+          },
+        },
+        "Cannot include and exclude changes at the same time",
+      );
+    }
+    const file = await this.mapService.getChangedMapFile(
+      timesSeen,
+      format,
+      include,
+      exclude,
+    );
 
     this.setHeader(
       "Content-Type",

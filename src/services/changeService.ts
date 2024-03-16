@@ -10,7 +10,11 @@ import {
 
 export abstract class ChangeService {
   abstract addChange(change: Change): Promise<void>;
-  abstract getChanges(timesSeen: number): Promise<Change[]>;
+  abstract getChanges(
+    timesSeen: number,
+    include?: number[],
+    exclude?: number[],
+  ): Promise<Change[]>;
 }
 
 @provideSingleton(ChangeService)
@@ -64,10 +68,21 @@ export class MongoChangeService implements ChangeService {
     }
   }
 
-  public async getChanges(timesSeen: number) {
+  public async getChanges(
+    timesSeen: number,
+    include: number[] = [],
+    exclude: number[] = [],
+  ) {
     const collection = await this.getCollection();
+    let changeIdQuery = undefined;
+    if (include.length > 0) {
+      changeIdQuery = { $in: include };
+    } else if (exclude.length > 0) {
+      changeIdQuery = { $nin: exclude };
+    }
     const changes = await collection
       .find({
+        changeId: changeIdQuery,
         numberOfReporters: { $gte: timesSeen },
       })
       .sort({ changeId: 1 })
