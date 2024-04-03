@@ -17,10 +17,9 @@ export abstract class ChangeService {
   ): Promise<Change[]>;
 }
 
-interface ChangeQuery{
+interface ChangeQuery {
   numberOfReporters: { $gte: number };
   changeId?: { $in: number[] } | { $nin: number[] };
-
 }
 
 @provideSingleton(ChangeService)
@@ -80,7 +79,7 @@ export class MongoChangeService implements ChangeService {
     exclude: number[] = [],
   ) {
     const collection = await this.getCollection();
-    
+
     const queryObject: ChangeQuery = {
       numberOfReporters: { $gte: timesSeen },
     };

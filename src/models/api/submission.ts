@@ -248,3 +248,7 @@ export type ChangeSubmission =
   | SetRoomEnvironmentSubmission
   | ModifyRoomUserDataSubmission
   | DeleteRoomUserDataSubmission;
+
+export interface ApplicationSubmission{
+  version: string;
+}

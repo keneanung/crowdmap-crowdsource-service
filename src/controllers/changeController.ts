@@ -1,3 +1,4 @@
+import * as express from "express";
 import { inject } from "inversify";
 import { provide } from "inversify-binding-decorators";
 import {
@@ -6,15 +7,17 @@ import {
   Get,
   Post,
   Query,
+  Request,
   Response,
   Route,
+  Security,
   SuccessResponse,
   Tags,
   ValidateError,
 } from "tsoa";
-import { ValidateErrorJSON } from "../models/api/error";
+import { AuthorizationError, ConflictError, ValidateErrorJSON } from "../models/api/error";
 import { ChangeResponse } from "../models/api/response";
-import { ChangeSubmission } from "../models/api/submission";
+import { ApplicationSubmission, ChangeSubmission } from "../models/api/submission";
 import {
   Change,
   ChangeRoomName,
@@ -35,6 +38,8 @@ import {
   UnlockSpecialExit,
 } from "../models/business/change";
 import { ChangeService } from "../services/changeService";
+import { MapService } from "../services/mapService";
+import { User } from "../models/business/user";
 
 function assertUnreachable(x: Change): never {
   throw new Error(`Didn't expect to get here ${x.type}`);
@@ -44,7 +49,10 @@ function assertUnreachable(x: Change): never {
 @Tags("change")
 @provide(ChangeController)
 export class ChangeController extends Controller {
-  constructor(@inject(ChangeService) private changeService: ChangeService) {
+  constructor(
+    @inject(ChangeService) private changeService: ChangeService,
+    @inject(MapService) private mapService: MapService,
+  ) {
     super();
   }
 
@@ -79,6 +87,8 @@ export class ChangeController extends Controller {
       include,
       exclude,
     );
+    this.setHeader("X-Map-Version", await this.mapService.getVersion(timesSeen));
+    this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
     return changes.map((change) => {
       if (!change.changeId) {
         throw new Error("Change does not have a changeId");
@@ -389,5 +399,26 @@ export class ChangeController extends Controller {
       }
     })();
     await this.changeService.addChange(businessChange);
+  }
+
+  /**
+   * Apply changes to the base map file. This will apply all changes listed in the submission.
+   * 
+   * @param application The application that should be applied to the base map file.
+   */
+  @Post("/apply")
+  @Security("api_key")
+  @Response<AuthorizationError>(403, "Authorization Error")
+  public async applyChanges(
+    @Request() request: express.Request & { user: User },
+    @Body() application: ApplicationSubmission,
+  ): Promise<void> {
+    if(!request.user.roles.includes("map_admin")) {
+      throw new AuthorizationError("Access Denied");
+    }
+    const serverVersion = await this.mapService.getRawVersion();
+    if (application.version !== serverVersion) {
+      throw new ConflictError("The map version provided does not match the current map version");
+    }
   }
 }

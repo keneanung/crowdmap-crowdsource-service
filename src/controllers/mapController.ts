@@ -72,6 +72,7 @@ export class MapController extends Controller {
       "X-Map-Version",
       await this.mapService.getVersion(timesSeen),
     );
+    this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
 
     const s = fs.createReadStream(file);
     s.on("close", () => {
@@ -110,6 +111,7 @@ export class MapController extends Controller {
       "X-Map-Version",
       await this.mapService.getVersion(timesSeen),
     );
+    this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
     this.setHeader("Content-Type", "text/javascript");
     const exportedMap = MudletMapReader.export(map);
     const stringifiedMap = JSON.stringify(exportedMap.mapData);
