@@ -27,7 +27,7 @@
     "mudlet-map-binary-reader": "^0.5.2",
     "reflect-metadata": "^0.2.1",
     "swagger-ui-express": "^5.0.0",
-    "tsoa": "^6.1.4"
+    "tsoa": "^6.2.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
