@@ -4,10 +4,10 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config } from "../config/values";
-import { provideSingleton } from "../ioc/provideSingleton";
 import { ChangeService } from "./changeService";
+import { provide } from "inversify-binding-decorators";
 
-@provideSingleton(MapService)
+@provide(MapService)
 export class MapService {
   constructor(@inject(ChangeService) private changeService: ChangeService) {}
 
