@@ -23,6 +23,8 @@ export const app = express();
 
 app.set("trust proxy", config.trustProxy);
 
+app.use(cors());
+
 app.use(
   urlencoded({
     extended: true,
@@ -93,4 +95,3 @@ app.use(function errorHandler(
   next();
   return;
 });
-app.use(cors());
