@@ -1,7 +1,7 @@
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
-import { provideSingleton } from "../ioc/provideSingleton";
 import { User } from "../models/business/user";
+import { provide } from "inversify-binding-decorators";
 
 export abstract class UserDbService {
   abstract addUser(user: User): Promise<void>;
@@ -9,7 +9,7 @@ export abstract class UserDbService {
   abstract updateApiKey(user: User, newApiKey: string): Promise<void>;
 }
 
-@provideSingleton(UserDbService)
+@provide(UserDbService)
 export class MongoUserDbService implements UserDbService {
   private mongo: MongoClient;
   private connected = false;

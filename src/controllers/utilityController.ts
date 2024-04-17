@@ -1,10 +1,10 @@
 import * as express from "express";
 import { Controller, Get, Request, Route, Tags } from "tsoa";
-import { provideSingleton } from "../ioc/provideSingleton";
+import { provide } from "inversify-binding-decorators";
 
 @Route("utility")
 @Tags("Utility")
-@provideSingleton(UtilityController)
+@provide(UtilityController)
 export class UtilityController extends Controller {
   @Get("healthcheck")
   public healthCheck() {

@@ -1,12 +1,12 @@
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
-import { provideSingleton } from "../ioc/provideSingleton";
 import { Change } from "../models/business/change";
 import {
   Change as ChangeDb,
   changeBusinessToDb,
   changeDbToBusiness,
 } from "../models/db/change";
+import { provide } from "inversify-binding-decorators";
 
 export abstract class ChangeService {
   abstract addChange(change: Change): Promise<void>;
@@ -22,7 +22,7 @@ interface ChangeQuery {
   changeId?: { $in: number[] } | { $nin: number[] };
 }
 
-@provideSingleton(ChangeService)
+@provide(ChangeService)
 export class MongoChangeService implements ChangeService {
   private mongo: MongoClient;
   private connected = false;
