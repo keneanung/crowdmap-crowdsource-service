@@ -1,6 +1,11 @@
-import { expect, test } from "@jest/globals";
+import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
 import { app } from "../src/app";
+import { setupChangeServiceMock } from "./setup/iocSetup";
+
+beforeEach(() => {
+  setupChangeServiceMock();
+});
 
 test("GET /docs returns the Swagger UI from a different origin", async () => {
   await request(app)
