@@ -653,6 +653,7 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
     }
     default: {
       // @ts-expect-error There should be no way to get here
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Unknown change type: ${change.type}`);
     }
   }

@@ -1,11 +1,11 @@
 import { inject } from "inversify";
+import { provide } from "inversify-binding-decorators";
 import { MudletMapReader } from "mudlet-map-binary-reader";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config } from "../config/values";
 import { ChangeService } from "./changeService";
-import { provide } from "inversify-binding-decorators";
 
 @provide(MapService)
 export class MapService {
@@ -51,9 +51,9 @@ export class MapService {
   public async getVersion(timesSeen: number): Promise<string> {
     const changes = await this.changeService.getChanges(timesSeen);
     const lastChangeId =
-      changes.length > 0 ? changes[changes.length - 1].changeId : 0;
+      changes.length > 0 ? changes[changes.length - 1].changeId ?? 0 : 0;
     const baseVersion = await this.getRawVersion();
-    return `${baseVersion}.${lastChangeId}.${changes.length}`;
+    return `${baseVersion}.${lastChangeId.toString()}.${changes.length.toString()}`;
   }
 
   public async getRawVersion() {

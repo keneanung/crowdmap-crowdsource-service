@@ -7,7 +7,7 @@ import { UserService } from "./services/userService";
 
 let mapDownloadPromise;
 if (!fs.existsSync(config.mapFile)) {
-  mapDownloadPromise = downloadMapFile().catch((err) => {
+  mapDownloadPromise = downloadMapFile().catch((err: unknown) => {
     console.error(err);
     process.exit(1);
   });
@@ -17,7 +17,7 @@ if (!fs.existsSync(config.mapFile)) {
 
 let mapVersionDownloadPromise;
 if (!fs.existsSync(config.versionFile)) {
-  mapVersionDownloadPromise = downloadMapVersion().catch((err) => {
+  mapVersionDownloadPromise = downloadMapVersion().catch((err: unknown) => {
     console.error(err);
     process.exit(1);
   });
@@ -44,7 +44,7 @@ Promise.all([
   () => {
     app.listen(config.port, () => {
       console.log(
-        `Crowdmap service listening at http://localhost:${config.port}`,
+        `Crowdmap service listening at http://localhost:${config.port.toString()}`,
       );
     });
   },
