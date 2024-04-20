@@ -419,6 +419,7 @@ export class ChangeController extends Controller {
   @Post("/apply")
   @Security("api_key")
   @Response<AuthorizationError>(403, "Authorization Error")
+  @Response<ConflictError>(409, "The map version provided does not match the current map version")
   public async applyChanges(
     @Request() request: express.Request & { user: User },
     @Body() application: ApplicationSubmission,
