@@ -23,6 +23,8 @@ FROM node:21-alpine3.18 AS prod
 
 RUN mkdir -p /opt/serve
 
+USER node
+
 COPY --chown=node:node --from=build /source/build/ /opt/serve/build/
 COPY --chown=node:node --from=prod-content /source/node_modules/ /opt/serve/node_modules
 COPY --chown=node:node --from=build /source/package.json /opt/serve/
