@@ -15,9 +15,16 @@ import {
   Tags,
   ValidateError,
 } from "tsoa";
-import { AuthorizationError, ConflictError, ValidateErrorJSON } from "../models/api/error";
+import {
+  AuthorizationError,
+  ConflictError,
+  ValidateErrorJSON,
+} from "../models/api/error";
 import { ChangeResponse } from "../models/api/response";
-import { ApplicationSubmission, ChangeSubmission } from "../models/api/submission";
+import {
+  ApplicationSubmission,
+  ChangeSubmission,
+} from "../models/api/submission";
 import {
   Change,
   ChangeRoomName,
@@ -37,9 +44,9 @@ import {
   SetRoomEnvironment,
   UnlockSpecialExit,
 } from "../models/business/change";
+import { User } from "../models/business/user";
 import { ChangeService } from "../services/changeService";
 import { MapService } from "../services/mapService";
-import { User } from "../models/business/user";
 
 function assertUnreachable(x: Change): never {
   throw new Error(`Didn't expect to get here ${x.type}`);
@@ -87,7 +94,10 @@ export class ChangeController extends Controller {
       include,
       exclude,
     );
-    this.setHeader("X-Map-Version", await this.mapService.getVersion(timesSeen));
+    this.setHeader(
+      "X-Map-Version",
+      await this.mapService.getVersion(timesSeen),
+    );
     this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
     return changes.map((change) => {
       if (!change.changeId) {
@@ -403,7 +413,7 @@ export class ChangeController extends Controller {
 
   /**
    * Apply changes to the base map file. This will apply all changes listed in the submission.
-   * 
+   *
    * @param application The application that should be applied to the base map file.
    */
   @Post("/apply")
@@ -413,12 +423,16 @@ export class ChangeController extends Controller {
     @Request() request: express.Request & { user: User },
     @Body() application: ApplicationSubmission,
   ): Promise<void> {
-    if(!request.user.roles.includes("map_admin")) {
+    if (!request.user.roles.includes("map_admin")) {
       throw new AuthorizationError("Access Denied");
     }
     const serverVersion = await this.mapService.getRawVersion();
     if (application.version !== serverVersion) {
-      throw new ConflictError("The map version provided does not match the current map version");
+      throw new ConflictError(
+        "The map version provided does not match the current map version",
+      );
     }
+    await this.changeService.applyChanges(application.apply);
+    await this.mapService.updateMap();
   }
 }

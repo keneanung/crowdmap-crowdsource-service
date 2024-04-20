@@ -249,6 +249,7 @@ export type ChangeSubmission =
   | ModifyRoomUserDataSubmission
   | DeleteRoomUserDataSubmission;
 
-export interface ApplicationSubmission{
+export interface ApplicationSubmission {
   version: string;
+  apply: number[];
 }

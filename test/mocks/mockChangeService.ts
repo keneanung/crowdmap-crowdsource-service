@@ -19,4 +19,10 @@ export class MockChangeService implements ChangeService {
   public getChanges(_timesSeen: number): Promise<Change[]> {
     return Promise.resolve(this.changes.map(changeDbToBusiness));
   }
+  public applyChanges(apply: number[]): Promise<void> {
+    this.changes = this.changes.filter(
+      (change) => !apply.includes(change.changeId ?? 0),
+    );
+    return Promise.resolve();
+  }
 }

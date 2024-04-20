@@ -1,3 +1,4 @@
+import { provide } from "inversify-binding-decorators";
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
 import { Change } from "../models/business/change";
@@ -6,7 +7,6 @@ import {
   changeBusinessToDb,
   changeDbToBusiness,
 } from "../models/db/change";
-import { provide } from "inversify-binding-decorators";
 
 export abstract class ChangeService {
   abstract addChange(change: Change): Promise<void>;
@@ -15,6 +15,7 @@ export abstract class ChangeService {
     include?: number[],
     exclude?: number[],
   ): Promise<Change[]>;
+  abstract applyChanges(apply: number[]): Promise<void>;
 }
 
 interface ChangeQuery {
@@ -93,5 +94,10 @@ export class MongoChangeService implements ChangeService {
       .sort({ changeId: 1 })
       .toArray();
     return changes.map(changeDbToBusiness);
+  }
+
+  public async applyChanges(apply: number[]) {
+    const collection = await this.getCollection();
+    await collection.deleteMany({ changeId: { $in: apply } });
   }
 }

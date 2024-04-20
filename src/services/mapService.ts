@@ -5,6 +5,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config } from "../config/values";
+import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
 import { ChangeService } from "./changeService";
 
 @provide(MapService)
@@ -58,5 +59,11 @@ export class MapService {
 
   public async getRawVersion() {
     return (await readFile(config.versionFile, "utf-8")).trim();
+  }
+
+  public async updateMap() {
+    const versionPromise = downloadMapVersion();
+    const mapPromise = downloadMapFile();
+    await Promise.all([versionPromise, mapPromise]);
   }
 }

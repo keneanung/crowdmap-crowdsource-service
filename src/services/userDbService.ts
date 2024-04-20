@@ -1,7 +1,7 @@
+import { provide } from "inversify-binding-decorators";
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
 import { User } from "../models/business/user";
-import { provide } from "inversify-binding-decorators";
 
 export abstract class UserDbService {
   abstract addUser(user: User): Promise<void>;
