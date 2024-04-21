@@ -16,7 +16,7 @@ test("applyChange returns a conflict error, when the version does not match the 
     .set("x-api-key", "abc123456")
     .send({
       version: "255",
-      apply: [],
+      obsoleteChanges: [],
     })
     .expect(409)
     .expect((res) => {
@@ -32,7 +32,7 @@ test("applyChange return an unauthorized error when no api token is provided", a
     .post("/change/apply")
     .send({
       version: "466",
-      apply: [],
+      obsoleteChanges: [],
     })
     .expect(403)
     .expect((res) => {
@@ -48,7 +48,7 @@ test("applyChange returns an unauthorized error when an invalid api token is pro
     .set("x-api-key", "wrong-token")
     .send({
       version: "466",
-      apply: [],
+      obsoleteChanges: [],
     })
     .expect(403)
     .expect((res) => {
@@ -77,7 +77,7 @@ test("applyChange returns an unauthorized error when a user with an invalid role
     .set("x-api-key", apiKey)
     .send({
       version: "466",
-      apply: [],
+      obsoleteChanges: [],
     })
     .expect(403)
     .expect((res) => {
@@ -93,7 +93,7 @@ test("applyChange should return a conflict error, when the server version is dif
     .set("x-api-key", "abc123456")
     .send({
       version: "465",
-      apply: [],
+      obsoleteChanges: [],
     })
     .expect(409)
     .expect((res) => {
@@ -117,7 +117,7 @@ test("applyChange should remove changes applied to the base map", async () => {
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      apply: [1],
+      obsoleteChanges: [1],
     })
     .expect(204);
 
@@ -148,7 +148,7 @@ test("applyChange should leave changes not applied alone", async () => {
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      apply: [1],
+      obsoleteChanges: [1],
     })
     .expect(204);
 
@@ -181,7 +181,7 @@ test("applyChange should download new map version files", async () => {
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      apply: [1],
+      obsoleteChanges: [1],
     })
     .expect(204);
 
@@ -201,7 +201,7 @@ test("applyChange should download new map files", async () => {
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      apply: [1],
+      obsoleteChanges: [1],
     })
     .expect(204);
 

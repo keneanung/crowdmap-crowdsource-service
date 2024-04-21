@@ -433,7 +433,7 @@ export class ChangeController extends Controller {
         "The map version provided does not match the current map version",
       );
     }
-    await this.changeService.applyChanges(application.apply);
+    await this.changeService.applyChanges(application.obsoleteChanges);
     await this.mapService.updateMap();
   }
 }
