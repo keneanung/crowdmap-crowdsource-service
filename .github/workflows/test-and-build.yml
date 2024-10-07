@@ -38,7 +38,7 @@ jobs:
         registry: ghcr.io
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - uses: docker/build-push-action@v6.8.0
+    - uses: docker/build-push-action@v6.9.0
       with:
         push: ${{ github.event_name == 'push' }}
         tags: ghcr.io/keneanung/crowdmap-crowdsource-service:latest
