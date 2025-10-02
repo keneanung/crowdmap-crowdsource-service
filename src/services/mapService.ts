@@ -19,8 +19,8 @@ export class MapService {
   public async getChangedMapFile(
     timesSeen: number,
     format: "binary" | "json",
-    include: number[] = [],
-    exclude: number[] = [],
+    include: string[] = [],
+    exclude: string[] = [],
   ): Promise<string> {
     const map = await this.getChangedMap(timesSeen, include, exclude);
     const file = await this.getTempMapFileName();
@@ -34,8 +34,8 @@ export class MapService {
 
   public async getChangedMap(
     timesSeen: number,
-    include: number[] = [],
-    exclude: number[] = [],
+    include: string[] = [],
+    exclude: string[] = [],
   ): Promise<Mudlet.MudletMap> {
     const changes = await this.changeService.getChanges(
       timesSeen,
