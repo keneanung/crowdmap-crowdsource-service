@@ -15,33 +15,24 @@ configurable docker image. A sample docker compose file with all variables can b
 
 ### Prepare dependencies
 
-The service uses MongoDB as storage backend. For example, you can get one hosted Atlas cluster (the MongoDB cloud offering)
-with 512MB space for free. The service should not require too much space and compute power.
+The service uses MongoDB as storage backend. This can be any MongoDB deployment including:
+- Self-hosted MongoDB instances
+- MongoDB Atlas (MongoDB's cloud offering)
+- Other MongoDB cloud providers
+- Docker containers running MongoDB
+
+The service should not require too much space and compute power.
 
 Set up a dedicated database and service user for the mongo connection and generate a db connection string for that user.
 Please refer to the manual of your chosen Mongo setup how to do that.
 
-The database should contain both a `changes` and a `change-counter` collection.
+The database should contain a `changes` collection. The service will automatically create this collection if it doesn't exist.
 
-Additionally, the `changeId` requires a insert trigger on the `change` collection to be set up. This was tested on Atlas
-with the following code:
-```js
-exports = async function(changeEvent) {
-    var docId = changeEvent.fullDocument._id;
-    
-    const countercollection = context.services.get("Cluster0").db(changeEvent.ns.db).collection("change-counter");
-    const changecollection = context.services.get("Cluster0").db(changeEvent.ns.db).collection(changeEvent.ns.coll);
-    
-    var counter = await countercollection.findOneAndUpdate({_id: changeEvent.ns },{ $inc: { seq_value: 1 }}, { returnNewDocument: true, upsert : true});
-    var updateRes = await changecollection.updateOne({_id : docId},{ $set : {changeId : counter.seq_value}});
-    
-    console.log(`Updated ${JSON.stringify(changeEvent.ns)} with counter ${counter.seq_value} result : ${JSON.stringify(updateRes)}`);
-    };
-```
-
-Replace `Cluster0` with your clusters name.
-
-On-Premise Mongo does not seem to support triggers, but alternatives for those deployment types were not explored yet.
+**Change ID Generation**: The service uses UUID v7 for change IDs, which are:
+- Locally generated (no database triggers required)
+- Time-orderable for consistent sorting
+- Collision-resistant for distributed environments
+- Compatible with any MongoDB deployment
 
 ### Deploy the service
 

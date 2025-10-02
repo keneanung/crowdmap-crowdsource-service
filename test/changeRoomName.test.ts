@@ -6,6 +6,7 @@ import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
 import { app } from "../src/app";
 import { setupChangeServiceMock } from "./setup/iocSetup";
+import { expectValidUuidV7 } from "./setup/testHelpers";
 
 beforeEach(() => {
   setupChangeServiceMock();
@@ -26,15 +27,16 @@ test("Should accept and return room name changes", async () => {
     .get("/change")
     .expect(200)
     .expect((res) => {
-      expect(res.body).toStrictEqual([
-        {
-          type: "room-name",
-          roomNumber: 1,
-          name: "New Room Name",
-          reporters: 1,
-          changeId: 1,
-        },
-      ]);
+      expect(res.body).toHaveLength(1);
+      const change = res.body[0];
+      expect(change).toMatchObject({
+        type: "room-name",
+        roomNumber: 1,
+        name: "New Room Name",
+        reporters: 1,
+      });
+      // UUID v7 should be a string with proper format
+      expectValidUuidV7(change.changeId);
     });
 });
 

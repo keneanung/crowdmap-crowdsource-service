@@ -1,3 +1,10 @@
+// Mock the file download functions to prevent actual HTTP calls
+import { jest } from "@jest/globals";
+jest.mock("../src/fileDownloads", () => ({
+  downloadMapFile: jest.fn<() => Promise<void>>().mockResolvedValue(),
+  downloadMapVersion: jest.fn<() => Promise<void>>().mockResolvedValue(),
+}));
+
 import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
 import { app } from "../src/app";
