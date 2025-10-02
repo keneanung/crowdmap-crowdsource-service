@@ -112,12 +112,18 @@ test("applyChange should remove changes applied to the base map", async () => {
     reporter: "Test Reporter",
   });
 
+  // Get the change to extract its UUID
+  const changesResponse = await request(app).get("/change").expect(200);
+  const changes = changesResponse.body;
+  expect(changes).toHaveLength(1);
+  const changeId = changes[0].changeId;
+
   await request(app)
     .post("/change/apply")
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      obsoleteChanges: [1],
+      obsoleteChanges: [changeId],
     })
     .expect(204);
 
@@ -143,12 +149,20 @@ test("applyChange should leave changes not applied alone", async () => {
     reporter: "Test Reporter",
   });
 
+  // Get the changes to extract their UUIDs
+  const changesResponse = await request(app).get("/change").expect(200);
+  const changes = changesResponse.body;
+  expect(changes).toHaveLength(2);
+  
+  // Apply the first change by its UUID
+  const firstChangeId = changes[0].changeId;
+
   await request(app)
     .post("/change/apply")
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      obsoleteChanges: [1],
+      obsoleteChanges: [firstChangeId],
     })
     .expect(204);
 
@@ -156,15 +170,17 @@ test("applyChange should leave changes not applied alone", async () => {
     .get("/change")
     .expect(200)
     .expect((res) => {
-      expect(res.body).toEqual([
-        {
-          type: "room-name",
-          roomNumber: 2,
-          name: "Test Room 2",
-          reporters: 1,
-          changeId: 2,
-        },
-      ]);
+      expect(res.body).toHaveLength(1);
+      const remainingChange = res.body[0];
+      expect(remainingChange).toMatchObject({
+        type: "room-name",
+        roomNumber: 2,
+        name: "Test Room 2",
+        reporters: 1,
+      });
+      // The remaining change should have a valid UUID
+      expect(typeof remainingChange.changeId).toBe('string');
+      expect(remainingChange.changeId).toMatch(/^[0-9a-f-]{36}$/i);
     });
 });
 
@@ -176,12 +192,18 @@ test("applyChange should download new map version files", async () => {
     reporter: "Test Reporter",
   });
 
+  // Get the change to extract its UUID
+  const changesResponse = await request(app).get("/change").expect(200);
+  const changes = changesResponse.body;
+  expect(changes).toHaveLength(1);
+  const changeId = changes[0].changeId;
+
   await request(app)
     .post("/change/apply")
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      obsoleteChanges: [1],
+      obsoleteChanges: [changeId],
     })
     .expect(204);
 
@@ -196,12 +218,18 @@ test("applyChange should download new map files", async () => {
     reporter: "Test Reporter",
   });
 
+  // Get the change to extract its UUID
+  const changesResponse = await request(app).get("/change").expect(200);
+  const changes = changesResponse.body;
+  expect(changes).toHaveLength(1);
+  const changeId = changes[0].changeId;
+
   await request(app)
     .post("/change/apply")
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      obsoleteChanges: [1],
+      obsoleteChanges: [changeId],
     })
     .expect(204);
 

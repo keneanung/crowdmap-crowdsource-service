@@ -51,10 +51,12 @@ export class MapService {
 
   public async getVersion(timesSeen: number): Promise<string> {
     const changes = await this.changeService.getChanges(timesSeen);
-    const lastChangeId =
-      changes.length > 0 ? changes[changes.length - 1].changeId ?? 0 : 0;
     const baseVersion = await this.getRawVersion();
-    return `${baseVersion}.${lastChangeId.toString()}.${changes.length.toString()}`;
+    // With UUID v7, we use change count instead of sequential numbering
+    // Original format was base.highest_change_id.change_count
+    // Now we use base.change_count.change_count for simplicity
+    const changeCount = changes.length;
+    return `${baseVersion}.${changeCount}.${changeCount}`;
   }
 
   public async getRawVersion() {
