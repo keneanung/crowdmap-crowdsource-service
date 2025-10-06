@@ -24,7 +24,7 @@
     "inversify": "^6.0.2",
     "inversify-binding-decorators": "^4.0.0",
     "mongodb": "^6.9.0",
-    "mudlet-map-binary-reader": "^0.5.2",
+    "mudlet-map-binary-reader": "^0.6.0",
     "reflect-metadata": "^0.2.1",
     "swagger-ui-express": "^5.0.1",
     "tsoa": "^6.4.0"
