@@ -91,4 +91,4 @@ export function __resetUuidMock(): void {
   prngState = 0x12345678;
 }
 
-export default { v7, NIL, __resetUuidMock };
+export default { v7, NIL };
