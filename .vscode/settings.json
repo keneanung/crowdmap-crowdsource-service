@@ -10,5 +10,6 @@
     "jest.outputConfig": {
       "revealOn": "error",
       "revealWithFocus": "test-results"
-    }
+    },
+    "testing.automaticallyOpenTestResults": "neverOpen"
 }

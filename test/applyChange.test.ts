@@ -117,7 +117,7 @@ test("applyChange should remove changes applied to the base map", async () => {
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      obsoleteChanges: [1],
+      obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
     .expect(204);
 
@@ -148,7 +148,7 @@ test("applyChange should leave changes not applied alone", async () => {
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      obsoleteChanges: [1],
+      obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
     .expect(204);
 
@@ -162,7 +162,7 @@ test("applyChange should leave changes not applied alone", async () => {
           roomNumber: 2,
           name: "Test Room 2",
           reporters: 1,
-          changeId: 2,
+          changeId: "018bcfe5-6801-752c-84de-0e9be2aa733e",
         },
       ]);
     });
@@ -181,7 +181,7 @@ test("applyChange should download new map version files", async () => {
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      obsoleteChanges: [1],
+      obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
     .expect(204);
 
@@ -201,7 +201,7 @@ test("applyChange should download new map files", async () => {
     .set("x-api-key", "abc123456")
     .send({
       version: "466",
-      obsoleteChanges: [1],
+      obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
     .expect(204);
 

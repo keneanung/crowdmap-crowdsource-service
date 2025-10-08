@@ -1,3 +1,5 @@
+import { v7 } from "uuid";
+
 export type ChangeType =
   | "room-name"
   | "modify-exit"
@@ -45,11 +47,11 @@ const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
   reporters = new Set<string>();
-  changeId?: number;
+  changeId: string;
 
-  constructor(reporters: string[], changeId?: number) {
+  constructor(reporters: string[], changeId?: string) {
     reporters.forEach((reporter) => this.reporters.add(reporter));
-    this.changeId = changeId;
+    this.changeId = changeId ?? v7();
   }
 
   public abstract apply(map: Mudlet.MudletMap): void;
@@ -68,7 +70,7 @@ export class CreateArea extends ChangeBase<CreateArea> {
     name: string,
     areaId: number,
     reporters: string[],
-    changeId?: number,
+    changeId?: string,
   ) {
     super(reporters, changeId);
     this.name = name;
@@ -120,7 +122,7 @@ export abstract class RoomChangeBase<
 > extends ChangeBase<T> {
   roomNumber: number;
 
-  constructor(roomNumber: number, reporters: string[], changeId?: number) {
+  constructor(roomNumber: number, reporters: string[], changeId?: string) {
     super(reporters, changeId);
     this.roomNumber = roomNumber;
   }
@@ -134,7 +136,7 @@ export class ChangeRoomName extends RoomChangeBase<ChangeRoomName> {
     roomNumber: number,
     reporters: string[],
     name: string,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.name = name;
@@ -169,7 +171,7 @@ export class ModifyRoomExit extends RoomChangeBase<ModifyRoomExit> {
     reporters: string[],
     direction: Direction,
     destination: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.direction = direction;
@@ -205,7 +207,7 @@ export class ModifySpecialExit extends RoomChangeBase<ModifySpecialExit> {
     reporters: string[],
     exitCommand: string,
     destination: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.exitCommand = exitCommand;
@@ -241,7 +243,7 @@ export class LockSpecialExit extends RoomChangeBase<LockSpecialExit> {
     reporters: string[],
     exitCommand: string,
     destination: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.exitCommand = exitCommand;
@@ -277,7 +279,7 @@ export class UnlockSpecialExit extends RoomChangeBase<UnlockSpecialExit> {
     reporters: string[],
     exitCommand: string,
     destination: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.exitCommand = exitCommand;
@@ -313,7 +315,7 @@ export class DeleteSpecialExit extends RoomChangeBase<DeleteSpecialExit> {
     roomNumber: number,
     reporters: string[],
     exitCommand: string,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.exitCommand = exitCommand;
@@ -405,7 +407,7 @@ export class SetRoomCoordinates extends RoomChangeBase<SetRoomCoordinates> {
     x: number,
     y: number,
     z: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.x = x;
@@ -447,7 +449,7 @@ export class SetRoomArea extends RoomChangeBase<SetRoomArea> {
     roomNumber: number,
     reporters: string[],
     areaId: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.areaId = areaId;
@@ -493,7 +495,7 @@ export class DeleteExit extends RoomChangeBase<DeleteExit> {
     roomNumber: number,
     reporters: string[],
     direction: Direction,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.direction = direction;
@@ -527,7 +529,7 @@ export class ModifyExitWeight extends RoomChangeBase<ModifyExitWeight> {
     reporters: string[],
     direction: Direction,
     weight: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.direction = direction;
@@ -563,7 +565,7 @@ export class ModifySpecialExitWeight extends RoomChangeBase<ModifySpecialExitWei
     reporters: string[],
     exitCommand: string,
     weight: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.exitCommand = exitCommand;
@@ -601,7 +603,7 @@ export class SetRoomEnvironment extends RoomChangeBase<SetRoomEnvironment> {
     roomNumber: number,
     reporters: string[],
     environment: number,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.environmentId = environment;
@@ -635,7 +637,7 @@ export class ModifyRoomUserData extends RoomChangeBase<ModifyRoomUserData> {
     reporters: string[],
     key: string,
     value: string,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.key = key;
@@ -669,7 +671,7 @@ export class DeleteRoomUserData extends RoomChangeBase<DeleteRoomUserData> {
     roomNumber: number,
     reporters: string[],
     key: string,
-    changeId?: number,
+    changeId?: string,
   ) {
     super(roomNumber, reporters, changeId);
     this.key = key;

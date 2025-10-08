@@ -26,7 +26,7 @@ export interface ChangeBase {
   type: ChangeType;
   reporters: string[];
   numberOfReporters: number;
-  changeId?: number;
+  changeId: string;
 }
 
 export interface RoomChangeBase extends ChangeBase {

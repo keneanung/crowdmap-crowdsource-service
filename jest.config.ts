@@ -94,6 +94,9 @@ const config: Config = {
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
   // moduleNameMapper: {},
+  moduleNameMapper: {
+    '^uuid$': '<rootDir>/test/mocks/uuidMock.ts'
+  },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
   // modulePathIgnorePatterns: [],
@@ -106,6 +109,7 @@ const config: Config = {
 
   // A preset that is used as a base for Jest's configuration
   preset: "ts-jest",
+  testEnvironment: 'node',
 
   // Run tests from one or more projects
   // projects: undefined,
@@ -144,7 +148,7 @@ const config: Config = {
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
   setupFilesAfterEnv: [
-    "<rootDir>/test/setup/setupApp.ts"
+    "<rootDir>/test/setup/setupApp.ts",
   ],
 
   // The number of seconds after which a test is considered as slow and reported as such in the results.
@@ -172,6 +176,15 @@ const config: Config = {
   testPathIgnorePatterns: [
     "/node_modules/",
     "/build/"
+  ],
+  transform: {
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      { isolatedModules: true }
+    ]
+  },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(uuid)/)'
   ],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files

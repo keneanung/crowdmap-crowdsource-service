@@ -12,15 +12,15 @@ export abstract class ChangeService {
   abstract addChange(change: Change): Promise<void>;
   abstract getChanges(
     timesSeen: number,
-    include?: number[],
-    exclude?: number[],
+    include?: string[],
+    exclude?: string[],
   ): Promise<Change[]>;
-  abstract applyChanges(apply: number[]): Promise<void>;
+  abstract applyChanges(apply: string[]): Promise<void>;
 }
 
 interface ChangeQuery {
   numberOfReporters: { $gte: number };
-  changeId?: { $in: number[] } | { $nin: number[] };
+  changeId?: { $in: string[] } | { $nin: string[] };
 }
 
 @provide(ChangeService)
@@ -76,8 +76,8 @@ export class MongoChangeService implements ChangeService {
 
   public async getChanges(
     timesSeen: number,
-    include: number[] = [],
-    exclude: number[] = [],
+    include: string[] = [],
+    exclude: string[] = [],
   ) {
     const collection = await this.getCollection();
 
@@ -96,7 +96,7 @@ export class MongoChangeService implements ChangeService {
     return changes.map(changeDbToBusiness);
   }
 
-  public async applyChanges(apply: number[]) {
+  public async applyChanges(apply: string[]) {
     const collection = await this.getCollection();
     await collection.deleteMany({ changeId: { $in: apply } });
   }

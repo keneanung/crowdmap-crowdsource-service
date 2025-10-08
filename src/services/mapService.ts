@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { config } from "../config/values";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
 import { ChangeService } from "./changeService";
+import { NIL } from "uuid";
 
 @provide(MapService)
 export class MapService {
@@ -19,8 +20,8 @@ export class MapService {
   public async getChangedMapFile(
     timesSeen: number,
     format: "binary" | "json",
-    include: number[] = [],
-    exclude: number[] = [],
+    include: string[] = [],
+    exclude: string[] = [],
   ): Promise<string> {
     const map = await this.getChangedMap(timesSeen, include, exclude);
     const file = await this.getTempMapFileName();
@@ -34,8 +35,8 @@ export class MapService {
 
   public async getChangedMap(
     timesSeen: number,
-    include: number[] = [],
-    exclude: number[] = [],
+    include: string[] = [],
+    exclude: string[] = [],
   ): Promise<Mudlet.MudletMap> {
     const changes = await this.changeService.getChanges(
       timesSeen,
@@ -52,9 +53,12 @@ export class MapService {
   public async getVersion(timesSeen: number): Promise<string> {
     const changes = await this.changeService.getChanges(timesSeen);
     const lastChangeId =
-      changes.length > 0 ? changes[changes.length - 1].changeId ?? 0 : 0;
+      changes.length > 0 ? (changes[changes.length - 1].changeId) : NIL;
+    const idBuffer = Buffer.from(lastChangeId.replace(/-/g, "").slice(0,16), "hex");
+    const top64BitsBase64Url = idBuffer.toString("base64url");
+
     const baseVersion = await this.getRawVersion();
-    return `${baseVersion}.${lastChangeId.toString()}.${changes.length.toString()}`;
+    return `${baseVersion}.${top64BitsBase64Url}.${changes.length.toString()}`;
   }
 
   public async getRawVersion() {

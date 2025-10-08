@@ -32,7 +32,7 @@ test("Should accept and return special exit deletion", async () => {
           roomNumber: 1,
           exitCommand: "worm warp",
           reporters: 1,
-          changeId: 1,
+          changeId: "018bcfe5-6800-7777-8d30-5e6a25dbfac1",
         },
       ]);
     });
@@ -56,7 +56,7 @@ test("Should incorporate special exit deletions into the map", async () => {
   await request(app)
     .get("/map?format=json&timesSeen=0")
     .expect(200)
-    .expect("X-Map-Version", "466.2.2")
+    .expect("X-Map-Version", "466.AYvP5WgBdSw.2")
     .expect((res) => {
       const responseText = res.text;
       const map: any = JSON.parse(responseText);
