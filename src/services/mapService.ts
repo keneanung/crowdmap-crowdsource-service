@@ -4,10 +4,10 @@ import { MudletMapReader } from "mudlet-map-binary-reader";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { NIL } from "uuid";
 import { config } from "../config/values";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
 import { ChangeService } from "./changeService";
-import { NIL } from "uuid";
 
 @provide(MapService)
 export class MapService {
@@ -53,8 +53,11 @@ export class MapService {
   public async getVersion(timesSeen: number): Promise<string> {
     const changes = await this.changeService.getChanges(timesSeen);
     const lastChangeId =
-      changes.length > 0 ? (changes[changes.length - 1].changeId) : NIL;
-    const idBuffer = Buffer.from(lastChangeId.replace(/-/g, "").slice(0,16), "hex");
+      changes.length > 0 ? changes[changes.length - 1].changeId : NIL;
+    const idBuffer = Buffer.from(
+      lastChangeId.replace(/-/g, "").slice(0, 16),
+      "hex",
+    );
     const top64BitsBase64Url = idBuffer.toString("base64url");
 
     const baseVersion = await this.getRawVersion();
