@@ -30,7 +30,7 @@ function next32(): number {
 
 /**
  * Returns the lowest n bits from a 32-bit pseudo-random number.
- * @param n Number of bits to extract (1 <= n <= 32; typically n <= 24).
+ * @param n Number of bits to extract (1 <= n <= 32; typically n <= 24, since most UUID random fields use fewer bits; higher values are supported for flexibility).
  * @returns A number containing the n low-order bits.
  */
 function nextBits(n: number): number {

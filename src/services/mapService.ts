@@ -54,8 +54,10 @@ export class MapService {
     const changes = await this.changeService.getChanges(timesSeen);
     const lastChangeId =
       changes.length > 0 ? changes[changes.length - 1].changeId : NIL;
+    // Number of hex characters representing the first 64 bits (8 bytes) of the UUID
+    const UUID_FIRST_64_BITS_HEX_LENGTH = 16;
     const idBuffer = Buffer.from(
-      lastChangeId.replace(/-/g, "").slice(0, 16),
+      lastChangeId.replace(/-/g, "").slice(0, UUID_FIRST_64_BITS_HEX_LENGTH),
       "hex",
     );
     const top64BitsBase64Url = idBuffer.toString("base64url");
