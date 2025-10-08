@@ -34,7 +34,7 @@ test("Should accept and return special exit unlocking", async () => {
           exitCommand: "worm warp",
           destination: 1337,
           reporters: 1,
-          changeId: 1,
+          changeId: "018bcfe5-6800-7777-8d30-5e6a25dbfac1",
         },
       ]);
     });
@@ -66,7 +66,7 @@ test("Should incorporate special exit unlocking into the map", async () => {
   await request(app)
     .get("/map?format=json&timesSeen=0")
     .expect(200)
-    .expect("X-Map-Version", "466.3.3")
+    .expect("X-Map-Version", "466.AYvP5WgCcYU.3")
     .expect((res) => {
       const responseText = res.text;
       const map: any = JSON.parse(responseText);

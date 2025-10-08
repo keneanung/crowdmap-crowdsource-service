@@ -251,5 +251,5 @@ export type ChangeSubmission =
 
 export interface ApplicationSubmission {
   version: string;
-  obsoleteChanges: number[];
+  obsoleteChanges: string[];
 }

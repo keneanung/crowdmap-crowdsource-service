@@ -40,8 +40,8 @@ export class MapController extends Controller {
   public async getMap(
     @Query() timesSeen: number,
     @Query() format: "binary" | "json",
-    @Query() include: number[] = [],
-    @Query() exclude: number[] = [],
+    @Query() include: string[] = [],
+    @Query() exclude: string[] = [],
   ): Promise<Readable> {
     if (include.length > 0 && exclude.length > 0) {
       throw new ValidateError(
