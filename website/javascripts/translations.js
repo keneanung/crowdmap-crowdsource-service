@@ -145,6 +145,9 @@ jQuery(function () {
             },
             "Paczki" : {
                 'en_GB': "Denizen"
+            },
+            "Kolor linii" : {
+                'en_GB': "Line color"
             }
         }
     });

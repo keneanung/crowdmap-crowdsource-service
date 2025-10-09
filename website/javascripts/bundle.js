@@ -24243,7 +24243,11 @@ var PageControls = /*#__PURE__*/function () {
     var loaded = localStorage.getItem("settings");
 
     if (loaded) {
+      const oldTimesSeen = this.settings.timesSeen;
       Object.assign(this.settings, JSON.parse(loaded));
+      if(oldTimesSeen !== this.settings.timesSeen || mapData.length === 0) {
+        downloadNewMap(this.settings.timesSeen);
+      }
     }
 
     jQuery(".btn").on("click", function () {
@@ -24346,7 +24350,7 @@ var PageControls = /*#__PURE__*/function () {
       this.settingsModal.modal("toggle");
       this.saveSettings();
       if(oldTimesSeen !== this.settings.timesSeen){
-        await setTimesSeen(this.settings.timesSeen);
+        await downloadNewMap(this.settings.timesSeen);
       }
       this.render(true);
     }
@@ -24910,11 +24914,13 @@ function dirsShortToLong(dir) {
   return result !== undefined ? result : dir;
 }
 
-async function setTimesSeen(timesSeen){
+async function downloadNewMap(timesSeen){
   const response = await fetch(`map/renderer?timesSeen=${timesSeen}`);
   const data = await response.text();
   eval(data);
   window.controls.reader = new _mudletMapRenderer.MapReader(mapData, colors);
+  window.controls.populateSelectBox();
+  window.controls.renderArea(controls.areaId, controls.zIndex, true)
 }
 
 },{"./npc":49,"./preview":50,"./versions":51,"mudlet-map-renderer":1}],9:[function(require,module,exports){
