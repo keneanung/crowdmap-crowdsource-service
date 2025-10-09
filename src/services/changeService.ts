@@ -1,3 +1,4 @@
+import { inject } from "inversify";
 import { provide } from "inversify-binding-decorators";
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
@@ -7,7 +8,6 @@ import {
   changeBusinessToDb,
   changeDbToBusiness,
 } from "../models/db/change";
-import { inject } from "inversify";
 
 export abstract class ChangeService {
   abstract addChange(change: Change): Promise<void>;
@@ -26,8 +26,7 @@ interface ChangeQuery {
 
 @provide(ChangeService)
 export class MongoChangeService implements ChangeService {
-
-  constructor(@inject(MongoClient) private mongo: MongoClient) {  }
+  constructor(@inject(MongoClient) private mongo: MongoClient) {}
 
   private async getCollection() {
     await this.mongo.connect();

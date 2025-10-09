@@ -1,8 +1,8 @@
+import { inject } from "inversify";
 import { provide } from "inversify-binding-decorators";
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
 import { User } from "../models/business/user";
-import { inject } from "inversify";
 
 export abstract class UserDbService {
   abstract addUser(user: User): Promise<void>;
@@ -12,9 +12,7 @@ export abstract class UserDbService {
 
 @provide(UserDbService)
 export class MongoUserDbService implements UserDbService {
-
-  constructor(@inject(MongoClient) private mongo: MongoClient) {
-  }
+  constructor(@inject(MongoClient) private mongo: MongoClient) {}
 
   private async getCollection() {
     await this.mongo.connect();
