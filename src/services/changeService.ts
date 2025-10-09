@@ -1,3 +1,4 @@
+import { inject } from "inversify";
 import { provide } from "inversify-binding-decorators";
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
@@ -25,25 +26,10 @@ interface ChangeQuery {
 
 @provide(ChangeService)
 export class MongoChangeService implements ChangeService {
-  private mongo: MongoClient;
-  private connected = false;
-
-  constructor() {
-    if (!config.connectionString) {
-      throw new Error("Missing connection string");
-    }
-    this.mongo = new MongoClient(config.connectionString);
-  }
-
-  private async connect() {
-    await this.mongo.connect();
-    this.connected = true;
-  }
+  constructor(@inject(MongoClient) private mongo: MongoClient) {}
 
   private async getCollection() {
-    if (!this.connected) {
-      await this.connect();
-    }
+    await this.mongo.connect();
     const db = this.mongo.db(config.dbName);
     const collection = db.collection<ChangeDb>("changes");
     return collection;

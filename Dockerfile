@@ -22,6 +22,7 @@ RUN npm ci --omit=dev
 FROM node:22-alpine3.21 AS prod
 
 RUN mkdir -p /opt/serve
+RUN chown node:node /opt/serve
 
 USER node
 

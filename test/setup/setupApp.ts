@@ -5,6 +5,7 @@ import { setupUserDbServiceMock } from "./iocSetup";
 // Ensure TypeScript knows Jest globals in case ts-jest doesn't auto-inject types
 declare const beforeEach: (fn: () => void) => void;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 app;
 setupUserDbServiceMock();
 

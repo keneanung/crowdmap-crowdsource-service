@@ -1,11 +1,11 @@
-# A service to makae crowdsourcing Mudlet maps easier
+# A service to make crowdsourcing Mudlet maps easier
 
-The current state of art for Mudlet crowdmap is to have a repository, to which crowdmap contributors create Pull Requests
+The current state of the art for a Mudlet crowdmap is to have a repository, to which crowdmap contributors create Pull Requests
 in order to submit changes to the crowdmap. However, this proved to be a major hurdle, since git workflows are generally
 hard to understand by those that do not work with them daily.
 
 This service simplifies the process by using a base map and a stream of small atomic map change events to build crowdmaps.
-The change events are small enough to be "recongizable" by the service and group changes that are the same together. This
+The change events are small enough to be recognizable by the service and group changes that are the same together. This
 allows for a vetting mechanism: users choose how often a change has been "seen" to include it in their downloaded maps.
 
 ## Hosting the service
@@ -15,44 +15,49 @@ configurable docker image. A sample docker compose file with all variables can b
 
 ### Prepare dependencies
 
-The service uses MongoDB as storage backend. For example, you can get one hosted Atlas cluster (the MongoDB cloud offering)
-with 512MB space for free. The service should not require too much space and compute power.
+The service uses MongoDB as storage backend. You can run MongoDB locally (recommended for simple self-hosting) or use any
+managed MongoDB provider. A free-tier Atlas cluster will work.
 
-Set up a dedicated database and service user for the mongo connection and generate a db connection string for that user.
-Please refer to the manual of your chosen Mongo setup how to do that.
+#### Change IDs
 
-The database should contain both a `changes` and a `change-counter` collection.
+The service generates time-sortable UUIDv7 values (via the `uuid` library) for each `changeId`. These identifiers:
 
-Additionally, the `changeId` requires a insert trigger on the `change` collection to be set up. This was tested on Atlas
-with the following code:
-```js
-exports = async function(changeEvent) {
-    var docId = changeEvent.fullDocument._id;
-    
-    const countercollection = context.services.get("Cluster0").db(changeEvent.ns.db).collection("change-counter");
-    const changecollection = context.services.get("Cluster0").db(changeEvent.ns.db).collection(changeEvent.ns.coll);
-    
-    var counter = await countercollection.findOneAndUpdate({_id: changeEvent.ns },{ $inc: { seq_value: 1 }}, { returnNewDocument: true, upsert : true});
-    var updateRes = await changecollection.updateOne({_id : docId},{ $set : {changeId : counter.seq_value}});
-    
-    console.log(`Updated ${JSON.stringify(changeEvent.ns)} with counter ${counter.seq_value} result : ${JSON.stringify(updateRes)}`);
-    };
-```
+* Are globally unique without coordination
+* Maintain insertion-time ordering (sufficient for change ordering/version derivation)
+* Avoid the need for counters, triggers, or extra coordination mechanisms
 
-Replace `Cluster0` with your clusters name.
+Only a single collection named `changes` is required; it is created automatically on first insert.
 
-On-Premise Mongo does not seem to support triggers, but alternatives for those deployment types were not explored yet.
+#### Local MongoDB (Docker Compose)
+
+The provided `compose.yaml` includes a `mongo` service. By default it runs without authentication bound to an internal
+Docker network. For production you should enable authentication, restrict network access, or use a managed provider.
+
+Connection details used by the app service (defaults in the compose file):
+* MONGO_CONNECTION_STRING = mongodb://mongo:27017
+* MONGO_DB_NAME = crowdmap
+
+You can override these via environment variables or by editing the compose file.
+
+If you enable MongoDB authentication, adjust the connection string accordingly, e.g.:
+`mongodb://username:password@mongo:27017/?authSource=admin`.
+
+No manual collection creation is necessary.
 
 ### Deploy the service
 
-To deploy the service on a linux machine, you can use the following commands using `curl` and `docker compose`:
+To deploy the service on a Linux machine with the included local MongoDB, place the repository (or just the `compose.yaml`)
+on the host and run:
+
 ```shell
-$ touch .env
-# the .env file needs to contain the mongo DB connection string from the step before and the mongo database name
-$ curl -o compose.yaml https://raw.githubusercontent.com/keneanung/crowdmap-crowdsource-service/main/compose.yaml
-# modify the variables inside the compose to your needs
-$ docker compose up -d
+docker compose up -d
 ```
+
+The app will become healthy once both the app and MongoDB healthchecks pass. Access the service on port 3000 by default.
+
+If you prefer using an external/managed MongoDB instance, remove or comment out the `mongo` service in the compose file and
+set the environment variables `MONGO_CONNECTION_STRING` and `MONGO_DB_NAME` appropriately (either by editing the compose
+file or providing a `.env`).
 
 ## Contributing
 
