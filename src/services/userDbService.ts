@@ -2,6 +2,7 @@ import { provide } from "inversify-binding-decorators";
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
 import { User } from "../models/business/user";
+import { inject } from "inversify";
 
 export abstract class UserDbService {
   abstract addUser(user: User): Promise<void>;
@@ -11,20 +12,12 @@ export abstract class UserDbService {
 
 @provide(UserDbService)
 export class MongoUserDbService implements UserDbService {
-  private mongo: MongoClient;
-  private connected = false;
 
-  constructor() {
-    if (!config.connectionString) {
-      throw new Error("Missing connection string");
-    }
-    this.mongo = new MongoClient(config.connectionString);
+  constructor(@inject(MongoClient) private mongo: MongoClient) {
   }
 
   private async getCollection() {
-    if (!this.connected) {
-      await this.connect();
-    }
+    await this.mongo.connect();
     const db = this.mongo.db(config.dbName);
     const collection = db.collection<User>("users");
     return collection;
@@ -38,11 +31,6 @@ export class MongoUserDbService implements UserDbService {
   public async getUsers(): Promise<User[]> {
     const collection = await this.getCollection();
     return collection.find().toArray();
-  }
-
-  private async connect() {
-    await this.mongo.connect();
-    this.connected = true;
   }
 
   public async updateApiKey(user: User, newApiKey: string) {

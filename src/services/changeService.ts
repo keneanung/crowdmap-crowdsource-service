@@ -7,6 +7,7 @@ import {
   changeBusinessToDb,
   changeDbToBusiness,
 } from "../models/db/change";
+import { inject } from "inversify";
 
 export abstract class ChangeService {
   abstract addChange(change: Change): Promise<void>;
@@ -25,25 +26,11 @@ interface ChangeQuery {
 
 @provide(ChangeService)
 export class MongoChangeService implements ChangeService {
-  private mongo: MongoClient;
-  private connected = false;
 
-  constructor() {
-    if (!config.connectionString) {
-      throw new Error("Missing connection string");
-    }
-    this.mongo = new MongoClient(config.connectionString);
-  }
-
-  private async connect() {
-    await this.mongo.connect();
-    this.connected = true;
-  }
+  constructor(@inject(MongoClient) private mongo: MongoClient) {  }
 
   private async getCollection() {
-    if (!this.connected) {
-      await this.connect();
-    }
+    await this.mongo.connect();
     const db = this.mongo.db(config.dbName);
     const collection = db.collection<ChangeDb>("changes");
     return collection;
