@@ -1,12 +1,31 @@
 services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      # Uncomment the following line to expose MongoDB outside of the Docker Compose network.
+      # Make sure to secure your MongoDB instance if you do so!
+      #- 27017:27017
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   app:
     build:
       dockerfile: Dockerfile
     image: ghcr.io/keneanung/crowdmap-crowdsource-service:latest
+    depends_on:
+      mongo:
+        condition: service_healthy
     ports:
       - 3000:3000
     # change this if you want to keep your version stable. This will pull a new service image on every start.
-    pull_policy: always
+    #pull_policy: always
     environment:
       # The URL where to download the current map file as baseline from
       - MAP_DOWNLOAD_URL=https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/map
@@ -18,10 +37,10 @@ services:
       - MAP_FILE=/opt/serve/map
       # The file path where the version file is saved within the container. You should not need to set this.
       - VERSION_FILE=/opt/serve/version
-      # The MongoDB connection string. This is read from a .env file. Make sure to set restrictive permissions on that file.
-      - MONGO_CONNECTION_STRING=${MONGO_CONNECTION_STRING}
-      # The MongoDB database to use. This is read from a .env file. Make sure to set restrictive permissions on that file.
-      - MONGO_DB_NAME=${MONGO_DB_NAME}
+      # Local MongoDB connection string. Adjust credentials / auth if you secure the mongo service.
+      - MONGO_CONNECTION_STRING=mongodb://mongo:27017
+      # The MongoDB database to use.
+      - MONGO_DB_NAME=crowdmap
       # Which reverse proxy to trust to return the real IP address of the client. Set to 0 to trust no proxy. See https://expressjs.com/en/guide/behind-proxies.html for further documentation.
       # This implementation uses the number option only.
       # Use the /utility/ip endpoint to check if the real IP is returned correctly.
@@ -32,3 +51,6 @@ services:
       timeout: 1s
       retries: 5
       start_period: 5s
+
+volumes:
+  mongo-data:
