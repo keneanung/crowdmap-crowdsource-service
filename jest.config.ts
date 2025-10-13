@@ -180,7 +180,7 @@ const config: Config = {
   transform: {
     '^.+\\.(ts|tsx)$': [
       'ts-jest',
-      { isolatedModules: true }
+      { }
     ]
   },
   transformIgnorePatterns: [
