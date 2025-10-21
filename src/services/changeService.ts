@@ -1,5 +1,5 @@
 import { inject } from "inversify";
-import { provide } from "inversify-binding-decorators";
+import { provide } from "@inversifyjs/binding-decorators";
 import { MongoClient } from "mongodb";
 import { config } from "../config/values";
 import { Change } from "../models/business/change";

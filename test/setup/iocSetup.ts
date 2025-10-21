@@ -6,12 +6,12 @@ import { MockUserDbService } from "../mocks/mockUserDbService";
 
 export const setupChangeServiceMock = (): void => {
   iocContainer
-    .rebind<ChangeService>(ChangeService)
+    .rebindSync<ChangeService>(ChangeService)
     .toConstantValue(new MockChangeService());
 };
 
 export const setupUserDbServiceMock = (): void => {
   iocContainer
-    .rebind<UserDbService>(UserDbService)
+    .rebindSync<UserDbService>(UserDbService)
     .toConstantValue(new MockUserDbService());
 };

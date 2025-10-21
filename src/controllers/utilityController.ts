@@ -1,5 +1,5 @@
 import * as express from "express";
-import { provide } from "inversify-binding-decorators";
+import { provide } from "@inversifyjs/binding-decorators";
 import { Controller, Get, Request, Route, Tags } from "tsoa";
 
 @Route("utility")

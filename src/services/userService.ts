@@ -1,13 +1,13 @@
 import * as crypto from "crypto";
 import { inject } from "inversify";
-import { provide } from "inversify-binding-decorators";
+import { provide } from "@inversifyjs/binding-decorators";
 import { Role, User } from "../models/business/user";
 import { UserDbService } from "./userDbService";
 
 @provide(UserService)
 export class UserService {
   constructor(
-    @inject<UserDbService>(UserDbService)
+    @inject(UserDbService)
     private readonly userDbService: UserDbService,
   ) {}
 

@@ -1,5 +1,5 @@
 import { Container, decorate, injectable } from "inversify";
-import { buildProviderModule } from "inversify-binding-decorators";
+import { buildProviderModule } from "@inversifyjs/binding-decorators";
 import { MongoClient } from "mongodb";
 import "reflect-metadata";
 import { Controller } from "tsoa";

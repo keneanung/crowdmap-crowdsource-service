@@ -1,6 +1,6 @@
 import * as express from "express";
 import { inject } from "inversify";
-import { provide } from "inversify-binding-decorators";
+import { provide } from "@inversifyjs/binding-decorators";
 import {
   Body,
   Controller,

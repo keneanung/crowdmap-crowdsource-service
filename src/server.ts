@@ -25,7 +25,7 @@ if (!fs.existsSync(config.versionFile)) {
   mapVersionDownloadPromise = Promise.resolve();
 }
 
-const userService = iocContainer.resolve<UserService>(UserService);
+const userService = iocContainer.get<UserService>(UserService, {autobind: true});
 const checkAdminUser = userService.getUsers().then((users) => {
   const adminUser = users.find((user) => user.name === "admin");
   if (!adminUser) {

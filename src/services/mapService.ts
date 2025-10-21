@@ -1,5 +1,5 @@
 import { inject } from "inversify";
-import { provide } from "inversify-binding-decorators";
+import { provide } from "@inversifyjs/binding-decorators";
 import { MudletMapReader } from "mudlet-map-binary-reader";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
