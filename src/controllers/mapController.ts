@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { inject } from "inversify";
-import { provide } from "inversify-binding-decorators";
+import { provide } from "@inversifyjs/binding-decorators";
 import { MudletMapReader } from "mudlet-map-binary-reader";
 import { dirname } from "path";
 import { Readable } from "stream";

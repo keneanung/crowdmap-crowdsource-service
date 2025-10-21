@@ -1,6 +1,6 @@
 import * as express from "express";
 import { inject } from "inversify";
-import { provide } from "inversify-binding-decorators";
+import { provide } from "@inversifyjs/binding-decorators";
 import {
   Body,
   Controller,
@@ -30,7 +30,7 @@ import { UserService } from "../services/userService";
 @Security("api_key")
 export class AdminController extends Controller {
   constructor(
-    @inject<UserService>(UserService) private readonly userService: UserService,
+    @inject(UserService) private readonly userService: UserService,
   ) {
     super();
   }
