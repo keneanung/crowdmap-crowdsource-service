@@ -22,7 +22,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
-    "inversify": "^7.10.3",
+    "inversify": "^7.10.4",
     "mongodb": "^6.20.0",
     "mudlet-map-binary-reader": "^0.6.0",
     "reflect-metadata": "^0.2.2",
