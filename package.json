@@ -37,7 +37,7 @@
     "@types/joi": "^17.2.3",
     "@types/koa": "^3.0.1",
     "@types/node": "^24.10.1",
-    "@types/supertest": "^6.0.2",
+    "@types/supertest": "^6.0.3",
     "@types/swagger-ui-express": "^4.1.8",
     "@typescript-eslint/eslint-plugin": "^8.47.0",
     "@typescript-eslint/parser": "^8.46.3",
