@@ -21,14 +21,14 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.2.1",
+    "express-rate-limit": "^8.2.2",
     "inversify": "^7.11.0",
     "mongodb": "^7.1.0",
     "mudlet-map-binary-reader": "^0.6.0",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
     "tsoa": "^6.6.0",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.2.0",
@@ -41,7 +41,7 @@
     "@types/swagger-ui-express": "^4.1.8",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.54.0",
-    "concurrently": "^9.2.1",
+    "concurrently": "^9.2.4",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^30.2.0",
