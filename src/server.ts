@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import { Server } from "node:http";
 import { app } from "./app";
 import { config, validateConfig } from "./config/values";
 import { downloadMapFile, downloadMapVersion } from "./fileDownloads";
@@ -37,16 +38,57 @@ const checkAdminUser = userService
     console.log(`Generated admin API Key: ${apiKey}`);
   });
 
+let server: Server | undefined;
+let shuttingDown = false;
+
+const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  console.log(`Received ${signal}; shutting down`);
+  const forcedExit = setTimeout(() => {
+    console.error("Graceful shutdown timed out");
+    process.exit(1);
+  }, 10_000);
+  forcedExit.unref();
+
+  try {
+    if (server) {
+      await new Promise<void>((resolve, reject) => {
+        server?.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+    await iocContainer.unbindAll();
+    clearTimeout(forcedExit);
+  } catch (error) {
+    console.error("Graceful shutdown failed", error);
+    process.exitCode = 1;
+  }
+};
+
 Promise.all([
   mapDownloadPromise,
   mapVersionDownloadPromise,
   checkAdminUser,
 ]).then(
   () => {
-    app.listen(config.port, () => {
+    server = app.listen(config.port, () => {
       console.log(
         `Crowdmap service listening at http://localhost:${config.port.toString()}`,
       );
+    });
+    process.once("SIGTERM", () => {
+      void shutdown("SIGTERM");
+    });
+    process.once("SIGINT", () => {
+      void shutdown("SIGINT");
     });
   },
   (err: unknown) => {
