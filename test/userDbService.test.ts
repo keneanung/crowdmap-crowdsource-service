@@ -7,10 +7,11 @@ test("API key rotation updates the hash used by authentication", async () => {
   const updateOne = jest.fn<(filter: unknown, update: unknown) => Promise<void>>(
     async () => Promise.resolve(),
   );
+  const createIndex = jest.fn(async () => Promise.resolve("unique_user_name"));
   const mongo = {
     connect: jest.fn(async () => Promise.resolve()),
     db: jest.fn(() => ({
-      collection: jest.fn(() => ({ updateOne })),
+      collection: jest.fn(() => ({ createIndex, updateOne })),
     })),
   } as unknown as MongoClient;
   const user: User = {
