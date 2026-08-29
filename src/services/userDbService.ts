@@ -35,7 +35,7 @@ export class MongoUserDbService implements UserDbService {
     const collection = await this.getCollection();
     await collection.updateOne(
       { name: user.name },
-      { $set: { api_key: newApiKey } },
+      { $set: { hashed_api_key: newApiKey } },
     );
   }
 }
