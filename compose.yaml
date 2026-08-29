@@ -1,13 +1,11 @@
 services:
   mongo:
-    image: mongo:7
+    image: mongo:7.0.40-jammy
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
-    ports:
-      # Uncomment the following line to expose MongoDB outside of the Docker Compose network.
-      # Make sure to secure your MongoDB instance if you do so!
-      #- 27017:27017
+    # MongoDB is intentionally not exposed outside the Compose network. Add a
+    # secured port mapping explicitly if administrative access is required.
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
       interval: 30s

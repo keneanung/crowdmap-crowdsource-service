@@ -1,4 +1,4 @@
-FROM node:25-alpine3.21 AS build
+FROM node:24.16.0-alpine3.22 AS build
 
 RUN mkdir -p /source/src
 WORKDIR /source
@@ -11,7 +11,7 @@ COPY src/ /source/src/
 COPY website/ /source/website/
 RUN npm run build
 
-FROM node:25-alpine3.21 AS prod-content
+FROM node:24.16.0-alpine3.22 AS prod-content
 
 RUN mkdir -p /source/src
 WORKDIR /source
@@ -19,7 +19,7 @@ WORKDIR /source
 COPY package.json package-lock.json /source/
 RUN npm ci --omit=dev
 
-FROM node:25-alpine3.21 AS prod
+FROM node:24.16.0-alpine3.22 AS prod
 
 RUN mkdir -p /opt/serve
 RUN chown node:node /opt/serve
@@ -32,4 +32,3 @@ COPY --chown=node:node --from=build /source/package.json /opt/serve/
 WORKDIR /opt/serve
 EXPOSE 3000
 CMD [ "node", "build/src/server.js" ]
-
