@@ -22,6 +22,8 @@ services:
         condition: service_healthy
     ports:
       - 3000:3000
+    volumes:
+      - map-data:/opt/data
     # change this if you want to keep your version stable. This will pull a new service image on every start.
     #pull_policy: always
     environment:
@@ -32,9 +34,9 @@ services:
       # The port the node service is listening on. If you change this value, be sure to modify the port mapping above as well.
       - PORT=3000
       # The file path where the map file is saved within the container. You should not need to set this.
-      - MAP_FILE=/opt/serve/map
+      - MAP_FILE=/opt/data/map
       # The file path where the version file is saved within the container. You should not need to set this.
-      - VERSION_FILE=/opt/serve/version
+      - VERSION_FILE=/opt/data/version
       # Local MongoDB connection string. Adjust credentials / auth if you secure the mongo service.
       - MONGO_CONNECTION_STRING=mongodb://mongo:27017
       # The MongoDB database to use.
@@ -54,3 +56,4 @@ services:
 
 volumes:
   mongo-data:
+  map-data:
