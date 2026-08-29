@@ -175,6 +175,10 @@ test("Should be able to update the API key of own user", async () => {
 
   //Assert: check if API keys are different
   expect(newApiKey).not.toEqual(apiKey);
+  await request(app)
+    .get("/admin/user/me")
+    .set("x-api-key", apiKey)
+    .expect(403);
   // Assert: check if we can use the new API key to access the me endpoint
   await request(app)
     .get("/admin/user/me")

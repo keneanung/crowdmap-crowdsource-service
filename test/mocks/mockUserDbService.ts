@@ -24,15 +24,30 @@ export class MockUserDbService implements UserDbService {
     this.users.push(user);
     return Promise.resolve(true);
   }
+  public getUserByApiKeyLookup(lookup: string): Promise<User | undefined> {
+    return Promise.resolve(
+      this.users.find((user) => user.api_key_lookup === lookup),
+    );
+  }
+  public getUsersWithoutApiKeyLookup(): Promise<User[]> {
+    return Promise.resolve(
+      this.users.filter((user) => !user.api_key_lookup),
+    );
+  }
+  public setApiKeyLookup(user: User, lookup: string): Promise<void> {
+    user.api_key_lookup = lookup;
+    return Promise.resolve();
+  }
   getUsers(): Promise<User[]> {
     return Promise.resolve(this.users);
   }
-  updateApiKey(user: User, newApiKey: string): Promise<void> {
+  updateApiKey(user: User, newApiKey: string, lookup: string): Promise<void> {
     const foundUser = this.users.find((u) => u.name === user.name);
     if (!foundUser) {
       return Promise.reject(new Error("Unknown User"));
     }
     foundUser.hashed_api_key = newApiKey;
+    foundUser.api_key_lookup = lookup;
     return Promise.resolve();
   }
 }

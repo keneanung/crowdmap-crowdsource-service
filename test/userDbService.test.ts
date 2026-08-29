@@ -7,11 +7,11 @@ test("API key rotation updates the hash used by authentication", async () => {
   const updateOne = jest.fn<(filter: unknown, update: unknown) => Promise<void>>(
     async () => Promise.resolve(),
   );
-  const createIndex = jest.fn(async () => Promise.resolve("unique_user_name"));
+  const createIndexes = jest.fn(async () => Promise.resolve([]));
   const mongo = {
     connect: jest.fn(async () => Promise.resolve()),
     db: jest.fn(() => ({
-      collection: jest.fn(() => ({ createIndex, updateOne })),
+      collection: jest.fn(() => ({ createIndexes, updateOne })),
     })),
   } as unknown as MongoClient;
   const user: User = {
@@ -21,10 +21,19 @@ test("API key rotation updates the hash used by authentication", async () => {
     hashed_api_key: "old-hash",
   };
 
-  await new MongoUserDbService(mongo).updateApiKey(user, "new-hash");
+  await new MongoUserDbService(mongo).updateApiKey(
+    user,
+    "new-hash",
+    "new-lookup",
+  );
 
   expect(updateOne).toHaveBeenCalledWith(
     { name: "test-user" },
-    { $set: { hashed_api_key: "new-hash" } },
+    {
+      $set: {
+        hashed_api_key: "new-hash",
+        api_key_lookup: "new-lookup",
+      },
+    },
   );
 });

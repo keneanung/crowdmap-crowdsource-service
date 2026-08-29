@@ -12,41 +12,79 @@ export class UserService {
   ) {}
 
   public async addUser(user: string, api_key: string, roles: Role[]) {
-    await this.userDbService.addUser(this.buildUser(user, api_key, roles));
+    await this.userDbService.addUser(
+      await this.buildUser(user, api_key, roles),
+    );
   }
 
-  private buildUser(user: string, api_key: string, roles: Role[]): User {
+  private async buildUser(
+    user: string,
+    api_key: string,
+    roles: Role[],
+  ): Promise<User> {
     const salt = crypto.randomBytes(16).toString("hex");
-    const derivedKey = this.hashApiKey(api_key, salt);
+    const derivedKey = await this.hashApiKey(api_key, salt);
     return {
       name: user,
       roles,
       salt,
       hashed_api_key: derivedKey.toString("hex"),
+      api_key_lookup: this.getApiKeyLookup(api_key),
     };
   }
 
-  public hashApiKey(api_key: string, salt: string) {
+  public hashApiKey(api_key: string, salt: string): Promise<Buffer> {
     const iterations = 10000;
     const keylength = 64;
     const hashingAlgo = "sha512";
-    const derivedKey = crypto.pbkdf2Sync(
-      api_key,
-      salt,
-      iterations,
-      keylength,
-      hashingAlgo,
+    return new Promise((resolve, reject) => {
+      crypto.pbkdf2(
+        api_key,
+        salt,
+        iterations,
+        keylength,
+        hashingAlgo,
+        (error, derivedKey) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(derivedKey);
+          }
+        },
+      );
+    });
+  }
+
+  private getApiKeyLookup(api_key: string): string {
+    return crypto.createHash("sha256").update(api_key).digest("hex");
+  }
+
+  private async apiKeyMatches(api_key: string, user: User): Promise<boolean> {
+    const actual = await this.hashApiKey(api_key, user.salt);
+    const expected = Buffer.from(user.hashed_api_key, "hex");
+    return (
+      actual.length === expected.length && crypto.timingSafeEqual(actual, expected)
     );
-    return derivedKey;
   }
 
   public async getUserByApiKey(api_key: string): Promise<User | undefined> {
-    const users = await this.userDbService.getUsers();
-    return users.find(
-      (user) =>
-        user.hashed_api_key ===
-        this.hashApiKey(api_key, user.salt).toString("hex"),
-    );
+    const lookup = this.getApiKeyLookup(api_key);
+    const indexedUser = await this.userDbService.getUserByApiKeyLookup(lookup);
+    if (indexedUser) {
+      return (await this.apiKeyMatches(api_key, indexedUser))
+        ? indexedUser
+        : undefined;
+    }
+
+    const legacyUsers = await this.userDbService.getUsersWithoutApiKeyLookup();
+    for (const user of legacyUsers) {
+      if (await this.apiKeyMatches(api_key, user)) {
+        await this.userDbService.setApiKeyLookup(user, lookup);
+        user.api_key_lookup = lookup;
+        return user;
+      }
+    }
+    return undefined;
   }
 
   public async getUser(name: string): Promise<User | undefined> {
@@ -74,15 +112,21 @@ export class UserService {
   ): Promise<string | undefined> {
     const apiKey = this.generateApiKey();
     const added = await this.userDbService.addUserIfMissing(
-      this.buildUser(name, apiKey, roles),
+      await this.buildUser(name, apiKey, roles),
     );
     return added ? apiKey : undefined;
   }
 
   public async updateApiKey(user: User) {
     const newApiKey = this.generateApiKey();
-    const hashedApiKey = this.hashApiKey(newApiKey, user.salt).toString("hex");
-    await this.userDbService.updateApiKey(user, hashedApiKey);
+    const hashedApiKey = (await this.hashApiKey(newApiKey, user.salt)).toString(
+      "hex",
+    );
+    await this.userDbService.updateApiKey(
+      user,
+      hashedApiKey,
+      this.getApiKeyLookup(newApiKey),
+    );
     return newApiKey;
   }
 }
