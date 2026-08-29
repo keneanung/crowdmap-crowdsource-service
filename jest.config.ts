@@ -143,6 +143,7 @@ const config: Config = {
   // The paths to modules that run some code to configure or set up the testing environment before each test
   setupFiles: [
     "<rootDir>/test/setup/configureBaselineFiles.ts",
+    "<rootDir>/test/setup/mockFetch.ts",
     "<rootDir>/test/setup/writeMocks.ts"
   ],
 

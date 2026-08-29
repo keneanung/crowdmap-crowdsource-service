@@ -9,6 +9,7 @@
     "start": "node build/src/server.js",
     "lint": "eslint .",
     "format": "prettier --write src/ test/",
+    "pretest": "tsoa spec-and-routes",
     "test": "jest"
   },
   "keywords": [],
