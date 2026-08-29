@@ -212,6 +212,19 @@ export class MapService {
     });
   }
 
+  public async validateBaseline(): Promise<void> {
+    await baselineUpdateQueue;
+    const version = await this.readRawVersion();
+    if (!version) {
+      throw new Error("Baseline version is empty");
+    }
+    await this.runMapWorker({
+      changes: [],
+      mapFile: config.mapFile,
+      operation: "validate",
+    });
+  }
+
   private async replaceBaseline(): Promise<BaselineReplacement> {
     const suffix = randomUUID();
     const stagedMap = `${config.mapFile}.${suffix}.staged`;

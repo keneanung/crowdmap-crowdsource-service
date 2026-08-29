@@ -17,6 +17,7 @@ import {
   AuthorizationError,
   ConflictError,
   NotFoundError,
+  ServiceUnavailableError,
 } from "./models/api/error";
 
 export const app = express();
@@ -82,6 +83,12 @@ app.use(function errorHandler(
   if (err instanceof NotFoundError) {
     console.error(err);
     return res.status(404).json({
+      message: err.message,
+    });
+  }
+  if (err instanceof ServiceUnavailableError) {
+    console.error(err);
+    return res.status(503).json({
       message: err.message,
     });
   }
