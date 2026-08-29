@@ -1,7 +1,14 @@
 import { inject } from "inversify";
 import { provide } from "@inversifyjs/binding-decorators";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+} from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
@@ -35,6 +42,11 @@ export interface MapFileSnapshot extends ChangeSnapshot {
 
 export interface RendererSnapshot extends ChangeSnapshot {
   content: string;
+}
+
+interface BaselineReplacement {
+  complete(): Promise<void>;
+  rollback(): Promise<void>;
 }
 
 @provide(MapService)
@@ -200,10 +212,63 @@ export class MapService {
     });
   }
 
-  public async updateMap() {
-    const versionPromise = downloadMapVersion();
-    const mapPromise = downloadMapFile();
-    await Promise.all([versionPromise, mapPromise]);
+  private async replaceBaseline(): Promise<BaselineReplacement> {
+    const suffix = randomUUID();
+    const stagedMap = `${config.mapFile}.${suffix}.staged`;
+    const stagedVersion = `${config.versionFile}.${suffix}.staged`;
+    const backupMap = `${config.mapFile}.${suffix}.backup`;
+    const backupVersion = `${config.versionFile}.${suffix}.backup`;
+    const cleanup = async (): Promise<void> => {
+      await Promise.all(
+        [stagedMap, stagedVersion, backupMap, backupVersion].map((file) =>
+          rm(file, { force: true }),
+        ),
+      );
+    };
+
+    try {
+      await Promise.all([
+        downloadMapFile(stagedMap),
+        downloadMapVersion(stagedVersion),
+      ]);
+      const stagedVersionValue = (await readFile(stagedVersion, "utf8")).trim();
+      if (!stagedVersionValue) {
+        throw new Error("Downloaded baseline version is empty");
+      }
+      await this.runMapWorker({
+        changes: [],
+        mapFile: stagedMap,
+        operation: "validate",
+      });
+      await Promise.all([
+        copyFile(config.mapFile, backupMap),
+        copyFile(config.versionFile, backupVersion),
+      ]);
+      try {
+        await rename(stagedMap, config.mapFile);
+        await rename(stagedVersion, config.versionFile);
+      } catch (error) {
+        await Promise.all([
+          copyFile(backupMap, config.mapFile),
+          copyFile(backupVersion, config.versionFile),
+        ]);
+        throw error;
+      }
+    } catch (error) {
+      await cleanup();
+      throw error;
+    }
+
+    return {
+      complete: cleanup,
+      rollback: async () => {
+        await Promise.all([
+          copyFile(backupMap, config.mapFile),
+          copyFile(backupVersion, config.versionFile),
+        ]);
+        await cleanup();
+      },
+    };
   }
 
   public async applyBaselineUpdate(
@@ -219,8 +284,14 @@ export class MapService {
         );
       }
 
-      await this.updateMap();
-      await this.changeService.applyChanges(obsoleteChanges);
+      const replacement = await this.replaceBaseline();
+      try {
+        await this.changeService.applyChanges(obsoleteChanges);
+      } catch (error) {
+        await replacement.rollback();
+        throw error;
+      }
+      await replacement.complete();
     });
     baselineUpdateQueue = update.catch(() => Promise.resolve());
     return update;

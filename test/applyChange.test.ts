@@ -231,4 +231,5 @@ test("applyChange keeps changes when a baseline download fails", async () => {
   await request(app).get("/change").expect(200).expect((res) => {
     expect(res.body).toHaveLength(1);
   });
+  expect((await readFile(config.versionFile, "utf8")).trim()).toEqual("466");
 });

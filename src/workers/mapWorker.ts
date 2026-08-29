@@ -33,6 +33,8 @@ switch (request.operation) {
     response.content = `mapData = ${stringifiedMap}; colors = ${stringifiedColors}; position = ${stringifiedPosition};`;
     break;
   }
+  case "validate":
+    break;
 }
 
 parentPort?.postMessage(response);

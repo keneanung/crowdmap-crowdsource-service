@@ -7,9 +7,11 @@ import { config } from "./config/values";
 
 const DOWNLOAD_TIMEOUT_MS = 30_000;
 
-export const downloadMapVersion = async () => {
+export const downloadMapVersion = async (
+  destination: string = config.versionFile,
+) => {
   try {
-    await downloadFile(config.versionDownloadUrl, config.versionFile);
+    await downloadFile(config.versionDownloadUrl, destination);
   } catch (err) {
     throw Error("Failed to download version file", {
       cause: err,
@@ -17,9 +19,9 @@ export const downloadMapVersion = async () => {
   }
 };
 
-export const downloadMapFile = async () => {
+export const downloadMapFile = async (destination: string = config.mapFile) => {
   try {
-    await downloadFile(config.mapDownloadUrl, config.mapFile);
+    await downloadFile(config.mapDownloadUrl, destination);
   } catch (err) {
     throw Error("Failed to download map file", {
       cause: err,
