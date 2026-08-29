@@ -1,9 +1,11 @@
 import * as fs from "fs";
 import { app } from "./app";
-import { config } from "./config/values";
+import { config, validateConfig } from "./config/values";
 import { downloadMapFile, downloadMapVersion } from "./fileDownloads";
 import { iocContainer } from "./ioc/ioc";
 import { UserService } from "./services/userService";
+
+validateConfig();
 
 let mapDownloadPromise;
 if (!fs.existsSync(config.mapFile)) {
