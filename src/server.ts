@@ -4,6 +4,7 @@ import { app } from "./app";
 import { config, validateConfig } from "./config/values";
 import { downloadMapFile, downloadMapVersion } from "./fileDownloads";
 import { iocContainer } from "./ioc/ioc";
+import { log } from "./observability";
 import { UserService } from "./services/userService";
 
 validateConfig();
@@ -11,7 +12,7 @@ validateConfig();
 let mapDownloadPromise;
 if (!fs.existsSync(config.mapFile)) {
   mapDownloadPromise = downloadMapFile().catch((err: unknown) => {
-    console.error(err);
+    log("error", "map_download_failed", { error: err });
     process.exit(1);
   });
 } else {
@@ -21,7 +22,7 @@ if (!fs.existsSync(config.mapFile)) {
 let mapVersionDownloadPromise;
 if (!fs.existsSync(config.versionFile)) {
   mapVersionDownloadPromise = downloadMapVersion().catch((err: unknown) => {
-    console.error(err);
+    log("error", "map_version_download_failed", { error: err });
     process.exit(1);
   });
 } else {
@@ -44,7 +45,7 @@ const checkAdminUser = userService.getUser("admin").then(async (adminUser) => {
     config.initialAdminApiKey,
   );
   if (created) {
-    console.log("Created initial admin user from configured credentials");
+    log("info", "initial_admin_created");
   }
 });
 
@@ -56,9 +57,9 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
     return;
   }
   shuttingDown = true;
-  console.log(`Received ${signal}; shutting down`);
+  log("info", "shutdown_started", { signal });
   const forcedExit = setTimeout(() => {
-    console.error("Graceful shutdown timed out");
+    log("error", "graceful_shutdown_timed_out");
     process.exit(1);
   }, 10_000);
   forcedExit.unref();
@@ -78,7 +79,7 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
     await iocContainer.unbindAll();
     clearTimeout(forcedExit);
   } catch (error) {
-    console.error("Graceful shutdown failed", error);
+    log("error", "graceful_shutdown_failed", { error });
     process.exitCode = 1;
   }
 };
@@ -90,9 +91,7 @@ Promise.all([
 ]).then(
   () => {
     server = app.listen(config.port, () => {
-      console.log(
-        `Crowdmap service listening at http://localhost:${config.port.toString()}`,
-      );
+      log("info", "server_listening", { port: config.port });
     });
     process.once("SIGTERM", () => {
       void shutdown("SIGTERM");
@@ -102,7 +101,7 @@ Promise.all([
     });
   },
   (err: unknown) => {
-    console.error(err);
+    log("error", "server_startup_failed", { error: err });
     process.exit(1);
   },
 );

@@ -1,8 +1,9 @@
 import * as express from "express";
 import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
-import { Controller, Get, Request, Route, Tags } from "tsoa";
+import { Controller, Get, Produces, Request, Route, Tags } from "tsoa";
 import { ServiceUnavailableError } from "../models/api/error";
+import { renderMetrics } from "../observability";
 import { HealthService } from "../services/healthService";
 
 @Route("utility")
@@ -28,5 +29,12 @@ export class UtilityController extends Controller {
   @Get("ip")
   public getIp(@Request() request: express.Request) {
     return request.ip;
+  }
+
+  @Get("metrics")
+  @Produces("text/plain")
+  public getMetrics(): string {
+    this.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+    return renderMetrics();
   }
 }

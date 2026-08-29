@@ -13,6 +13,7 @@ import {
   ValidateError,
 } from "tsoa";
 import { MapService } from "../services/mapService";
+import { log } from "../observability";
 
 @Route("map")
 @Tags("map")
@@ -75,7 +76,7 @@ export class MapController extends Controller {
       void fs.promises
         .rm(dirname(snapshot.file), { recursive: true, force: true })
         .catch((error: unknown) => {
-          console.error("Failed to clean up temporary map file", error);
+          log("error", "temporary_map_cleanup_failed", { error });
         });
     });
     return s;
