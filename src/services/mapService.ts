@@ -9,8 +9,27 @@ import { config } from "../config/values";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
 import { ConflictError } from "../models/api/error";
 import { ChangeService } from "./changeService";
+import { Change } from "../models/business/change";
 
 let baselineUpdateQueue: Promise<void> = Promise.resolve();
+let baselineUpdateRevision = 0;
+
+const isBaselineRevisionCurrent = (revision: number): boolean =>
+  revision === baselineUpdateRevision;
+
+export interface ChangeSnapshot {
+  changes: Change[];
+  version: string;
+  rawVersion: string;
+}
+
+export interface MapSnapshot extends ChangeSnapshot {
+  map: Mudlet.MudletMap;
+}
+
+export interface MapFileSnapshot extends ChangeSnapshot {
+  file: string;
+}
 
 @provide(MapService)
 export class MapService {
@@ -25,15 +44,19 @@ export class MapService {
     format: "binary" | "json",
     include: string[] = [],
     exclude: string[] = [],
-  ): Promise<string> {
-    const map = await this.getChangedMap(timesSeen, include, exclude);
+  ): Promise<MapFileSnapshot> {
+    const snapshot = await this.getChangedMapSnapshot(
+      timesSeen,
+      include,
+      exclude,
+    );
     const file = await this.getTempMapFileName();
     if (format === "binary") {
-      MudletMapReader.write(map, file);
+      MudletMapReader.write(snapshot.map, file);
     } else {
-      MudletMapReader.exportJson(map, file, true);
+      MudletMapReader.exportJson(snapshot.map, file, true);
     }
-    return file;
+    return { ...snapshot, file };
   }
 
   public async getChangedMap(
@@ -41,20 +64,10 @@ export class MapService {
     include: string[] = [],
     exclude: string[] = [],
   ): Promise<Mudlet.MudletMap> {
-    const changes = await this.changeService.getChanges(
-      timesSeen,
-      include,
-      exclude,
-    );
-    const map: Mudlet.MudletMap = MudletMapReader.read(config.mapFile);
-    changes.forEach((change) => {
-      change.apply(map);
-    });
-    return map;
+    return (await this.getChangedMapSnapshot(timesSeen, include, exclude)).map;
   }
 
-  public async getVersion(timesSeen: number): Promise<string> {
-    const changes = await this.changeService.getChanges(timesSeen);
+  private buildVersion(changes: Change[], baseVersion: string): string {
     const lastChangeId =
       changes.length > 0 ? changes[changes.length - 1].changeId : NIL;
     // Number of hex characters representing the first 64 bits (8 bytes) of the UUID
@@ -65,11 +78,80 @@ export class MapService {
     );
     const top64BitsBase64Url = idBuffer.toString("base64url");
 
-    const baseVersion = await this.getRawVersion();
     return `${baseVersion}.${top64BitsBase64Url}.${changes.length.toString()}`;
   }
 
+  public async getChangesSnapshot(
+    timesSeen: number,
+    include: string[] = [],
+    exclude: string[] = [],
+  ): Promise<ChangeSnapshot> {
+    // A concurrent baseline update can require retrying the snapshot.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      const updateRevision = baselineUpdateRevision;
+      await baselineUpdateQueue;
+      const [changes, rawVersion] = await Promise.all([
+        this.changeService.getChanges(timesSeen, include, exclude),
+        this.readRawVersion(),
+      ]);
+      if (isBaselineRevisionCurrent(updateRevision)) {
+        return {
+          changes,
+          rawVersion,
+          version: this.buildVersion(changes, rawVersion),
+        };
+      }
+    }
+  }
+
+  public async getChangedMapSnapshot(
+    timesSeen: number,
+    include: string[] = [],
+    exclude: string[] = [],
+  ): Promise<MapSnapshot> {
+    // A concurrent baseline update can require retrying the snapshot.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      const updateRevision = baselineUpdateRevision;
+      await baselineUpdateQueue;
+      const [changes, rawVersion] = await Promise.all([
+        this.changeService.getChanges(timesSeen, include, exclude),
+        this.readRawVersion(),
+      ]);
+      const map: Mudlet.MudletMap = MudletMapReader.read(config.mapFile);
+      changes.forEach((change) => {
+        change.apply(map);
+      });
+      if (isBaselineRevisionCurrent(updateRevision)) {
+        return {
+          changes,
+          map,
+          rawVersion,
+          version: this.buildVersion(changes, rawVersion),
+        };
+      }
+    }
+  }
+
+  public async getVersion(timesSeen: number): Promise<string> {
+    return (await this.getChangesSnapshot(timesSeen)).version;
+  }
+
   public async getRawVersion() {
+    // A concurrent baseline update can require retrying the read.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      const updateRevision = baselineUpdateRevision;
+      await baselineUpdateQueue;
+      const version = await this.readRawVersion();
+      if (isBaselineRevisionCurrent(updateRevision)) {
+        return version;
+      }
+    }
+  }
+
+  private async readRawVersion(): Promise<string> {
     return (await readFile(config.versionFile, "utf-8")).trim();
   }
 
@@ -83,8 +165,9 @@ export class MapService {
     expectedVersion: string,
     obsoleteChanges: string[],
   ): Promise<void> {
+    baselineUpdateRevision += 1;
     const update = baselineUpdateQueue.then(async () => {
-      const serverVersion = await this.getRawVersion();
+      const serverVersion = await this.readRawVersion();
       if (expectedVersion !== serverVersion) {
         throw new ConflictError(
           "The map version provided does not match the current map version",

@@ -56,7 +56,7 @@ export class MapController extends Controller {
         "Cannot include and exclude changes at the same time",
       );
     }
-    const file = await this.mapService.getChangedMapFile(
+    const snapshot = await this.mapService.getChangedMapFile(
       timesSeen,
       format,
       include,
@@ -68,16 +68,13 @@ export class MapController extends Controller {
       `application/${format === "binary" ? "octet-stream" : "json"}`,
     );
     this.setHeader("Content-Disposition", "attachment; filename=map");
-    this.setHeader(
-      "X-Map-Version",
-      await this.mapService.getVersion(timesSeen),
-    );
-    this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
+    this.setHeader("X-Map-Version", snapshot.version);
+    this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
 
-    const s = fs.createReadStream(file);
+    const s = fs.createReadStream(snapshot.file);
     s.on("close", () => {
-      fs.unlink(file, (err) => {
-        fs.rmdirSync(dirname(file));
+      fs.unlink(snapshot.file, (err) => {
+        fs.rmdirSync(dirname(snapshot.file));
         if (err) {
           throw err;
         }
@@ -106,14 +103,11 @@ export class MapController extends Controller {
   @Get("/renderer")
   @Produces("text/javascript")
   public async getRendererMap(@Query() timesSeen: number): Promise<Readable> {
-    const map = await this.mapService.getChangedMap(timesSeen);
-    this.setHeader(
-      "X-Map-Version",
-      await this.mapService.getVersion(timesSeen),
-    );
-    this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
+    const snapshot = await this.mapService.getChangedMapSnapshot(timesSeen);
+    this.setHeader("X-Map-Version", snapshot.version);
+    this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
     this.setHeader("Content-Type", "text/javascript");
-    const exportedMap = MudletMapReader.export(map);
+    const exportedMap = MudletMapReader.export(snapshot.map);
     const stringifiedMap = JSON.stringify(exportedMap.mapData);
     const stringifiedColors = JSON.stringify(exportedMap.colors);
     const stringifiedPosition = JSON.stringify({
