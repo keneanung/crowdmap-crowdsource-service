@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import { inject } from "inversify";
 import { provide } from "@inversifyjs/binding-decorators";
-import { MudletMapReader } from "mudlet-map-binary-reader";
 import { dirname } from "path";
 import { Readable } from "stream";
 import {
@@ -102,17 +101,10 @@ export class MapController extends Controller {
   @Get("/renderer")
   @Produces("text/javascript")
   public async getRendererMap(@Query() timesSeen: number): Promise<Readable> {
-    const snapshot = await this.mapService.getChangedMapSnapshot(timesSeen);
+    const snapshot = await this.mapService.getRendererSnapshot(timesSeen);
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
     this.setHeader("Content-Type", "text/javascript");
-    const exportedMap = MudletMapReader.export(snapshot.map);
-    const stringifiedMap = JSON.stringify(exportedMap.mapData);
-    const stringifiedColors = JSON.stringify(exportedMap.colors);
-    const stringifiedPosition = JSON.stringify({
-      area: exportedMap.mapData[0].areaId,
-    });
-    const resString = `mapData = ${stringifiedMap}; colors = ${stringifiedColors}; position = ${stringifiedPosition};`;
-    return Readable.from(Buffer.from(resString));
+    return Readable.from(Buffer.from(snapshot.content));
   }
 }

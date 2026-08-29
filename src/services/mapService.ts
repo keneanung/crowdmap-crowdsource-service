@@ -1,15 +1,21 @@
 import { inject } from "inversify";
 import { provide } from "@inversifyjs/binding-decorators";
-import { MudletMapReader } from "mudlet-map-binary-reader";
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { Worker } from "node:worker_threads";
 import { NIL } from "uuid";
 import { config } from "../config/values";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
 import { ConflictError } from "../models/api/error";
 import { ChangeService } from "./changeService";
 import { Change } from "../models/business/change";
+import {
+  MapWorkerRequest,
+  MapWorkerResponse,
+} from "../models/business/mapWorker";
+import { changeBusinessToDb } from "../models/db/change";
 
 let baselineUpdateQueue: Promise<void> = Promise.resolve();
 let baselineUpdateRevision = 0;
@@ -23,12 +29,12 @@ export interface ChangeSnapshot {
   rawVersion: string;
 }
 
-export interface MapSnapshot extends ChangeSnapshot {
-  map: Mudlet.MudletMap;
-}
-
 export interface MapFileSnapshot extends ChangeSnapshot {
   file: string;
+}
+
+export interface RendererSnapshot extends ChangeSnapshot {
+  content: string;
 }
 
 @provide(MapService)
@@ -45,36 +51,70 @@ export class MapService {
     include: string[] = [],
     exclude: string[] = [],
   ): Promise<MapFileSnapshot> {
-    const snapshot = await this.getChangedMapSnapshot(
-      timesSeen,
-      include,
-      exclude,
-    );
-    const file = await this.getTempMapFileName();
-    try {
-      if (format === "binary") {
-        MudletMapReader.write(snapshot.map, file);
-      } else {
-        MudletMapReader.exportJson(snapshot.map, file, true);
+    // A concurrent baseline update can require regenerating the file.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      const updateRevision = baselineUpdateRevision;
+      await baselineUpdateQueue;
+      const [changes, rawVersion] = await Promise.all([
+        this.changeService.getChanges(timesSeen, include, exclude),
+        this.readRawVersion(),
+      ]);
+      const file = await this.getTempMapFileName();
+      try {
+        await this.runMapWorker({
+          changes: changes.map(changeBusinessToDb),
+          mapFile: config.mapFile,
+          operation: format,
+          outputFile: file,
+        });
+        if (isBaselineRevisionCurrent(updateRevision)) {
+          return {
+            changes,
+            file,
+            rawVersion,
+            version: this.buildVersion(changes, rawVersion),
+          };
+        }
+      } catch (error) {
+        await rm(dirname(file), { recursive: true, force: true });
+        throw error;
       }
-    } catch (error) {
       await rm(dirname(file), { recursive: true, force: true });
-      throw error;
     }
-    return {
-      changes: snapshot.changes,
-      file,
-      rawVersion: snapshot.rawVersion,
-      version: snapshot.version,
-    };
   }
 
-  public async getChangedMap(
+  public async getRendererSnapshot(
     timesSeen: number,
     include: string[] = [],
     exclude: string[] = [],
-  ): Promise<Mudlet.MudletMap> {
-    return (await this.getChangedMapSnapshot(timesSeen, include, exclude)).map;
+  ): Promise<RendererSnapshot> {
+    // A concurrent baseline update can require regenerating the content.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      const updateRevision = baselineUpdateRevision;
+      await baselineUpdateQueue;
+      const [changes, rawVersion] = await Promise.all([
+        this.changeService.getChanges(timesSeen, include, exclude),
+        this.readRawVersion(),
+      ]);
+      const response = await this.runMapWorker({
+        changes: changes.map(changeBusinessToDb),
+        mapFile: config.mapFile,
+        operation: "renderer",
+      });
+      if (isBaselineRevisionCurrent(updateRevision)) {
+        if (!response.content) {
+          throw new Error("Map worker returned no renderer content");
+        }
+        return {
+          changes,
+          content: response.content,
+          rawVersion,
+          version: this.buildVersion(changes, rawVersion),
+        };
+      }
+    }
   }
 
   private buildVersion(changes: Change[], baseVersion: string): string {
@@ -115,35 +155,6 @@ export class MapService {
     }
   }
 
-  public async getChangedMapSnapshot(
-    timesSeen: number,
-    include: string[] = [],
-    exclude: string[] = [],
-  ): Promise<MapSnapshot> {
-    // A concurrent baseline update can require retrying the snapshot.
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    while (true) {
-      const updateRevision = baselineUpdateRevision;
-      await baselineUpdateQueue;
-      const [changes, rawVersion] = await Promise.all([
-        this.changeService.getChanges(timesSeen, include, exclude),
-        this.readRawVersion(),
-      ]);
-      const map: Mudlet.MudletMap = MudletMapReader.read(config.mapFile);
-      changes.forEach((change) => {
-        change.apply(map);
-      });
-      if (isBaselineRevisionCurrent(updateRevision)) {
-        return {
-          changes,
-          map,
-          rawVersion,
-          version: this.buildVersion(changes, rawVersion),
-        };
-      }
-    }
-  }
-
   public async getVersion(timesSeen: number): Promise<string> {
     return (await this.getChangesSnapshot(timesSeen)).version;
   }
@@ -163,6 +174,30 @@ export class MapService {
 
   private async readRawVersion(): Promise<string> {
     return (await readFile(config.versionFile, "utf-8")).trim();
+  }
+
+  private runMapWorker(request: MapWorkerRequest): Promise<MapWorkerResponse> {
+    const compiledWorker = join(__dirname, "../workers/mapWorker.js");
+    const workerFile = existsSync(compiledWorker)
+      ? compiledWorker
+      : join(__dirname, "../workers/mapWorker.ts");
+    const worker = new Worker(workerFile, {
+      execArgv: workerFile.endsWith(".ts")
+        ? ["-r", "ts-node/register/transpile-only"]
+        : undefined,
+      workerData: request,
+    });
+    return new Promise((resolve, reject) => {
+      worker.once("message", (response: MapWorkerResponse) => {
+        resolve(response);
+      });
+      worker.once("error", reject);
+      worker.once("exit", (code) => {
+        if (code !== 0) {
+          reject(new Error(`Map worker stopped with exit code ${code.toString()}`));
+        }
+      });
+    });
   }
 
   public async updateMap() {

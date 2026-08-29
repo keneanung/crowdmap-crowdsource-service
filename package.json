@@ -10,7 +10,7 @@
     "audit:production": "npm audit --omit=dev",
     "lint": "eslint .",
     "format": "prettier --write src/ test/",
-    "pretest": "tsoa spec-and-routes",
+    "pretest": "npm run build",
     "test": "jest"
   },
   "keywords": [],
