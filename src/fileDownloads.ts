@@ -1,6 +1,11 @@
 import * as fs from "fs";
+import * as path from "node:path";
+import { randomUUID } from "node:crypto";
 import { Readable } from "stream";
+import { pipeline } from "node:stream/promises";
 import { config } from "./config/values";
+
+const DOWNLOAD_TIMEOUT_MS = 30_000;
 
 export const downloadMapVersion = async () => {
   try {
@@ -23,18 +28,29 @@ export const downloadMapFile = async () => {
 };
 
 const downloadFile = async (source: string, destination: string) => {
-  const res = await fetch(source);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, DOWNLOAD_TIMEOUT_MS);
+  const temporaryFile = `${destination}.${randomUUID()}.tmp`;
 
-  const fileStream = fs.createWriteStream(destination);
-  if (res.body === null) {
-    throw Error("No body");
+  try {
+    const res = await fetch(source, { signal: controller.signal });
+    if (!res.ok) {
+      throw Error(`Download returned HTTP ${res.status.toString()}`);
+    }
+    if (res.body === null) {
+      throw Error("Download returned no body");
+    }
+
+    await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+    await pipeline(
+      Readable.fromWeb(res.body),
+      fs.createWriteStream(temporaryFile, { flags: "wx" }),
+    );
+    await fs.promises.rename(temporaryFile, destination);
+  } finally {
+    clearTimeout(timeout);
+    await fs.promises.rm(temporaryFile, { force: true });
   }
-  const readable = Readable.fromWeb(res.body);
-  readable.on("error", (err) => {
-    console.error(err);
-    throw Error("Failed to download file", {
-      cause: err,
-    });
-  });
-  readable.pipe(fileStream);
 };
