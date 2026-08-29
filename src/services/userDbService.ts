@@ -13,6 +13,8 @@ export abstract class UserDbService {
   abstract getUsersWithoutApiKeyLookup(): Promise<User[]>;
   abstract setApiKeyLookup(user: User, lookup: string): Promise<void>;
   abstract getUsers(): Promise<User[]>;
+  abstract deleteUser(name: string): Promise<boolean>;
+  abstract updateRoles(name: string, roles: User["roles"]): Promise<boolean>;
   abstract updateApiKey(
     user: User,
     newApiKey: string,
@@ -68,6 +70,19 @@ export class MongoUserDbService implements UserDbService {
   public async getUsers(): Promise<User[]> {
     const collection = await this.getCollection();
     return collection.find().toArray();
+  }
+
+  public async deleteUser(name: string): Promise<boolean> {
+    const collection = await this.getCollection();
+    return (await collection.deleteOne({ name })).deletedCount === 1;
+  }
+
+  public async updateRoles(
+    name: string,
+    roles: User["roles"],
+  ): Promise<boolean> {
+    const collection = await this.getCollection();
+    return (await collection.updateOne({ name }, { $set: { roles } })).matchedCount === 1;
   }
 
   public async getUserByApiKeyLookup(

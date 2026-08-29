@@ -4,6 +4,7 @@ import { provide } from "@inversifyjs/binding-decorators";
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Path,
   Post,
@@ -20,7 +21,11 @@ import {
   ConflictError,
   NotFoundError,
 } from "../models/api/error";
-import { UserRequest, UserResponse } from "../models/api/user";
+import {
+  UserRequest,
+  UserResponse,
+  UserRolesRequest,
+} from "../models/api/user";
 import { User } from "../models/business/user";
 import { UserService } from "../services/userService";
 
@@ -98,5 +103,38 @@ export class AdminController extends Controller {
     }
     const apiKey = await this.userService.updateApiKey(userToChange);
     return apiKey;
+  }
+
+  @Put("user/{user}/roles")
+  @Response<{ message: string }>(403, "Authorization Error")
+  @Response<{ message: string }>(404, "User not found")
+  public async updateRoles(
+    @Request() request: express.Request & { user: User },
+    @Path() user: string,
+    @Body() body: UserRolesRequest,
+  ): Promise<void> {
+    if (!request.user.roles.includes("site_admin") || user === request.user.name) {
+      throw new AuthorizationError("Access Denied");
+    }
+    if (!(await this.userService.updateRoles(user, body.roles))) {
+      throw new NotFoundError("User not found");
+    }
+  }
+
+  @Delete("user/{user}")
+  @Response<{ message: string }>(403, "Authorization Error")
+  @Response<{ message: string }>(404, "User not found")
+  @SuccessResponse("204", "User deleted")
+  public async deleteUser(
+    @Request() request: express.Request & { user: User },
+    @Path() user: string,
+  ): Promise<void> {
+    if (!request.user.roles.includes("site_admin") || user === request.user.name) {
+      throw new AuthorizationError("Access Denied");
+    }
+    if (!(await this.userService.deleteUser(user))) {
+      throw new NotFoundError("User not found");
+    }
+    this.setStatus(204);
   }
 }

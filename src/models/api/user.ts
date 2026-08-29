@@ -9,3 +9,7 @@ export interface UserRequest {
   name: string;
   roles: Role[];
 }
+
+export interface UserRolesRequest {
+  roles: Role[];
+}

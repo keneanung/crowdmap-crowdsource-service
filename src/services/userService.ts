@@ -95,6 +95,14 @@ export class UserService {
     return await this.userDbService.getUsers();
   }
 
+  public deleteUser(name: string): Promise<boolean> {
+    return this.userDbService.deleteUser(name);
+  }
+
+  public updateRoles(name: string, roles: Role[]): Promise<boolean> {
+    return this.userDbService.updateRoles(name, roles);
+  }
+
   public generateApiKey() {
     return crypto.randomUUID();
   }

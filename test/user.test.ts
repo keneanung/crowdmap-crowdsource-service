@@ -274,3 +274,55 @@ test("Should not be allowed to change api key for other user if not site_admin",
       });
     });
 });
+
+test("site admins can update another user's roles", async () => {
+  await request(app)
+    .post("/admin/user")
+    .set("x-api-key", "abc123456")
+    .send({ name: "new_user", roles: [] })
+    .expect(201);
+
+  await request(app)
+    .put("/admin/user/new_user/roles")
+    .set("x-api-key", "abc123456")
+    .send({ roles: ["map_admin"] })
+    .expect(204);
+
+  await request(app)
+    .get("/admin/user")
+    .set("x-api-key", "abc123456")
+    .expect((response) => {
+      expect(response.body).toContainEqual({
+        name: "new_user",
+        roles: ["map_admin"],
+      });
+    });
+});
+
+test("site admins can delete another user and revoke its key", async () => {
+  let apiKey = "";
+  await request(app)
+    .post("/admin/user")
+    .set("x-api-key", "abc123456")
+    .send({ name: "new_user", roles: ["map_admin"] })
+    .expect(201)
+    .then((response) => {
+      apiKey = response.body as string;
+    });
+
+  await request(app)
+    .delete("/admin/user/new_user")
+    .set("x-api-key", "abc123456")
+    .expect(204);
+  await request(app)
+    .get("/admin/user/me")
+    .set("x-api-key", apiKey)
+    .expect(403);
+});
+
+test("site admins cannot delete their own account", async () => {
+  await request(app)
+    .delete("/admin/user/admin")
+    .set("x-api-key", "abc123456")
+    .expect(403);
+});
