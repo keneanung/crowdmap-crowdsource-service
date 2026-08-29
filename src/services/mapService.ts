@@ -1,9 +1,9 @@
 import { inject } from "inversify";
 import { provide } from "@inversifyjs/binding-decorators";
 import { MudletMapReader } from "mudlet-map-binary-reader";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { NIL } from "uuid";
 import { config } from "../config/values";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
@@ -51,12 +51,22 @@ export class MapService {
       exclude,
     );
     const file = await this.getTempMapFileName();
-    if (format === "binary") {
-      MudletMapReader.write(snapshot.map, file);
-    } else {
-      MudletMapReader.exportJson(snapshot.map, file, true);
+    try {
+      if (format === "binary") {
+        MudletMapReader.write(snapshot.map, file);
+      } else {
+        MudletMapReader.exportJson(snapshot.map, file, true);
+      }
+    } catch (error) {
+      await rm(dirname(file), { recursive: true, force: true });
+      throw error;
     }
-    return { ...snapshot, file };
+    return {
+      changes: snapshot.changes,
+      file,
+      rawVersion: snapshot.rawVersion,
+      version: snapshot.version,
+    };
   }
 
   public async getChangedMap(

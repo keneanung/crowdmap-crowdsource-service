@@ -73,12 +73,11 @@ export class MapController extends Controller {
 
     const s = fs.createReadStream(snapshot.file);
     s.on("close", () => {
-      fs.unlink(snapshot.file, (err) => {
-        fs.rmdirSync(dirname(snapshot.file));
-        if (err) {
-          throw err;
-        }
-      });
+      void fs.promises
+        .rm(dirname(snapshot.file), { recursive: true, force: true })
+        .catch((error: unknown) => {
+          console.error("Failed to clean up temporary map file", error);
+        });
     });
     return s;
   }
