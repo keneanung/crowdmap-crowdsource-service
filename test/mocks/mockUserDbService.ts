@@ -29,6 +29,9 @@ export class MockUserDbService implements UserDbService {
       this.users.find((user) => user.api_key_lookup === lookup),
     );
   }
+  public getUserByName(name: string): Promise<User | undefined> {
+    return Promise.resolve(this.users.find((user) => user.name === name));
+  }
   public getUsersWithoutApiKeyLookup(): Promise<User[]> {
     return Promise.resolve(
       this.users.filter((user) => !user.api_key_lookup),

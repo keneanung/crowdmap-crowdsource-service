@@ -9,6 +9,7 @@ export abstract class UserDbService {
   abstract addUser(user: User): Promise<void>;
   abstract addUserIfMissing(user: User): Promise<boolean>;
   abstract getUserByApiKeyLookup(lookup: string): Promise<User | undefined>;
+  abstract getUserByName(name: string): Promise<User | undefined>;
   abstract getUsersWithoutApiKeyLookup(): Promise<User[]>;
   abstract setApiKeyLookup(user: User, lookup: string): Promise<void>;
   abstract getUsers(): Promise<User[]>;
@@ -74,6 +75,11 @@ export class MongoUserDbService implements UserDbService {
   ): Promise<User | undefined> {
     const collection = await this.getCollection();
     return (await collection.findOne({ api_key_lookup: lookup })) ?? undefined;
+  }
+
+  public async getUserByName(name: string): Promise<User | undefined> {
+    const collection = await this.getCollection();
+    return (await collection.findOne({ name })) ?? undefined;
   }
 
   public async getUsersWithoutApiKeyLookup(): Promise<User[]> {

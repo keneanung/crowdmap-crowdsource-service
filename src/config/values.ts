@@ -11,6 +11,7 @@ export interface ServiceConfig {
   versionDownloadUrl: string;
   connectionString?: string;
   dbName?: string;
+  initialAdminApiKey?: string;
   trustProxy: number;
 }
 
@@ -26,6 +27,7 @@ export const config: ServiceConfig = {
     "https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/version.txt",
   connectionString: process.env.MONGO_CONNECTION_STRING,
   dbName: process.env.MONGO_DB_NAME,
+  initialAdminApiKey: process.env.INITIAL_ADMIN_API_KEY,
   trustProxy: Number(process.env.TRUST_PROXY ?? 0),
 };
 

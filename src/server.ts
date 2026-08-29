@@ -29,14 +29,24 @@ if (!fs.existsSync(config.versionFile)) {
 }
 
 const userService = iocContainer.get<UserService>(UserService, {autobind: true});
-const checkAdminUser = userService
-  .createUserIfMissing("admin", ["site_admin", "map_admin"])
-  .then((apiKey) => {
-    if (!apiKey) {
-      return;
-    }
-    console.log(`Generated admin API Key: ${apiKey}`);
-  });
+const checkAdminUser = userService.getUser("admin").then(async (adminUser) => {
+  if (adminUser) {
+    return;
+  }
+  if (!config.initialAdminApiKey) {
+    throw new Error(
+      "INITIAL_ADMIN_API_KEY is required when creating the first admin user",
+    );
+  }
+  const created = await userService.createUserIfMissing(
+    "admin",
+    ["site_admin", "map_admin"],
+    config.initialAdminApiKey,
+  );
+  if (created) {
+    console.log("Created initial admin user from configured credentials");
+  }
+});
 
 let server: Server | undefined;
 let shuttingDown = false;

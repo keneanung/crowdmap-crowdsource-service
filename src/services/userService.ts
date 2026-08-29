@@ -88,8 +88,7 @@ export class UserService {
   }
 
   public async getUser(name: string): Promise<User | undefined> {
-    const users = await this.userDbService.getUsers();
-    return users.find((user) => user.name === name);
+    return this.userDbService.getUserByName(name);
   }
 
   public async getUsers(): Promise<User[]> {
@@ -109,12 +108,11 @@ export class UserService {
   public async createUserIfMissing(
     name: string,
     roles: Role[],
-  ): Promise<string | undefined> {
-    const apiKey = this.generateApiKey();
-    const added = await this.userDbService.addUserIfMissing(
+    apiKey: string,
+  ): Promise<boolean> {
+    return this.userDbService.addUserIfMissing(
       await this.buildUser(name, apiKey, roles),
     );
-    return added ? apiKey : undefined;
   }
 
   public async updateApiKey(user: User) {

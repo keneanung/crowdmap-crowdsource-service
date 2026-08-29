@@ -41,6 +41,8 @@ services:
       - MONGO_CONNECTION_STRING=mongodb://mongo:27017
       # The MongoDB database to use.
       - MONGO_DB_NAME=crowdmap
+      # Required only when the database does not contain an admin user yet. Keep this value secret and remove it after the first successful startup.
+      - INITIAL_ADMIN_API_KEY=${INITIAL_ADMIN_API_KEY:-}
       # Which reverse proxy to trust to return the real IP address of the client. Set to 0 to trust no proxy. See https://expressjs.com/en/guide/behind-proxies.html for further documentation.
       # This implementation uses the number option only.
       # Use the /utility/ip endpoint to check if the real IP is returned correctly.
