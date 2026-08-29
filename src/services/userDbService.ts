@@ -7,6 +7,7 @@ import { User } from "../models/business/user";
 
 export abstract class UserDbService {
   abstract addUser(user: User): Promise<void>;
+  abstract addUserIfMissing(user: User): Promise<boolean>;
   abstract getUsers(): Promise<User[]>;
   abstract updateApiKey(user: User, newApiKey: string): Promise<void>;
 }
@@ -39,6 +40,16 @@ export class MongoUserDbService implements UserDbService {
       }
       throw error;
     }
+  }
+
+  public async addUserIfMissing(user: User): Promise<boolean> {
+    const collection = await this.getCollection();
+    const result = await collection.updateOne(
+      { name: user.name },
+      { $setOnInsert: user },
+      { upsert: true },
+    );
+    return result.upsertedCount === 1;
   }
 
   public async getUsers(): Promise<User[]> {

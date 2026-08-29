@@ -17,6 +17,13 @@ export class MockUserDbService implements UserDbService {
     this.users.push(user);
     return Promise.resolve();
   }
+  public addUserIfMissing(user: User): Promise<boolean> {
+    if (this.users.some((existingUser) => existingUser.name === user.name)) {
+      return Promise.resolve(false);
+    }
+    this.users.push(user);
+    return Promise.resolve(true);
+  }
   getUsers(): Promise<User[]> {
     return Promise.resolve(this.users);
   }

@@ -12,14 +12,18 @@ export class UserService {
   ) {}
 
   public async addUser(user: string, api_key: string, roles: Role[]) {
+    await this.userDbService.addUser(this.buildUser(user, api_key, roles));
+  }
+
+  private buildUser(user: string, api_key: string, roles: Role[]): User {
     const salt = crypto.randomBytes(16).toString("hex");
     const derivedKey = this.hashApiKey(api_key, salt);
-    await this.userDbService.addUser({
+    return {
       name: user,
       roles,
       salt,
       hashed_api_key: derivedKey.toString("hex"),
-    });
+    };
   }
 
   public hashApiKey(api_key: string, salt: string) {
@@ -62,6 +66,17 @@ export class UserService {
     const api_key = this.generateApiKey();
     await this.addUser(name, api_key, roles);
     return api_key;
+  }
+
+  public async createUserIfMissing(
+    name: string,
+    roles: Role[],
+  ): Promise<string | undefined> {
+    const apiKey = this.generateApiKey();
+    const added = await this.userDbService.addUserIfMissing(
+      this.buildUser(name, apiKey, roles),
+    );
+    return added ? apiKey : undefined;
   }
 
   public async updateApiKey(user: User) {

@@ -26,15 +26,14 @@ if (!fs.existsSync(config.versionFile)) {
 }
 
 const userService = iocContainer.get<UserService>(UserService, {autobind: true});
-const checkAdminUser = userService.getUsers().then((users) => {
-  const adminUser = users.find((user) => user.name === "admin");
-  if (!adminUser) {
-    const apiKey = userService.generateApiKey();
+const checkAdminUser = userService
+  .createUserIfMissing("admin", ["site_admin", "map_admin"])
+  .then((apiKey) => {
+    if (!apiKey) {
+      return;
+    }
     console.log(`Generated admin API Key: ${apiKey}`);
-    return userService.addUser("admin", apiKey, ["site_admin", "map_admin"]);
-  }
-  return Promise.resolve();
-});
+  });
 
 Promise.all([
   mapDownloadPromise,
