@@ -430,13 +430,9 @@ export class ChangeController extends Controller {
     if (!request.user.roles.includes("map_admin")) {
       throw new AuthorizationError("Access Denied");
     }
-    const serverVersion = await this.mapService.getRawVersion();
-    if (application.version !== serverVersion) {
-      throw new ConflictError(
-        "The map version provided does not match the current map version",
-      );
-    }
-    await this.changeService.applyChanges(application.obsoleteChanges);
-    await this.mapService.updateMap();
+    await this.mapService.applyBaselineUpdate(
+      application.version,
+      application.obsoleteChanges,
+    );
   }
 }

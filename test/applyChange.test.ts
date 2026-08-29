@@ -5,6 +5,7 @@ import { setupChangeServiceMock } from "./setup/iocSetup";
 
 import { config } from "../src/config/values";
 import { writeMocks } from "./setup/writeMocks";
+import { fetchMock } from "./setup/mockFetch";
 
 beforeEach(() => {
   setupChangeServiceMock();
@@ -207,4 +208,27 @@ test("applyChange should download new map files", async () => {
 
   // lets take this as an indication that we tried to download a new map file (because we modified it)
   expect(writeMocks[config.mapFile]).toBeDefined();
+});
+
+test("applyChange keeps changes when a baseline download fails", async () => {
+  await request(app).post("/change").send({
+    type: "room-name",
+    roomNumber: 1,
+    name: "Test Room",
+    reporter: "Test Reporter",
+  });
+  fetchMock.mockResolvedValueOnce(new Response("failure", { status: 503 }));
+
+  await request(app)
+    .post("/change/apply")
+    .set("x-api-key", "abc123456")
+    .send({
+      version: "466",
+      obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
+    })
+    .expect(500);
+
+  await request(app).get("/change").expect(200).expect((res) => {
+    expect(res.body).toHaveLength(1);
+  });
 });

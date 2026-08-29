@@ -7,7 +7,10 @@ import { join } from "node:path";
 import { NIL } from "uuid";
 import { config } from "../config/values";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
+import { ConflictError } from "../models/api/error";
 import { ChangeService } from "./changeService";
+
+let baselineUpdateQueue: Promise<void> = Promise.resolve();
 
 @provide(MapService)
 export class MapService {
@@ -74,5 +77,24 @@ export class MapService {
     const versionPromise = downloadMapVersion();
     const mapPromise = downloadMapFile();
     await Promise.all([versionPromise, mapPromise]);
+  }
+
+  public async applyBaselineUpdate(
+    expectedVersion: string,
+    obsoleteChanges: string[],
+  ): Promise<void> {
+    const update = baselineUpdateQueue.then(async () => {
+      const serverVersion = await this.getRawVersion();
+      if (expectedVersion !== serverVersion) {
+        throw new ConflictError(
+          "The map version provided does not match the current map version",
+        );
+      }
+
+      await this.updateMap();
+      await this.changeService.applyChanges(obsoleteChanges);
+    });
+    baselineUpdateQueue = update.catch(() => Promise.resolve());
+    return update;
   }
 }
