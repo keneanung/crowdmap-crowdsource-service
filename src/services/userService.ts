@@ -1,8 +1,11 @@
+import { provide } from "@inversifyjs/binding-decorators";
 import * as crypto from "crypto";
 import { inject } from "inversify";
-import { provide } from "@inversifyjs/binding-decorators";
 import { Role, User } from "../models/business/user";
 import { UserDbService } from "./userDbService";
+
+const API_KEY_ID_PATTERN =
+  /^cm1_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @provide(UserService)
 export class UserService {
@@ -22,14 +25,18 @@ export class UserService {
     api_key: string,
     roles: Role[],
   ): Promise<User> {
+    const parsedApiKey = this.parseApiKey(api_key);
+    if (!parsedApiKey) {
+      throw new Error("API key must use the cm1_<key-id>.<secret> format");
+    }
     const salt = crypto.randomBytes(16).toString("hex");
-    const derivedKey = await this.hashApiKey(api_key, salt);
+    const derivedKey = await this.hashApiKey(parsedApiKey.secret, salt);
     return {
       name: user,
       roles,
       salt,
       hashed_api_key: derivedKey.toString("hex"),
-      api_key_lookup: this.getApiKeyLookup(api_key),
+      api_key_id: parsedApiKey.id,
     };
   }
 
@@ -55,32 +62,43 @@ export class UserService {
     });
   }
 
-  private getApiKeyLookup(api_key: string): string {
-    return crypto.createHash("sha256").update(api_key).digest("hex");
+  private parseApiKey(
+    apiKey: string,
+  ): { id: string; secret: string } | undefined {
+    const separator = apiKey.indexOf(".");
+    if (separator === -1) {
+      return undefined;
+    }
+    const id = apiKey.slice(0, separator);
+    const secret = apiKey.slice(separator + 1);
+    return API_KEY_ID_PATTERN.test(id) && secret ? { id, secret } : undefined;
   }
 
   private async apiKeyMatches(api_key: string, user: User): Promise<boolean> {
     const actual = await this.hashApiKey(api_key, user.salt);
     const expected = Buffer.from(user.hashed_api_key, "hex");
     return (
-      actual.length === expected.length && crypto.timingSafeEqual(actual, expected)
+      actual.length === expected.length &&
+      crypto.timingSafeEqual(actual, expected)
     );
   }
 
   public async getUserByApiKey(api_key: string): Promise<User | undefined> {
-    const lookup = this.getApiKeyLookup(api_key);
-    const indexedUser = await this.userDbService.getUserByApiKeyLookup(lookup);
-    if (indexedUser) {
-      return (await this.apiKeyMatches(api_key, indexedUser))
-        ? indexedUser
-        : undefined;
+    const parsedApiKey = this.parseApiKey(api_key);
+    if (parsedApiKey) {
+      const indexedUser = await this.userDbService.getUserByApiKeyId(
+        parsedApiKey.id,
+      );
+      if (indexedUser) {
+        return (await this.apiKeyMatches(parsedApiKey.secret, indexedUser))
+          ? indexedUser
+          : undefined;
+      }
     }
 
-    const legacyUsers = await this.userDbService.getUsersWithoutApiKeyLookup();
+    const legacyUsers = await this.userDbService.getUsersWithoutApiKeyId();
     for (const user of legacyUsers) {
       if (await this.apiKeyMatches(api_key, user)) {
-        await this.userDbService.setApiKeyLookup(user, lookup);
-        user.api_key_lookup = lookup;
         return user;
       }
     }
@@ -104,7 +122,9 @@ export class UserService {
   }
 
   public generateApiKey() {
-    return crypto.randomUUID();
+    const id = `cm1_${crypto.randomUUID()}`;
+    const secret = crypto.randomBytes(32).toString("base64url");
+    return `${id}.${secret}`;
   }
 
   public async createUser(name: string, roles: Role[]) {
@@ -125,14 +145,14 @@ export class UserService {
 
   public async updateApiKey(user: User) {
     const newApiKey = this.generateApiKey();
-    const hashedApiKey = (await this.hashApiKey(newApiKey, user.salt)).toString(
-      "hex",
-    );
-    await this.userDbService.updateApiKey(
-      user,
-      hashedApiKey,
-      this.getApiKeyLookup(newApiKey),
-    );
+    const parsedApiKey = this.parseApiKey(newApiKey);
+    if (!parsedApiKey) {
+      throw new Error("Generated an invalid API key");
+    }
+    const hashedApiKey = (
+      await this.hashApiKey(parsedApiKey.secret, user.salt)
+    ).toString("hex");
+    await this.userDbService.updateApiKey(user, hashedApiKey, parsedApiKey.id);
     return newApiKey;
   }
 }

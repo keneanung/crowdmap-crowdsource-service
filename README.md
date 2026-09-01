@@ -50,11 +50,11 @@ To deploy the service on a Linux machine with the included local MongoDB, place 
 on the host and run:
 
 ```shell
-export INITIAL_ADMIN_API_KEY="$(uuidgen)"
+export INITIAL_ADMIN_API_KEY="cm1_$(uuidgen).$(openssl rand -hex 32)"
 docker compose up -d
 ```
 
-The initial key is not written to application logs. Store it in a password manager, use it to create individual administrator accounts, and then remove `INITIAL_ADMIN_API_KEY` from the deployment environment. Existing installations that already have an `admin` user do not use this value.
+The initial key is not written to application logs. It contains a public lookup ID before the `.` and a secret after it, but the complete value is one credential and must be kept secret. Store it in a password manager, use it to create individual administrator accounts, and then remove `INITIAL_ADMIN_API_KEY` from the deployment environment. Existing installations that already have an `admin` user do not use this value.
 
 The app will become healthy once both the app and MongoDB healthchecks pass. Access the service on port 3000 by default.
 
