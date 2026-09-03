@@ -1,14 +1,8 @@
-import { inject } from "inversify";
 import { provide } from "@inversifyjs/binding-decorators";
-import { existsSync } from "node:fs";
-import {
-  copyFile,
-  mkdtemp,
-  readFile,
-  rename,
-  rm,
-} from "node:fs/promises";
+import { inject } from "inversify";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { copyFile, mkdtemp, readFile, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
@@ -16,13 +10,13 @@ import { NIL } from "uuid";
 import { config } from "../config/values";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
 import { ConflictError } from "../models/api/error";
-import { ChangeService } from "./changeService";
 import { Change } from "../models/business/change";
 import {
+  changeBusinessToWorker,
   MapWorkerRequest,
   MapWorkerResponse,
 } from "../models/business/mapWorker";
-import { changeBusinessToDb } from "../models/db/change";
+import { ChangeService } from "./changeService";
 
 let baselineUpdateQueue: Promise<void> = Promise.resolve();
 let baselineUpdateRevision = 0;
@@ -75,7 +69,7 @@ export class MapService {
       const file = await this.getTempMapFileName();
       try {
         await this.runMapWorker({
-          changes: changes.map(changeBusinessToDb),
+          changes: changes.map(changeBusinessToWorker),
           mapFile: config.mapFile,
           operation: format,
           outputFile: file,
@@ -111,7 +105,7 @@ export class MapService {
         this.readRawVersion(),
       ]);
       const response = await this.runMapWorker({
-        changes: changes.map(changeBusinessToDb),
+        changes: changes.map(changeBusinessToWorker),
         mapFile: config.mapFile,
         operation: "renderer",
       });
@@ -206,7 +200,9 @@ export class MapService {
       worker.once("error", reject);
       worker.once("exit", (code) => {
         if (code !== 0) {
-          reject(new Error(`Map worker stopped with exit code ${code.toString()}`));
+          reject(
+            new Error(`Map worker stopped with exit code ${code.toString()}`),
+          );
         }
       });
     });

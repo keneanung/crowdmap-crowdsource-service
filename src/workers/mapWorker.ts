@@ -1,11 +1,14 @@
-import { parentPort, workerData } from "node:worker_threads";
 import { MudletMapReader } from "mudlet-map-binary-reader";
-import { MapWorkerRequest, MapWorkerResponse } from "../models/business/mapWorker";
-import { changeDbToBusiness } from "../models/db/change";
+import { parentPort, workerData } from "node:worker_threads";
+import {
+  changeWorkerToBusiness,
+  MapWorkerRequest,
+  MapWorkerResponse,
+} from "../models/business/mapWorker";
 
 const request = workerData as MapWorkerRequest;
 const map: Mudlet.MudletMap = MudletMapReader.read(request.mapFile);
-request.changes.map(changeDbToBusiness).forEach((change) => {
+request.changes.map(changeWorkerToBusiness).forEach((change) => {
   change.apply(map);
 });
 
@@ -34,6 +37,8 @@ switch (request.operation) {
     break;
   }
   case "validate":
+    // MudletMapReader.read() above validates the map by parsing it. Reaching
+    // this case means the staged map was read successfully.
     break;
 }
 
