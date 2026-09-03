@@ -284,7 +284,6 @@ export class MapService {
     expectedVersion: string,
     obsoleteChanges: string[],
   ): Promise<void> {
-    baselineUpdateRevision += 1;
     const update = baselineUpdateQueue.then(async () => {
       const serverVersion = await this.readRawVersion();
       if (expectedVersion !== serverVersion) {
@@ -293,6 +292,7 @@ export class MapService {
         );
       }
 
+      baselineUpdateRevision += 1;
       const replacement = await this.replaceBaseline();
       try {
         await this.changeService.applyChanges(obsoleteChanges);
