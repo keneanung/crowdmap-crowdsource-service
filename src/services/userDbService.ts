@@ -58,12 +58,22 @@ export class MongoUserDbService implements UserDbService {
 
   public async addUserIfMissing(user: User): Promise<boolean> {
     const collection = await this.getCollection();
-    const result = await collection.updateOne(
-      { name: user.name },
-      { $setOnInsert: user },
-      { upsert: true },
-    );
-    return result.upsertedCount === 1;
+    try {
+      const result = await collection.updateOne(
+        { name: user.name },
+        { $setOnInsert: user },
+        { upsert: true },
+      );
+      return result.upsertedCount === 1;
+    } catch (error) {
+      if (error instanceof MongoServerError && error.code === 11000) {
+        const existingUser = await collection.findOne({ name: user.name });
+        if (existingUser) {
+          return false;
+        }
+      }
+      throw error;
+    }
   }
 
   public async getUsers(): Promise<User[]> {
