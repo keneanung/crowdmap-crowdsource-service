@@ -48,7 +48,12 @@ export const validateConfig = (values: ServiceConfig = config): void => {
     ["MAP_DOWNLOAD_URL", values.mapDownloadUrl],
     ["VERSION_DOWNLOAD_URL", values.versionDownloadUrl],
   ]) {
-    const url = new URL(value);
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      throw new Error(`${name} must be a valid URL`);
+    }
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       throw new Error(`${name} must use HTTP or HTTPS`);
     }

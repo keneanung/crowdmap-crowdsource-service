@@ -25,6 +25,21 @@ test("requires MongoDB configuration", () => {
   }).toThrow("MONGO_DB_NAME");
 });
 
+test.each([
+  ["MAP_DOWNLOAD_URL", { mapDownloadUrl: "not a URL" }],
+  ["VERSION_DOWNLOAD_URL", { versionDownloadUrl: "not a URL" }],
+])("identifies an invalid %s", (name, update) => {
+  expect(() => {
+    validateConfig({ ...validConfig, ...update });
+  }).toThrow(`${name} must be a valid URL`);
+});
+
+test("rejects non-HTTP download URLs with a targeted error", () => {
+  expect(() => {
+    validateConfig({ ...validConfig, mapDownloadUrl: "file:///tmp/map" });
+  }).toThrow("MAP_DOWNLOAD_URL must use HTTP or HTTPS");
+});
+
 test("accepts a complete service configuration", () => {
   expect(() => {
     validateConfig(validConfig);
