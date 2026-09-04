@@ -8,6 +8,7 @@
     "build": "tsoa spec-and-routes && tsc && cp -R website/ build/",
     "start": "node build/src/server.js",
     "audit:production": "npm audit --omit=dev",
+    "prelint": "tsoa spec-and-routes",
     "lint": "eslint .",
     "format": "prettier --write src/ test/",
     "pretest": "npm run build",
