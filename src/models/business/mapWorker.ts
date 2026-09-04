@@ -17,7 +17,7 @@ import {
   SetRoomCoordinates,
   SetRoomEnvironment,
   UnlockSpecialExit,
-} from "./change";
+} from "./change.js";
 
 type DataProperties<T extends Change> = T extends Change
   ? Omit<T, "apply" | "getIdentifyingParts">

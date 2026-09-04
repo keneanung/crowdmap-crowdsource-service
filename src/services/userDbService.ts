@@ -1,9 +1,9 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
 import { MongoClient, MongoServerError } from "mongodb";
-import { config } from "../config/values";
-import { ConflictError } from "../models/api/error";
-import { User } from "../models/business/user";
+import { config } from "../config/values.js";
+import { ConflictError } from "../models/api/error.js";
+import { User } from "../models/business/user.js";
 
 export abstract class UserDbService {
   abstract addUser(user: User): Promise<void>;

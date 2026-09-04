@@ -204467,6 +204467,7 @@ exports[`the map endoint returns the baseline JSON map when no changes and JSONi
             8.82911205291748,
             0,
           ],
+          "id": 0,
           "image": [
             "iVBORw0KGgoAAAANSUhEUgAAADgAAAAXCAYAAABefIz9AAAACXBIWXMAAA7EAAAO",
             "xAGVKw4bAAABSUlEQVRYhWM0Np6WwjCMAdNAO4DWYNSDQx2MenCog1EPDnUA92Bo",
@@ -204509,6 +204510,7 @@ exports[`the map endoint returns the baseline JSON map when no changes and JSONi
             8.850305557250977,
             0,
           ],
+          "id": 1,
           "image": [
             "iVBORw0KGgoAAAANSUhEUgAAADkAAAAXCAYAAACxvufDAAAACXBIWXMAAA7EAAAO",
             "xAGVKw4bAAABTUlEQVRYhWM0Np6WwjDMAdNAO4AeYNSTwwWMenK4gFFPDheA4snQ",

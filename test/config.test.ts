@@ -1,5 +1,5 @@
 import { expect, test } from "@jest/globals";
-import { config, validateConfig } from "../src/config/values";
+import { config, validateConfig } from "../src/config/values.js";
 
 const validConfig = {
   ...config,

@@ -1,8 +1,12 @@
 import { jest } from "@jest/globals";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const baselineMap = readFileSync(join(__dirname, "baselineFiles", "map"));
+const currentDirectory = dirname(fileURLToPath(import.meta.url));
+const baselineMap = readFileSync(
+  join(currentDirectory, "baselineFiles", "map"),
+);
 
 export const fetchMock = jest.fn(async (input: string | URL | Request) => {
   const url = input instanceof Request ? input.url : input.toString();

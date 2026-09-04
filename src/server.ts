@@ -1,11 +1,11 @@
 import * as fs from "fs";
 import { Server } from "node:http";
-import { app } from "./app";
-import { config, validateConfig } from "./config/values";
-import { downloadMapFile, downloadMapVersion } from "./fileDownloads";
-import { iocContainer } from "./ioc/ioc";
-import { log } from "./observability";
-import { UserService } from "./services/userService";
+import { app } from "./app.js";
+import { config, validateConfig } from "./config/values.js";
+import { downloadMapFile, downloadMapVersion } from "./fileDownloads.js";
+import { iocContainer } from "./ioc/ioc.js";
+import { log } from "./observability.js";
+import { UserService } from "./services/userService.js";
 
 validateConfig();
 
@@ -29,7 +29,9 @@ if (!fs.existsSync(config.versionFile)) {
   mapVersionDownloadPromise = Promise.resolve();
 }
 
-const userService = iocContainer.get<UserService>(UserService, {autobind: true});
+const userService = iocContainer.get<UserService>(UserService, {
+  autobind: true,
+});
 const checkAdminUser = userService.getUser("admin").then(async (adminUser) => {
   if (adminUser) {
     return;

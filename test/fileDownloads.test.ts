@@ -1,8 +1,8 @@
 import { expect, test } from "@jest/globals";
 import { readFile } from "node:fs/promises";
-import { config } from "../src/config/values";
-import { downloadMapVersion } from "../src/fileDownloads";
-import { fetchMock } from "./setup/mockFetch";
+import { config } from "../src/config/values.js";
+import { downloadMapVersion } from "../src/fileDownloads.js";
+import { fetchMock } from "./setup/mockFetch.js";
 
 test("downloads finish before the destination becomes available", async () => {
   await downloadMapVersion();

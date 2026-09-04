@@ -1,6 +1,6 @@
+import { provide } from "@inversifyjs/binding-decorators";
 import * as express from "express";
 import { inject } from "inversify";
-import { provide } from "@inversifyjs/binding-decorators";
 import {
   Body,
   Controller,
@@ -19,14 +19,14 @@ import {
   AuthorizationError,
   ConflictError,
   ValidateErrorJSON,
-} from "../models/api/error";
-import { ChangeResponse } from "../models/api/response";
-import {
+} from "../models/api/error.js";
+import type { ChangeResponse } from "../models/api/response.js";
+import type {
   ApplicationSubmission,
   ChangeSubmission,
-} from "../models/api/submission";
+} from "../models/api/submission.js";
+import type { Change } from "../models/business/change.js";
 import {
-  Change,
   ChangeRoomName,
   CreateArea,
   CreateRoom,
@@ -43,10 +43,10 @@ import {
   SetRoomCoordinates,
   SetRoomEnvironment,
   UnlockSpecialExit,
-} from "../models/business/change";
-import { User } from "../models/business/user";
-import { ChangeService } from "../services/changeService";
-import { MapService } from "../services/mapService";
+} from "../models/business/change.js";
+import type { User } from "../models/business/user.js";
+import { ChangeService } from "../services/changeService.js";
+import { MapService } from "../services/mapService.js";
 
 function assertUnreachable(x: Change): never {
   throw new Error(`Didn't expect to get here ${x.type}`);

@@ -7,16 +7,16 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
 import { NIL } from "uuid";
-import { config } from "../config/values";
-import { downloadMapFile, downloadMapVersion } from "../fileDownloads";
-import { ConflictError } from "../models/api/error";
-import { Change } from "../models/business/change";
+import { config } from "../config/values.js";
+import { downloadMapFile, downloadMapVersion } from "../fileDownloads.js";
+import { ConflictError } from "../models/api/error.js";
+import type { Change } from "../models/business/change.js";
 import {
   changeBusinessToWorker,
   MapWorkerRequest,
   MapWorkerResponse,
-} from "../models/business/mapWorker";
-import { ChangeService } from "./changeService";
+} from "../models/business/mapWorker.js";
+import { ChangeService } from "./changeService.js";
 
 let baselineUpdateQueue: Promise<void> = Promise.resolve();
 let baselineUpdateRevision = 0;
@@ -183,13 +183,22 @@ export class MapService {
   }
 
   private runMapWorker(request: MapWorkerRequest): Promise<MapWorkerResponse> {
-    const compiledWorker = join(__dirname, "../workers/mapWorker.js");
+    const compiledWorker = new URL("../workers/mapWorker.js", import.meta.url);
+    const testWorker = new URL(
+      "../../build/src/workers/mapWorker.js",
+      import.meta.url,
+    );
     const workerFile = existsSync(compiledWorker)
       ? compiledWorker
-      : join(__dirname, "../workers/mapWorker.ts");
+      : process.env.NODE_ENV === "test" && existsSync(testWorker)
+        ? testWorker
+        : new URL("../workers/mapWorker.ts", import.meta.url);
     const worker = new Worker(workerFile, {
-      execArgv: workerFile.endsWith(".ts")
-        ? ["-r", "ts-node/register/transpile-only"]
+      execArgv: workerFile.pathname.endsWith(".ts")
+        ? ["--loader", "ts-node/esm", "--no-warnings"]
+        : undefined,
+      env: workerFile.pathname.endsWith(".ts")
+        ? { ...process.env, TS_NODE_TRANSPILE_ONLY: "true" }
         : undefined,
       workerData: request,
     });

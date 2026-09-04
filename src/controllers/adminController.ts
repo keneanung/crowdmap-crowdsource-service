@@ -1,6 +1,6 @@
+import { provide } from "@inversifyjs/binding-decorators";
 import * as express from "express";
 import { inject } from "inversify";
-import { provide } from "@inversifyjs/binding-decorators";
 import {
   Body,
   Controller,
@@ -20,23 +20,21 @@ import {
   AuthorizationError,
   ConflictError,
   NotFoundError,
-} from "../models/api/error";
-import {
+} from "../models/api/error.js";
+import type {
   UserRequest,
   UserResponse,
   UserRolesRequest,
-} from "../models/api/user";
-import { User } from "../models/business/user";
-import { UserService } from "../services/userService";
+} from "../models/api/user.js";
+import type { User } from "../models/business/user.js";
+import { UserService } from "../services/userService.js";
 
 @Route("admin")
 @Tags("admin")
 @provide(AdminController)
 @Security("api_key")
 export class AdminController extends Controller {
-  constructor(
-    @inject(UserService) private readonly userService: UserService,
-  ) {
+  constructor(@inject(UserService) private readonly userService: UserService) {
     super();
   }
 
@@ -113,7 +111,10 @@ export class AdminController extends Controller {
     @Path() user: string,
     @Body() body: UserRolesRequest,
   ): Promise<void> {
-    if (!request.user.roles.includes("site_admin") || user === request.user.name) {
+    if (
+      !request.user.roles.includes("site_admin") ||
+      user === request.user.name
+    ) {
       throw new AuthorizationError("Access Denied");
     }
     if (!(await this.userService.updateRoles(user, body.roles))) {
@@ -129,7 +130,10 @@ export class AdminController extends Controller {
     @Request() request: express.Request & { user: User },
     @Path() user: string,
   ): Promise<void> {
-    if (!request.user.roles.includes("site_admin") || user === request.user.name) {
+    if (
+      !request.user.roles.includes("site_admin") ||
+      user === request.user.name
+    ) {
       throw new AuthorizationError("Access Denied");
     }
     if (!(await this.userService.deleteUser(user))) {

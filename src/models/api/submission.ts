@@ -1,4 +1,4 @@
-import { ChangeType, Direction } from "./common";
+import { ChangeType, Direction } from "./common.js";
 
 export interface ChangeBaseSubmission {
   /**
@@ -181,8 +181,7 @@ export interface ModifyExitWeightSubmission extends RoomChangeBaseSubmission {
 /**
  * Submit a change of a special exits weight
  */
-export interface ModifySpecialExitWeightSubmission
-  extends RoomChangeBaseSubmission {
+export interface ModifySpecialExitWeightSubmission extends RoomChangeBaseSubmission {
   type: "modify-special-exit-weight";
   /**
    * The command of the special exit to change.

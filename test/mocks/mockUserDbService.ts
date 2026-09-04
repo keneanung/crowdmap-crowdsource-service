@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
-import { User } from "../../src/models/business/user";
-import { UserDbService } from "../../src/services/userDbService";
+import { User } from "../../src/models/business/user.js";
+import { UserDbService } from "../../src/services/userDbService.js";
 
 @injectable()
 export class MockUserDbService implements UserDbService {

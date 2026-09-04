@@ -1,6 +1,6 @@
 import { expect, test } from "@jest/globals";
 import request from "supertest";
-import { app } from "../src/app";
+import { app } from "../src/app.js";
 
 test("readiness endpoint reports success", async () => {
   await request(app)

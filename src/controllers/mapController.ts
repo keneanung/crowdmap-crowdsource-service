@@ -1,6 +1,6 @@
+import { provide } from "@inversifyjs/binding-decorators";
 import * as fs from "fs";
 import { inject } from "inversify";
-import { provide } from "@inversifyjs/binding-decorators";
 import { dirname } from "path";
 import { Readable } from "stream";
 import {
@@ -12,8 +12,8 @@ import {
   Tags,
   ValidateError,
 } from "tsoa";
-import { MapService } from "../services/mapService";
-import { log } from "../observability";
+import { log } from "../observability.js";
+import { MapService } from "../services/mapService.js";
 
 @Route("map")
 @Tags("map")

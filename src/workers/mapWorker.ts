@@ -1,13 +1,16 @@
 import { MudletMapReader } from "mudlet-map-binary-reader";
+import { readFileSync, writeFileSync } from "node:fs";
 import { parentPort, workerData } from "node:worker_threads";
 import {
   changeWorkerToBusiness,
   MapWorkerRequest,
   MapWorkerResponse,
-} from "../models/business/mapWorker";
+} from "../models/business/mapWorker.js";
 
 const request = workerData as MapWorkerRequest;
-const map: Mudlet.MudletMap = MudletMapReader.read(request.mapFile);
+const map: Mudlet.MudletMap = MudletMapReader.readBuffer(
+  readFileSync(request.mapFile),
+);
 request.changes.map(changeWorkerToBusiness).forEach((change) => {
   change.apply(map);
 });
@@ -18,13 +21,13 @@ switch (request.operation) {
     if (!request.outputFile) {
       throw new Error("Missing worker output file");
     }
-    MudletMapReader.write(map, request.outputFile);
+    writeFileSync(request.outputFile, MudletMapReader.writeBuffer(map));
     break;
   case "json":
     if (!request.outputFile) {
       throw new Error("Missing worker output file");
     }
-    MudletMapReader.exportJson(map, request.outputFile, true);
+    writeFileSync(request.outputFile, MudletMapReader.exportJson(map, true));
     break;
   case "renderer": {
     const exportedMap = MudletMapReader.export(map);

@@ -1,11 +1,11 @@
 import { injectable } from "inversify";
-import { Change } from "../../src/models/business/change";
+import { Change } from "../../src/models/business/change.js";
 import {
   changeBusinessToDb,
   changeDbToBusiness,
   Change as DbChange,
-} from "../../src/models/db/change";
-import { ChangeService } from "../../src/services/changeService";
+} from "../../src/models/db/change.js";
+import { ChangeService } from "../../src/services/changeService.js";
 
 @injectable()
 export class MockChangeService implements ChangeService {

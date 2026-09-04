@@ -1,10 +1,10 @@
-import * as express from "express";
 import { provide } from "@inversifyjs/binding-decorators";
+import * as express from "express";
 import { inject } from "inversify";
 import { Controller, Get, Produces, Request, Route, Tags } from "tsoa";
-import { ServiceUnavailableError } from "../models/api/error";
-import { renderMetrics } from "../observability";
-import { HealthService } from "../services/healthService";
+import { ServiceUnavailableError } from "../models/api/error.js";
+import { renderMetrics } from "../observability.js";
+import { HealthService } from "../services/healthService.js";
 
 @Route("utility")
 @Tags("Utility")

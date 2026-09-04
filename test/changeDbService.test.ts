@@ -1,7 +1,7 @@
 import { expect, jest, test } from "@jest/globals";
 import { MongoClient } from "mongodb";
-import { ChangeRoomName } from "../src/models/business/change";
-import { MongoChangeService } from "../src/services/changeService";
+import { ChangeRoomName } from "../src/models/business/change.js";
+import { MongoChangeService } from "../src/services/changeService.js";
 
 test("change reporters are merged with one atomic upsert", async () => {
   const updateOne = jest.fn<

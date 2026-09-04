@@ -1,11 +1,11 @@
 import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
-import { app } from "../src/app";
-import { setupChangeServiceMock } from "./setup/iocSetup";
+import { app } from "../src/app.js";
+import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
-import { config } from "../src/config/values";
-import { fetchMock } from "./setup/mockFetch";
 import { readFile } from "node:fs/promises";
+import { config } from "../src/config/values.js";
+import { fetchMock } from "./setup/mockFetch.js";
 
 beforeEach(() => {
   setupChangeServiceMock();
@@ -228,8 +228,11 @@ test("applyChange keeps changes when a baseline download fails", async () => {
     })
     .expect(500);
 
-  await request(app).get("/change").expect(200).expect((res) => {
-    expect(res.body).toHaveLength(1);
-  });
+  await request(app)
+    .get("/change")
+    .expect(200)
+    .expect((res) => {
+      expect(res.body).toHaveLength(1);
+    });
   expect((await readFile(config.versionFile, "utf8")).trim()).toEqual("466");
 });

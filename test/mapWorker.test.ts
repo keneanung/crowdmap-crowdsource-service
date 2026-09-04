@@ -1,9 +1,9 @@
 import { expect, test } from "@jest/globals";
-import { ChangeRoomName } from "../src/models/business/change";
+import { ChangeRoomName } from "../src/models/business/change.js";
 import {
   changeBusinessToWorker,
   changeWorkerToBusiness,
-} from "../src/models/business/mapWorker";
+} from "../src/models/business/mapWorker.js";
 
 test("worker changes survive structured cloning without using DB models", () => {
   const businessChange = new ChangeRoomName(42, ["reporter"], "A renamed room");

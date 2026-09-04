@@ -1,13 +1,13 @@
-import { inject } from "inversify";
 import { provide } from "@inversifyjs/binding-decorators";
+import { inject } from "inversify";
 import { MongoClient } from "mongodb";
-import { config } from "../config/values";
-import { Change } from "../models/business/change";
+import { config } from "../config/values.js";
+import { Change } from "../models/business/change.js";
 import {
   Change as ChangeDb,
   changeBusinessToDb,
   changeDbToBusiness,
-} from "../models/db/change";
+} from "../models/db/change.js";
 
 export abstract class ChangeService {
   abstract addChange(change: Change): Promise<void>;

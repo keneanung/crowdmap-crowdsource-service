@@ -19,7 +19,7 @@ import {
   SetRoomCoordinates as SetRoomCoordinatesBusiness,
   SetRoomEnvironment as SetRoomEnvironmentBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
-} from "../business/change";
+} from "../business/change.js";
 
 export interface ChangeBase {
   _id?: ObjectId;

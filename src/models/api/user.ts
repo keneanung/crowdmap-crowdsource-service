@@ -1,4 +1,4 @@
-import { Role } from "../business/user";
+import { Role } from "../business/user.js";
 
 export interface UserResponse {
   name: string;
