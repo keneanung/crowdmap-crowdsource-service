@@ -22,9 +22,9 @@ managed MongoDB provider. A free-tier Atlas cluster will work.
 
 The service generates time-sortable UUIDv7 values (via the `uuid` library) for each `changeId`. These identifiers:
 
-* Are globally unique without coordination
-* Maintain insertion-time ordering (sufficient for change ordering/version derivation)
-* Avoid the need for counters, triggers, or extra coordination mechanisms
+- Are globally unique without coordination
+- Maintain insertion-time ordering (sufficient for change ordering/version derivation)
+- Avoid the need for counters, triggers, or extra coordination mechanisms
 
 Only a single collection named `changes` is required; it is created automatically on first insert.
 
@@ -34,8 +34,9 @@ The provided `compose.yaml` includes a `mongo` service. By default it runs witho
 Docker network. For production you should enable authentication, restrict network access, or use a managed provider.
 
 Connection details used by the app service (defaults in the compose file):
-* MONGO_CONNECTION_STRING = mongodb://mongo:27017
-* MONGO_DB_NAME = crowdmap
+
+- MONGO_CONNECTION_STRING = mongodb://mongo:27017
+- MONGO_DB_NAME = crowdmap
 
 You can override these via environment variables or by editing the compose file.
 
@@ -66,6 +67,26 @@ duration. Prometheus-compatible process and HTTP counters are available at
 If you prefer using an external/managed MongoDB instance, remove or comment out the `mongo` service in the compose file and
 set the environment variables `MONGO_CONNECTION_STRING` and `MONGO_DB_NAME` appropriately (either by editing the compose
 file or providing a `.env`).
+
+### Review map changes
+
+Open `/review.html` to inspect pending reports. The review workspace can search
+and filter changes, highlights changes that touch or depend on the same map
+target, and previews one or more selected changes against the current baseline.
+Each related-change hint identifies the other report and explains the shared
+target or dependency. These relationships are review hints rather than
+automatic conflict decisions.
+
+After publishing a new upstream map/version pair, mark only reports already
+represented by that pair and apply the baseline update with a `map_admin` API
+key. The key remains in page memory and is not stored in browser storage. The
+server verifies the displayed baseline version, validates the downloaded pair,
+and compares every pending report with the old and downloaded maps before
+replacing the baseline. Reports already satisfied by the downloaded map are
+removed automatically. Reports whose target changed upstream to a different
+value remain pending and are marked with the upstream baseline version and a
+reason. A baseline update can also be applied with nothing marked when the
+upstream update is unrelated to pending reports.
 
 ### Back up and restore
 

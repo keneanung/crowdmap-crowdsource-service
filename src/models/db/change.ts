@@ -20,6 +20,8 @@ import {
   SetRoomEnvironment as SetRoomEnvironmentBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
 } from "../business/change.js";
+} from "../business/change.js";
+import type { UpstreamConflict } from "../business/change.js";
 
 export interface ChangeBase {
   _id?: ObjectId;
@@ -27,6 +29,7 @@ export interface ChangeBase {
   reporters: string[];
   numberOfReporters: number;
   changeId: string;
+  upstreamConflict?: UpstreamConflict;
 }
 
 export interface RoomChangeBase extends ChangeBase {
@@ -601,7 +604,7 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   }
 };
 
-export const changeDbToBusiness = (change: Change): ChangeBusiness => {
+const changeDbToBusinessWithoutMetadata = (change: Change): ChangeBusiness => {
   switch (change.type) {
     case "room-name": {
       return roomNameDbToBusiness(change);
@@ -657,4 +660,10 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
       throw new Error(`Unknown change type: ${change.type}`);
     }
   }
+};
+
+export const changeDbToBusiness = (change: Change): ChangeBusiness => {
+  const businessChange = changeDbToBusinessWithoutMetadata(change);
+  businessChange.upstreamConflict = change.upstreamConflict;
+  return businessChange;
 };

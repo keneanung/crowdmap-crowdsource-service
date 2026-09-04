@@ -20,7 +20,11 @@ import {
   ConflictError,
   ValidateErrorJSON,
 } from "../models/api/error.js";
-import type { ChangeResponse } from "../models/api/response.js";
+} from "../models/api/error.js";
+import type {
+  ChangeResponse,
+  ReconciliationResponse,
+} from "../models/api/response.js";
 import type {
   ApplicationSubmission,
   ChangeSubmission,
@@ -96,7 +100,7 @@ export class ChangeController extends Controller {
     );
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
-    return snapshot.changes.map((change) => {
+    const responses = snapshot.changes.map<ChangeResponse>((change) => {
       if (!change.changeId) {
         throw new Error("Change does not have a changeId");
       }
@@ -274,6 +278,11 @@ export class ChangeController extends Controller {
         }
       }
     });
+    responses.forEach((response, index) => {
+      const upstreamConflict = snapshot.changes[index].upstreamConflict;
+      if (upstreamConflict) response.upstreamConflict = upstreamConflict;
+    });
+    return responses;
   }
 
   /**
@@ -423,11 +432,11 @@ export class ChangeController extends Controller {
   public async applyChanges(
     @Request() request: express.Request & { user: User },
     @Body() application: ApplicationSubmission,
-  ): Promise<void> {
+  ): Promise<ReconciliationResponse> {
     if (!request.user.roles.includes("map_admin")) {
       throw new AuthorizationError("Access Denied");
     }
-    await this.mapService.applyBaselineUpdate(
+    return await this.mapService.applyBaselineUpdate(
       application.version,
       application.obsoleteChanges,
     );

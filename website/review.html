@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Change review · Crowdmap</title>
+    <link href="stylesheets/review.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <header class="review-header">
+      <div>
+        <a class="back-link" href="index.html">← Map explorer</a>
+        <p class="eyebrow">Map administration</p>
+        <h1>Review pending changes</h1>
+        <p class="intro">
+          Compare reports, inspect related edits, and reconcile them with a
+          published upstream map update.
+        </p>
+      </div>
+      <button class="button button-secondary" id="refresh" type="button">
+        Refresh
+      </button>
+    </header>
+
+    <main>
+      <section class="summary" aria-label="Review summary">
+        <div class="stat">
+          <strong id="pending-count">—</strong><span>pending</span>
+        </div>
+        <div class="stat stat-warning">
+          <strong id="conflict-count">—</strong><span>related edits</span>
+        </div>
+        <div class="stat stat-danger">
+          <strong id="upstream-conflict-count">—</strong
+          ><span>upstream conflicts</span>
+        </div>
+        <div class="stat stat-selected">
+          <strong id="selected-count">0</strong><span>marked incorporated</span>
+        </div>
+        <div class="baseline-version">
+          <span>Baseline version</span
+          ><code id="baseline-version">Loading…</code>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <aside class="queue-panel" aria-label="Pending changes">
+          <div class="toolbar">
+            <label class="search-field">
+              <span class="sr-only">Search pending changes</span>
+              <input
+                id="search"
+                type="search"
+                placeholder="Search room, type, value…"
+                autocomplete="off"
+              />
+            </label>
+            <div class="filter-group" aria-label="Change filter">
+              <button class="filter active" data-filter="all" type="button">
+                All
+              </button>
+              <button class="filter" data-filter="conflicts" type="button">
+                Related
+              </button>
+              <button class="filter" data-filter="upstream" type="button">
+                Upstream conflicts
+              </button>
+              <button class="filter" data-filter="selected" type="button">
+                Marked
+              </button>
+            </div>
+          </div>
+          <div
+            class="queue-status"
+            id="queue-status"
+            role="status"
+            aria-live="polite"
+          >
+            Loading pending changes…
+          </div>
+          <div class="change-list" id="change-list"></div>
+        </aside>
+
+        <section class="inspection-panel" aria-label="Map preview">
+          <div class="inspection-header">
+            <div>
+              <p class="eyebrow">Visual comparison</p>
+              <h2 id="preview-title">Baseline map</h2>
+              <p id="preview-description">
+                Choose a report to preview it on the map.
+              </p>
+            </div>
+            <div class="preview-actions">
+              <button
+                class="button button-secondary"
+                id="show-baseline"
+                type="button"
+              >
+                Baseline
+              </button>
+              <button
+                class="button button-secondary"
+                id="show-marked"
+                type="button"
+                disabled
+              >
+                Preview marked
+              </button>
+            </div>
+          </div>
+          <div class="preview-frame-wrap">
+            <iframe
+              id="map-preview"
+              title="Map change preview"
+              src="index.html?reviewBaseline=1"
+            ></iframe>
+          </div>
+
+          <article class="review-guide">
+            <h2>Reconcile a published map update</h2>
+            <ol>
+              <li>
+                Review reports and mark changes you know were incorporated
+                upstream. Exact matches are removed automatically.
+              </li>
+              <li>Publish the corresponding upstream map and version files.</li>
+              <li>
+                Apply the update below. The server rechecks the baseline version
+                before replacing files.
+              </li>
+            </ol>
+            <div class="apply-controls">
+              <label>
+                <span>Map administrator API key</span>
+                <input
+                  id="api-key"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="Kept in memory only"
+                />
+              </label>
+              <button
+                class="button button-primary"
+                id="apply-update"
+                type="button"
+                disabled
+              >
+                Apply baseline update
+              </button>
+            </div>
+            <p class="apply-note">
+              The server compares the old and new baseline at each reported
+              target. It automatically removes reports satisfied by upstream and
+              flags targets that upstream changed differently.
+            </p>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <div
+      class="notice"
+      id="notice"
+      role="status"
+      aria-live="assertive"
+      hidden
+    ></div>
+    <script src="javascripts/review-model.js"></script>
+    <script src="javascripts/review.js"></script>
+  </body>
+</html>
