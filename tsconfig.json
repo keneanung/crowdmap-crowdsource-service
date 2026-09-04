@@ -2,8 +2,8 @@
   "compilerOptions": {
     /* Basic Options */
     "incremental": true,
-    "target": "es6",
-    "module": "commonjs",
+    "target": "ES2023",
+    "module": "NodeNext",
     "outDir": "build",
     "lib": ["ES2023"],
     "sourceMap": true,
@@ -26,7 +26,7 @@
     "noFallthroughCasesInSwitch": true,
 
     /* Module Resolution Options */
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "baseUrl": ".",
     "esModuleInterop": true,
 

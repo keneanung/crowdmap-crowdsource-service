@@ -1,9 +1,9 @@
 import * as fs from "fs";
-import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import { Readable } from "stream";
+import * as path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { config } from "./config/values";
+import { Readable } from "stream";
+import { config } from "./config/values.js";
 
 const DOWNLOAD_TIMEOUT_MS = 30_000;
 

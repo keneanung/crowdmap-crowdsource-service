@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
-import { app } from "../src/app";
-import { setupUserDbServiceMock } from "./setup/iocSetup";
+import { app } from "../src/app.js";
+import { setupUserDbServiceMock } from "./setup/iocSetup.js";
 
 beforeEach(() => {
   setupUserDbServiceMock();
@@ -175,10 +175,7 @@ test("Should be able to update the API key of own user", async () => {
 
   //Assert: check if API keys are different
   expect(newApiKey).not.toEqual(apiKey);
-  await request(app)
-    .get("/admin/user/me")
-    .set("x-api-key", apiKey)
-    .expect(403);
+  await request(app).get("/admin/user/me").set("x-api-key", apiKey).expect(403);
   // Assert: check if we can use the new API key to access the me endpoint
   await request(app)
     .get("/admin/user/me")
@@ -314,10 +311,7 @@ test("site admins can delete another user and revoke its key", async () => {
     .delete("/admin/user/new_user")
     .set("x-api-key", "abc123456")
     .expect(204);
-  await request(app)
-    .get("/admin/user/me")
-    .set("x-api-key", apiKey)
-    .expect(403);
+  await request(app).get("/admin/user/me").set("x-api-key", apiKey).expect(403);
 });
 
 test("site admins cannot delete their own account", async () => {

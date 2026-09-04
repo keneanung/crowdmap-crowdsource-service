@@ -1,7 +1,7 @@
-import { app } from "../../src/app";
-import { __resetUuidMock } from "../mocks/uuidMock";
-import { setupHealthServiceMock, setupUserDbServiceMock } from "./iocSetup";
-import { restoreBaselineFiles } from "./configureBaselineFiles";
+import { app } from "../../src/app.js";
+import { __resetUuidMock } from "../mocks/uuidMock.js";
+import { restoreBaselineFiles } from "./configureBaselineFiles.js";
+import { setupHealthServiceMock, setupUserDbServiceMock } from "./iocSetup.js";
 
 // Ensure TypeScript knows Jest globals in case ts-jest doesn't auto-inject types
 declare const beforeEach: (fn: () => void) => void;

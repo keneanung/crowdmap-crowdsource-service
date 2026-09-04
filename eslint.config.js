@@ -1,23 +1,27 @@
-const {
+import {
     defineConfig,
     globalIgnores,
-} = require("eslint/config");
+} from "eslint/config";
 
-const tsParser = require("@typescript-eslint/parser");
-const typescriptEslint = require("@typescript-eslint/eslint-plugin");
-const js = require("@eslint/js");
+import tsParser from "@typescript-eslint/parser";
+import typescriptEslint from "@typescript-eslint/eslint-plugin";
+import js from "@eslint/js";
 
-const {
+import {
     FlatCompat,
-} = require("@eslint/eslintrc");
+} from "@eslint/eslintrc";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+
+const currentDirectory = dirname(fileURLToPath(import.meta.url));
 
 const compat = new FlatCompat({
-    baseDirectory: __dirname,
+    baseDirectory: currentDirectory,
     recommendedConfig: js.configs.recommended,
     allConfig: js.configs.all
 });
 
-module.exports = defineConfig([{
+export default defineConfig([{
     extends: compat.extends(
         "eslint:recommended",
         "plugin:@typescript-eslint/strict-type-checked",
@@ -30,7 +34,7 @@ module.exports = defineConfig([{
 
         parserOptions: {
             project: true,
-            tsconfigRootDir: __dirname,
+            tsconfigRootDir: currentDirectory,
         },
     },
 
@@ -47,6 +51,7 @@ module.exports = defineConfig([{
     "**/node_modules",
     "**/build",
     "**/generated",
+    "**/scripts",
     "**/.eslintrc.js",
     "**/eslint.config.js",
     "**/.prettierrc.js",

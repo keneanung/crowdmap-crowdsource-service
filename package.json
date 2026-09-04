@@ -3,16 +3,18 @@
   "version": "1.0.0",
   "description": "Service for making crowdsourcing Mudlet crowdmaps easier",
   "main": "build/src/server.js",
+  "type": "module",
   "scripts": {
     "dev": "concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\"",
-    "build": "tsoa spec-and-routes && tsc && cp -R website/ build/",
+    "build": "tsoa spec-and-routes && npm run fix:esm-imports && tsc && cp -R website/ build/",
+    "fix:esm-imports": "node scripts/fix-esm-imports.mjs",
     "start": "node build/src/server.js",
     "audit:production": "npm audit --omit=dev",
     "prelint": "tsoa spec-and-routes",
     "lint": "eslint .",
     "format": "prettier --write src/ test/",
     "pretest": "npm run build",
-    "test": "jest --runInBand"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
   },
   "keywords": [],
   "author": "",
@@ -27,7 +29,7 @@
     "express-rate-limit": "^8.6.2",
     "inversify": "^7.11.0",
     "mongodb": "^7.5.0",
-    "mudlet-map-binary-reader": "^0.6.0",
+    "mudlet-map-binary-reader": "^2.0.0",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^14.0.0"

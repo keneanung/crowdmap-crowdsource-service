@@ -1,10 +1,10 @@
-import { iocContainer } from "../../src/ioc/ioc";
-import { ChangeService } from "../../src/services/changeService";
-import { UserDbService } from "../../src/services/userDbService";
-import { MockChangeService } from "../mocks/mockChangeService";
-import { MockUserDbService } from "../mocks/mockUserDbService";
-import { HealthService } from "../../src/services/healthService";
-import { MockHealthService } from "../mocks/mockHealthService";
+import { iocContainer } from "../../src/ioc/ioc.js";
+import { ChangeService } from "../../src/services/changeService.js";
+import { HealthService } from "../../src/services/healthService.js";
+import { UserDbService } from "../../src/services/userDbService.js";
+import { MockChangeService } from "../mocks/mockChangeService.js";
+import { MockHealthService } from "../mocks/mockHealthService.js";
+import { MockUserDbService } from "../mocks/mockUserDbService.js";
 
 export const setupChangeServiceMock = (): void => {
   iocContainer

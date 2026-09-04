@@ -1,8 +1,8 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
 import { MongoClient } from "mongodb";
-import { config } from "../config/values";
-import { MapService } from "./mapService";
+import { config } from "../config/values.js";
+import { MapService } from "./mapService.js";
 
 export abstract class HealthService {
   abstract checkReadiness(): Promise<void>;

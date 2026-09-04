@@ -1,7 +1,7 @@
 import { expect, jest, test } from "@jest/globals";
 import { MongoClient, MongoServerError } from "mongodb";
-import { User } from "../src/models/business/user";
-import { MongoUserDbService } from "../src/services/userDbService";
+import { User } from "../src/models/business/user.js";
+import { MongoUserDbService } from "../src/services/userDbService.js";
 
 test("API key rotation updates the hash used by authentication", async () => {
   const updateOne = jest.fn<

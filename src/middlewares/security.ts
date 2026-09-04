@@ -1,8 +1,8 @@
 import * as express from "express";
-import { iocContainer } from "../ioc/ioc";
-import { AuthorizationError } from "../models/api/error";
-import { User } from "../models/business/user";
-import { UserService } from "../services/userService";
+import { iocContainer } from "../ioc/ioc.js";
+import { AuthorizationError } from "../models/api/error.js";
+import { User } from "../models/business/user.js";
+import { UserService } from "../services/userService.js";
 
 export async function expressAuthentication(
   request: express.Request,

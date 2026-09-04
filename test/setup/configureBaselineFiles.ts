@@ -1,9 +1,11 @@
 import { copyFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const fixtureMap = path.join(__dirname, "baselineFiles", "map");
-const fixtureVersion = path.join(__dirname, "baselineFiles", "version");
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const fixtureMap = path.join(currentDirectory, "baselineFiles", "map");
+const fixtureVersion = path.join(currentDirectory, "baselineFiles", "version");
 const testDirectory = mkdtempSync(path.join(tmpdir(), "crowdmap-tests-"));
 const testMap = path.join(testDirectory, "map");
 const testVersion = path.join(testDirectory, "version");

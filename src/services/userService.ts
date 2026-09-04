@@ -1,8 +1,8 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import * as crypto from "crypto";
 import { inject } from "inversify";
-import { Role, User } from "../models/business/user";
-import { UserDbService } from "./userDbService";
+import { Role, User } from "../models/business/user.js";
+import { UserDbService } from "./userDbService.js";
 
 const API_KEY_ID_PATTERN =
   /^cm1_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

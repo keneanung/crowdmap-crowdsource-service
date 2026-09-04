@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 import * as path from "path";
 
-dotenv.config({quiet: true});
+dotenv.config({ quiet: true });
 
 export interface ServiceConfig {
   port: number;
@@ -32,7 +32,11 @@ export const config: ServiceConfig = {
 };
 
 export const validateConfig = (values: ServiceConfig = config): void => {
-  if (!Number.isInteger(values.port) || values.port < 1 || values.port > 65535) {
+  if (
+    !Number.isInteger(values.port) ||
+    values.port < 1 ||
+    values.port > 65535
+  ) {
     throw new Error("PORT must be an integer between 1 and 65535");
   }
   if (!Number.isInteger(values.trustProxy) || values.trustProxy < 0) {

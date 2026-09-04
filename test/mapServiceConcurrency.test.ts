@@ -1,7 +1,7 @@
 import { expect, jest, test } from "@jest/globals";
-import { Change } from "../src/models/business/change";
-import { ChangeService } from "../src/services/changeService";
-import { MapService } from "../src/services/mapService";
+import { Change } from "../src/models/business/change.js";
+import { ChangeService } from "../src/services/changeService.js";
+import { MapService } from "../src/services/mapService.js";
 
 test("a rejected baseline update does not invalidate an in-flight snapshot", async () => {
   let resolveChanges: (changes: Change[]) => void = () => undefined;

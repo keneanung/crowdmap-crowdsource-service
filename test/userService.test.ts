@@ -1,6 +1,6 @@
 import { expect, jest, test } from "@jest/globals";
-import { UserService } from "../src/services/userService";
-import { MockUserDbService } from "./mocks/mockUserDbService";
+import { UserService } from "../src/services/userService.js";
+import { MockUserDbService } from "./mocks/mockUserDbService.js";
 
 test("generated API keys use a public ID for indexed lookup", async () => {
   const userDbService = new MockUserDbService();

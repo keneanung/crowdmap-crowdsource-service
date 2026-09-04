@@ -1,4 +1,4 @@
-import { ChangeType, Direction } from "./common";
+import { ChangeType, Direction } from "./common.js";
 
 export interface ChangeBaseResponse {
   type: ChangeType;
@@ -77,8 +77,7 @@ export interface ModifyExitWeightResponse extends RoomChangeBaseResponse {
   weight: number;
 }
 
-export interface ModifySpecialExitWeightResponse
-  extends RoomChangeBaseResponse {
+export interface ModifySpecialExitWeightResponse extends RoomChangeBaseResponse {
   type: "modify-special-exit-weight";
   exitCommand: string;
   weight: number;

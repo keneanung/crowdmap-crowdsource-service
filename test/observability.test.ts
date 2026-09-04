@@ -1,6 +1,6 @@
 import { expect, test } from "@jest/globals";
 import request from "supertest";
-import { app } from "../src/app";
+import { app } from "../src/app.js";
 
 test("responses include a generated correlation ID", async () => {
   const response = await request(app)

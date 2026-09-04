@@ -96,12 +96,12 @@ export class CreateArea extends ChangeBase<CreateArea> {
       min_x: 0,
       min_y: 0,
       min_z: 0,
-      span: [],
+      span: [0, 0, 0],
       xmaxForZ: {},
       ymaxForZ: {},
       xminForZ: {},
       yminForZ: {},
-      pos: [],
+      pos: [0, 0, 0],
       isZone: false,
       zoneAreaRef: 0,
     };
@@ -257,7 +257,7 @@ export class LockSpecialExit extends RoomChangeBase<LockSpecialExit> {
       // if the room does not exist for some reason, make this a no-op
       return;
     }
-    room.mSpecialExitLocks.push(this.destination);
+    room.mSpecialExitLocks.push(this.exitCommand);
   }
   public getIdentifyingParts() {
     return {
@@ -294,7 +294,7 @@ export class UnlockSpecialExit extends RoomChangeBase<UnlockSpecialExit> {
       return;
     }
     room.mSpecialExitLocks = room.mSpecialExitLocks.filter(
-      (roomNumber) => roomNumber !== this.destination,
+      (exitCommand) => exitCommand !== this.exitCommand,
     );
   }
   public getIdentifyingParts() {
