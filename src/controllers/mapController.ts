@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import { inject } from "inversify";
 import { provide } from "@inversifyjs/binding-decorators";
-import { MudletMapReader } from "mudlet-map-binary-reader";
 import { dirname } from "path";
 import { Readable } from "stream";
 import {
@@ -14,6 +13,7 @@ import {
   ValidateError,
 } from "tsoa";
 import { MapService } from "../services/mapService";
+import { log } from "../observability";
 
 @Route("map")
 @Tags("map")
@@ -56,7 +56,7 @@ export class MapController extends Controller {
         "Cannot include and exclude changes at the same time",
       );
     }
-    const file = await this.mapService.getChangedMapFile(
+    const snapshot = await this.mapService.getChangedMapFile(
       timesSeen,
       format,
       include,
@@ -68,20 +68,16 @@ export class MapController extends Controller {
       `application/${format === "binary" ? "octet-stream" : "json"}`,
     );
     this.setHeader("Content-Disposition", "attachment; filename=map");
-    this.setHeader(
-      "X-Map-Version",
-      await this.mapService.getVersion(timesSeen),
-    );
-    this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
+    this.setHeader("X-Map-Version", snapshot.version);
+    this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
 
-    const s = fs.createReadStream(file);
+    const s = fs.createReadStream(snapshot.file);
     s.on("close", () => {
-      fs.unlink(file, (err) => {
-        fs.rmdirSync(dirname(file));
-        if (err) {
-          throw err;
-        }
-      });
+      void fs.promises
+        .rm(dirname(snapshot.file), { recursive: true, force: true })
+        .catch((error: unknown) => {
+          log("error", "temporary_map_cleanup_failed", { error });
+        });
     });
     return s;
   }
@@ -106,20 +102,10 @@ export class MapController extends Controller {
   @Get("/renderer")
   @Produces("text/javascript")
   public async getRendererMap(@Query() timesSeen: number): Promise<Readable> {
-    const map = await this.mapService.getChangedMap(timesSeen);
-    this.setHeader(
-      "X-Map-Version",
-      await this.mapService.getVersion(timesSeen),
-    );
-    this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
+    const snapshot = await this.mapService.getRendererSnapshot(timesSeen);
+    this.setHeader("X-Map-Version", snapshot.version);
+    this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
     this.setHeader("Content-Type", "text/javascript");
-    const exportedMap = MudletMapReader.export(map);
-    const stringifiedMap = JSON.stringify(exportedMap.mapData);
-    const stringifiedColors = JSON.stringify(exportedMap.colors);
-    const stringifiedPosition = JSON.stringify({
-      area: exportedMap.mapData[0].areaId,
-    });
-    const resString = `mapData = ${stringifiedMap}; colors = ${stringifiedColors}; position = ${stringifiedPosition};`;
-    return Readable.from(Buffer.from(resString));
+    return Readable.from(Buffer.from(snapshot.content));
   }
 }

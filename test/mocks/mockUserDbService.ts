@@ -17,15 +17,50 @@ export class MockUserDbService implements UserDbService {
     this.users.push(user);
     return Promise.resolve();
   }
+  public addUserIfMissing(user: User): Promise<boolean> {
+    if (this.users.some((existingUser) => existingUser.name === user.name)) {
+      return Promise.resolve(false);
+    }
+    this.users.push(user);
+    return Promise.resolve(true);
+  }
+  public getUserByApiKeyId(apiKeyId: string): Promise<User | undefined> {
+    return Promise.resolve(
+      this.users.find((user) => user.api_key_id === apiKeyId),
+    );
+  }
+  public getUserByName(name: string): Promise<User | undefined> {
+    return Promise.resolve(this.users.find((user) => user.name === name));
+  }
+  public getUsersWithoutApiKeyId(): Promise<User[]> {
+    return Promise.resolve(this.users.filter((user) => !user.api_key_id));
+  }
   getUsers(): Promise<User[]> {
     return Promise.resolve(this.users);
   }
-  updateApiKey(user: User, newApiKey: string): Promise<void> {
+  deleteUser(name: string): Promise<boolean> {
+    const userIndex = this.users.findIndex((user) => user.name === name);
+    if (userIndex === -1) {
+      return Promise.resolve(false);
+    }
+    this.users.splice(userIndex, 1);
+    return Promise.resolve(true);
+  }
+  updateRoles(name: string, roles: User["roles"]): Promise<boolean> {
+    const user = this.users.find((candidate) => candidate.name === name);
+    if (!user) {
+      return Promise.resolve(false);
+    }
+    user.roles = roles;
+    return Promise.resolve(true);
+  }
+  updateApiKey(user: User, newApiKey: string, apiKeyId: string): Promise<void> {
     const foundUser = this.users.find((u) => u.name === user.name);
     if (!foundUser) {
       return Promise.reject(new Error("Unknown User"));
     }
     foundUser.hashed_api_key = newApiKey;
+    foundUser.api_key_id = apiKeyId;
     return Promise.resolve();
   }
 }

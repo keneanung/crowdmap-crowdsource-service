@@ -26,38 +26,73 @@ interface ChangeQuery {
 
 @provide(ChangeService)
 export class MongoChangeService implements ChangeService {
+  private indexesReady?: Promise<string[]>;
+
   constructor(@inject(MongoClient) private mongo: MongoClient) {}
 
   private async getCollection() {
     await this.mongo.connect();
     const db = this.mongo.db(config.dbName);
     const collection = db.collection<ChangeDb>("changes");
+    this.indexesReady ??= collection.createIndexes([
+      {
+        key: { changeId: 1 },
+        unique: true,
+        name: "unique_change_id",
+      },
+      {
+        key: {
+          type: 1,
+          roomNumber: 1,
+          name: 1,
+          areaId: 1,
+          direction: 1,
+          destination: 1,
+          exitCommand: 1,
+          x: 1,
+          y: 1,
+          z: 1,
+          weight: 1,
+          environmentId: 1,
+          key: 1,
+          value: 1,
+        },
+        unique: true,
+        name: "unique_logical_change",
+      },
+      {
+        key: { numberOfReporters: 1, changeId: 1 },
+        name: "vetted_changes",
+      },
+    ]);
+    await this.indexesReady;
     return collection;
   }
 
   public async addChange(change: Change) {
     const collection = await this.getCollection();
-    const existingChange = await collection.findOne(
-      change.getIdentifyingParts(),
-    );
-    if (existingChange) {
-      const existingChangeBusiness = changeDbToBusiness(existingChange);
-      change.reporters.forEach((reporter) =>
-        existingChangeBusiness.reporters.add(reporter),
-      );
-      await collection.updateOne(
-        { _id: existingChange._id },
+    const identifyingParts = change.getIdentifyingParts();
+    const changeDb = changeBusinessToDb(change);
+    const reporters = {
+      $setUnion: [
+        { $ifNull: ["$reporters", []] },
+        Array.from(change.reporters),
+      ],
+    };
+    await collection.updateOne(
+      identifyingParts,
+      [
         {
           $set: {
-            reporters: Array.from(existingChangeBusiness.reporters),
-            numberOfReporters: existingChangeBusiness.reporters.size,
+            ...changeDb,
+            changeId: { $ifNull: ["$changeId", change.changeId] },
+            reporters,
+            numberOfReporters: { $size: reporters },
           },
         },
-      );
-    } else {
-      const changeDb = changeBusinessToDb(change);
-      await collection.insertOne(changeDb);
-    }
+      ],
+      { upsert: true },
+    );
   }
 
   public async getChanges(

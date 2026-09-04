@@ -5,4 +5,5 @@ export interface User {
   roles: Role[];
   salt: string;
   hashed_api_key: string;
+  api_key_id?: string;
 }

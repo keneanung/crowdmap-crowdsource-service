@@ -89,17 +89,14 @@ export class ChangeController extends Controller {
         "Cannot include and exclude changes at the same time",
       );
     }
-    const changes = await this.changeService.getChanges(
+    const snapshot = await this.mapService.getChangesSnapshot(
       timesSeen,
       include,
       exclude,
     );
-    this.setHeader(
-      "X-Map-Version",
-      await this.mapService.getVersion(timesSeen),
-    );
-    this.setHeader("X-Map-Version-Raw", await this.mapService.getRawVersion());
-    return changes.map((change) => {
+    this.setHeader("X-Map-Version", snapshot.version);
+    this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
+    return snapshot.changes.map((change) => {
       if (!change.changeId) {
         throw new Error("Change does not have a changeId");
       }
@@ -430,13 +427,9 @@ export class ChangeController extends Controller {
     if (!request.user.roles.includes("map_admin")) {
       throw new AuthorizationError("Access Denied");
     }
-    const serverVersion = await this.mapService.getRawVersion();
-    if (application.version !== serverVersion) {
-      throw new ConflictError(
-        "The map version provided does not match the current map version",
-      );
-    }
-    await this.changeService.applyChanges(application.obsoleteChanges);
-    await this.mapService.updateMap();
+    await this.mapService.applyBaselineUpdate(
+      application.version,
+      application.obsoleteChanges,
+    );
   }
 }
