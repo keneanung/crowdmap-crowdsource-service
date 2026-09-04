@@ -257,7 +257,7 @@ export class LockSpecialExit extends RoomChangeBase<LockSpecialExit> {
       // if the room does not exist for some reason, make this a no-op
       return;
     }
-    room.mSpecialExitLocks.push(this.destination);
+    room.mSpecialExitLocks.push(this.exitCommand);
   }
   public getIdentifyingParts() {
     return {
@@ -294,7 +294,7 @@ export class UnlockSpecialExit extends RoomChangeBase<UnlockSpecialExit> {
       return;
     }
     room.mSpecialExitLocks = room.mSpecialExitLocks.filter(
-      (roomNumber) => roomNumber !== this.destination,
+      (exitCommand) => exitCommand !== this.exitCommand,
     );
   }
   public getIdentifyingParts() {

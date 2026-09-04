@@ -29,7 +29,7 @@
     "express-rate-limit": "^8.6.2",
     "inversify": "^7.11.0",
     "mongodb": "^7.5.0",
-    "mudlet-map-binary-reader": "^1.3.0",
+    "mudlet-map-binary-reader": "^2.0.0",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^14.0.0"
