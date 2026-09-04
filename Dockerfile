@@ -9,6 +9,7 @@ RUN npm ci
 COPY tsconfig.json tsoa.json ./
 COPY src/ /source/src/
 COPY website/ /source/website/
+COPY scripts /source/scripts/
 RUN npm run build
 
 FROM node:24.16.0-alpine3.22 AS prod-content
