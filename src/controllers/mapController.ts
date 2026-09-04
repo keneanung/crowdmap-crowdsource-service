@@ -101,8 +101,29 @@ export class MapController extends Controller {
    */
   @Get("/renderer")
   @Produces("text/javascript")
-  public async getRendererMap(@Query() timesSeen: number): Promise<Readable> {
-    const snapshot = await this.mapService.getRendererSnapshot(timesSeen);
+  public async getRendererMap(
+    @Query() timesSeen: number,
+    @Query() include: string[] = [],
+    @Query() exclude: string[] = [],
+  ): Promise<Readable> {
+    if (include.length > 0 && exclude.length > 0) {
+      throw new ValidateError(
+        {
+          include: {
+            message: "Unable to include and exclude changes at the same time",
+          },
+          exclude: {
+            message: "Unable to include and exclude changes at the same time",
+          },
+        },
+        "Cannot include and exclude changes at the same time",
+      );
+    }
+    const snapshot = await this.mapService.getRendererSnapshot(
+      timesSeen,
+      include,
+      exclude,
+    );
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
     this.setHeader("Content-Type", "text/javascript");

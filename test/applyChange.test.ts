@@ -4,7 +4,6 @@ import { app } from "../src/app.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
 import { MudletMapReader } from "mudlet-map-binary-reader";
-
 jest.setTimeout(15_000);
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { config } from "../src/config/values.js";

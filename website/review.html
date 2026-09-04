@@ -108,13 +108,35 @@
               </button>
             </div>
           </div>
-          <div class="preview-frame-wrap">
-            <iframe
-              id="map-preview"
-              title="Map change preview"
-              src="index.html?reviewBaseline=1"
-            ></iframe>
+          <div class="comparison-toolbar" aria-label="Map comparison controls">
+            <button class="comparison-toggle active" id="comparison-side-by-side" type="button">Side by side</button>
+            <button class="comparison-toggle" id="comparison-wipe" type="button">Wipe</button>
+            <label class="difference-toggle"><input id="difference-mode" type="checkbox" /> Differences only</label>
+            <label class="wipe-range" for="wipe-position">Wipe <input id="wipe-position" type="range" min="0" max="100" value="50" /></label>
+            <button class="button button-secondary" id="blink-toggle" type="button">Blink candidate</button>
           </div>
+          <div class="map-comparison" id="map-comparison" aria-live="polite">
+            <section class="map-pane map-pane-baseline">
+              <header><strong>Baseline</strong><span id="baseline-map-status">Loading…</span></header>
+              <div id="baseline-map" class="renderer-map" aria-label="Baseline map"></div>
+            </section>
+            <section class="map-pane map-pane-candidate">
+              <header><strong>Candidate</strong><span id="candidate-map-status">Loading…</span></header>
+              <div id="candidate-map" class="renderer-map" aria-label="Candidate map"></div>
+            </section>
+          </div>
+
+          <article class="property-panel" aria-live="polite">
+            <div class="property-panel-header">
+              <div>
+                <p class="eyebrow">Selected target</p>
+                <h2 id="room-diff-title">Choose a room on either map</h2>
+              </div>
+              <button class="button button-secondary" id="show-all-details" type="button" disabled>Show all details</button>
+            </div>
+            <div id="room-diff-summary" class="room-diff-summary">The panes stay synchronized: click a room, a change, or a property below to focus it in both maps.</div>
+            <div id="room-diff-details" class="room-diff-details" hidden></div>
+          </article>
 
           <article class="review-guide">
             <h2>Reconcile a published map update</h2>
@@ -165,7 +187,8 @@
       aria-live="assertive"
       hidden
     ></div>
-    <script src="javascripts/review-model.js"></script>
-    <script src="javascripts/review.js"></script>
+    <script type="module" src="javascripts/review-model.js"></script>
+    <script src="javascripts/review-map.js"></script>
+    <script type="module" src="javascripts/review.js"></script>
   </body>
 </html>

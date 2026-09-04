@@ -1,7 +1,7 @@
+import * as model from "./review-model.js";
+
 (function () {
   "use strict";
-
-  var model = window.CrowdmapReviewModel;
 
   var state = {
     activeId: null,
@@ -20,18 +20,26 @@
     changeList: document.querySelector("#change-list"),
     conflictCount: document.querySelector("#conflict-count"),
     filters: document.querySelectorAll(".filter"),
-    mapPreview: document.querySelector("#map-preview"),
+    blink: document.querySelector("#blink-toggle"),
+    differenceMode: document.querySelector("#difference-mode"),
     notice: document.querySelector("#notice"),
     pendingCount: document.querySelector("#pending-count"),
     previewDescription: document.querySelector("#preview-description"),
     previewMarked: document.querySelector("#show-marked"),
     previewTitle: document.querySelector("#preview-title"),
+    comparisonSideBySide: document.querySelector("#comparison-side-by-side"),
+    comparisonWipe: document.querySelector("#comparison-wipe"),
     queueStatus: document.querySelector("#queue-status"),
     refresh: document.querySelector("#refresh"),
     search: document.querySelector("#search"),
     selectedCount: document.querySelector("#selected-count"),
     showBaseline: document.querySelector("#show-baseline"),
+    showAllDetails: document.querySelector("#show-all-details"),
+    roomDiffDetails: document.querySelector("#room-diff-details"),
+    roomDiffSummary: document.querySelector("#room-diff-summary"),
+    roomDiffTitle: document.querySelector("#room-diff-title"),
     upstreamConflictCount: document.querySelector("#upstream-conflict-count"),
+    wipePosition: document.querySelector("#wipe-position"),
   };
 
   function isRelated(change) {
@@ -133,9 +141,10 @@
         content.appendChild(conflict);
       }
       var relationships = model.relationshipDetails(change, state.groups);
+      var relationshipDetailsElement;
       if (relationships.length > 0) {
-        var details = document.createElement("details");
-        details.className = "relationship-details";
+        relationshipDetailsElement = document.createElement("details");
+        relationshipDetailsElement.className = "relationship-details";
         var detailsSummary = document.createElement("summary");
         detailsSummary.textContent =
           "Why related · " +
@@ -155,8 +164,7 @@
             relationship.reason;
           relationshipList.appendChild(item);
         });
-        details.append(detailsSummary, relationshipList);
-        content.appendChild(details);
+        relationshipDetailsElement.append(detailsSummary, relationshipList);
       }
       var previewButton = document.createElement("button");
       previewButton.type = "button";
@@ -173,17 +181,10 @@
         previewChanges([change.changeId], change);
       });
       card.append(checkbox, previewButton);
+      if (relationshipDetailsElement)
+        card.appendChild(relationshipDetailsElement);
       elements.changeList.appendChild(card);
     });
-  }
-
-  function previewUrl(ids, roomNumber) {
-    var params = new URLSearchParams();
-    ids.forEach(function (id) {
-      params.append("reviewInclude", id);
-    });
-    if (roomNumber !== undefined) params.set("loc", String(roomNumber));
-    return "index.html?" + params.toString();
   }
 
   function previewChanges(ids, activeChange) {
@@ -194,11 +195,155 @@
     elements.previewDescription.textContent = activeChange
       ? model.changeSummary(activeChange)
       : ids.length + " marked changes applied to the baseline preview.";
-    elements.mapPreview.src = previewUrl(
+    window.CrowdmapReviewMap.show(
       ids,
+      state.changes.filter(function (change) {
+        return ids.includes(change.changeId);
+      }),
       activeChange && activeChange.roomNumber,
     );
     renderList();
+  }
+
+  function displayValue(value) {
+    if (value === undefined) return "—";
+    if (value === null) return "none";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
+
+  function addPropertyRow(container, label, before, after, roomNumber) {
+    var row = document.createElement("button");
+    row.type = "button";
+    row.className = "property-diff-row";
+    row.innerHTML = "<span></span><span></span>";
+    row.children[0].textContent = label;
+    row.children[1].textContent = displayValue(before) + " → " + displayValue(after);
+    row.addEventListener("click", function () {
+      window.CrowdmapReviewMap.focus(roomNumber);
+    });
+    container.appendChild(row);
+  }
+
+  function addSummaryRow(container, label, before, after, roomNumber) {
+    var row = document.createElement("button");
+    row.type = "button";
+    row.className = "property-summary-row";
+    var name = document.createElement("span");
+    name.textContent = "Changed: " + label;
+    var values = document.createElement("span");
+    values.textContent = displayValue(before) + " → " + displayValue(after);
+    row.append(name, values);
+    row.addEventListener("click", function () {
+      window.CrowdmapReviewMap.focus(roomNumber);
+    });
+    container.appendChild(row);
+  }
+
+  function renderRoomDiff(roomNumber) {
+    var comparison = window.CrowdmapReviewMap.getRoomComparison(roomNumber);
+    var before = comparison.baseline;
+    var after = comparison.candidate;
+    var relatedChanges = comparison.changes;
+    elements.roomDiffDetails.replaceChildren();
+    elements.roomDiffSummary.replaceChildren();
+    elements.showAllDetails.disabled = !before && !after;
+    elements.showAllDetails.textContent = "Show all details";
+    elements.roomDiffDetails.hidden = true;
+    elements.roomDiffTitle.textContent = "Room " + roomNumber;
+    if (!before || !after) {
+      var presence = document.createElement("p");
+      presence.className = "property-presence " + (!before ? "addition" : "removal");
+      presence.textContent = !before
+        ? "Added in the candidate map."
+        : "Removed from the candidate map.";
+      elements.roomDiffSummary.appendChild(presence);
+      return;
+    }
+    var changed = [];
+    [
+      ["name", "Name"],
+      ["env", "Environment"],
+      ["area", "Area"],
+      ["x", "X coordinate"],
+      ["y", "Y coordinate"],
+      ["z", "Level"],
+      ["weight", "Weight"],
+      ["roomChar", "Symbol"],
+      ["hash", "Hash"],
+    ].forEach(function (field) {
+      if (before[field[0]] !== after[field[0]]) {
+        changed.push({
+          key: field[0],
+          label: field[1],
+          before: before[field[0]],
+          after: after[field[0]],
+        });
+      }
+    });
+    var exits = new Set(Object.keys(before.exits || {}).concat(Object.keys(after.exits || {})));
+    exits.forEach(function (direction) {
+      if ((before.exits || {})[direction] !== (after.exits || {})[direction]) {
+        changed.push({
+          key: "exit:" + direction,
+          label: direction + " exit",
+          before: (before.exits || {})[direction],
+          after: (after.exits || {})[direction],
+        });
+      }
+    });
+    var userDataKeys = new Set(Object.keys(before.userData || {}).concat(Object.keys(after.userData || {})));
+    var userDataChanges = Array.from(userDataKeys).filter(function (key) {
+      return (before.userData || {})[key] !== (after.userData || {})[key];
+    });
+    changed.slice(0, 3).forEach(function (field) {
+      addSummaryRow(elements.roomDiffSummary, field.label, field.before, field.after, roomNumber);
+    });
+    if (changed.length > 3) {
+      var remaining = document.createElement("p");
+      remaining.className = "property-summary-note";
+      remaining.textContent = (changed.length - 3) + " more changed value" + (changed.length === 4 ? "." : "s.");
+      elements.roomDiffSummary.appendChild(remaining);
+    }
+    if (changed.length === 0) {
+      var noDirectDiff = document.createElement("p");
+      noDirectDiff.className = "property-summary-note";
+      noDirectDiff.textContent = relatedChanges.length
+        ? "This report targets the room without changing a compact room property."
+        : "No changed room properties are visible at this target.";
+      elements.roomDiffSummary.appendChild(noDirectDiff);
+    }
+    changed.forEach(function (field) {
+      addPropertyRow(elements.roomDiffDetails, field.label, field.before, field.after, roomNumber);
+    });
+    if (userDataChanges.length) {
+      var data = document.createElement("details");
+      data.className = "property-details-list";
+      var summary = document.createElement("summary");
+      summary.textContent = userDataChanges.length + " changed user-data value" + (userDataChanges.length === 1 ? "" : "s");
+      data.appendChild(summary);
+      userDataChanges.forEach(function (key) {
+        addPropertyRow(data, "User data · " + key, (before.userData || {})[key], (after.userData || {})[key], roomNumber);
+      });
+      elements.roomDiffDetails.appendChild(data);
+    }
+    var unchanged = ["name", "env", "area", "x", "y", "z", "weight", "roomChar", "hash"].filter(function (key) {
+      return before[key] === after[key];
+    }).length +
+      Array.from(exits).filter(function (direction) {
+        return (before.exits || {})[direction] === (after.exits || {})[direction];
+      }).length +
+      Array.from(userDataKeys).filter(function (key) {
+        return (before.userData || {})[key] === (after.userData || {})[key];
+      }).length;
+    var note = document.createElement("p");
+    note.className = "unchanged-note";
+    note.textContent = "Unchanged properties: " + unchanged + " hidden.";
+    elements.roomDiffSummary.appendChild(note);
+    var detailsNote = document.createElement("p");
+    detailsNote.className = "unchanged-note";
+    detailsNote.textContent = "Long exit and user-data lists remain independently expandable.";
+    elements.roomDiffDetails.appendChild(detailsNote);
   }
 
   function showNotice(message, isError) {
@@ -300,7 +445,7 @@
         false,
       );
       await loadChanges();
-      elements.mapPreview.src = "index.html?reviewBaseline=1";
+      previewChanges([], null);
     } catch (error) {
       showNotice(error.message, true);
     } finally {
@@ -332,9 +477,41 @@
     elements.previewTitle.textContent = "Baseline map";
     elements.previewDescription.textContent =
       "No pending changes are applied in this view.";
-    elements.mapPreview.src = "index.html?reviewBaseline=1";
+    window.CrowdmapReviewMap.show([], [], undefined);
     renderList();
   });
+  elements.differenceMode.addEventListener("change", function () {
+    window.CrowdmapReviewMap.setDifferenceMode(elements.differenceMode.checked);
+  });
+  elements.comparisonSideBySide.addEventListener("click", function () {
+    elements.comparisonSideBySide.classList.add("active");
+    elements.comparisonWipe.classList.remove("active");
+    window.CrowdmapReviewMap.setWipeMode(false);
+  });
+  elements.comparisonWipe.addEventListener("click", function () {
+    elements.comparisonWipe.classList.add("active");
+    elements.comparisonSideBySide.classList.remove("active");
+    window.CrowdmapReviewMap.setWipeMode(true);
+  });
+  elements.wipePosition.addEventListener("input", function () {
+    window.CrowdmapReviewMap.setWipe(Number(elements.wipePosition.value));
+  });
+  elements.blink.addEventListener("click", function () {
+    elements.blink.textContent = window.CrowdmapReviewMap.toggleBlink()
+      ? "Stop blinking"
+      : "Blink candidate";
+  });
+  elements.showAllDetails.addEventListener("click", function () {
+    elements.roomDiffDetails.hidden = !elements.roomDiffDetails.hidden;
+    elements.showAllDetails.textContent = elements.roomDiffDetails.hidden
+      ? "Show all details"
+      : "Hide details";
+  });
+  window.addEventListener("crowdmapreview:roomselect", function (event) {
+    renderRoomDiff(event.detail.roomId);
+  });
   elements.apply.addEventListener("click", applyUpdate);
-  loadChanges();
+  loadChanges().then(function () {
+    window.CrowdmapReviewMap.show([], [], undefined);
+  });
 })();

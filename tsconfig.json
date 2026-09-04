@@ -36,6 +36,7 @@
     /* Advanced Options */
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "emitDecoratorMetadata": true,
-  }
+    "emitDecoratorMetadata": true
+  },
+  "exclude": ["website/**/*.ts", "build/**"]
 }

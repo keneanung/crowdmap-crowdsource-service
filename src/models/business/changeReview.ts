@@ -16,7 +16,7 @@ import {
   SetRoomCoordinates,
   SetRoomEnvironment,
   UnlockSpecialExit,
-} from "./change";
+} from "./change.js";
 
 export interface ChangeReconciliation {
   changeId: string;
@@ -101,7 +101,7 @@ export const changeTargetState = (
       const typed = change as LockSpecialExit | UnlockSpecialExit;
       return Boolean(
         room(map, typed.roomNumber)?.mSpecialExitLocks.includes(
-          typed.destination,
+          typed.exitCommand,
         ),
       );
     }

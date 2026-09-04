@@ -94,7 +94,7 @@ export class CreateArea extends ChangeBase<CreateArea> {
       rooms: [],
       userData: {},
       zLevels: [],
-      mAreaExits: [],
+      mAreaExits: {},
       gridMode: false,
       max_x: 0,
       max_y: 0,

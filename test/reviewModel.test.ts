@@ -10,7 +10,7 @@ import {
   ReviewChange,
   targetKey,
   typeLabel,
-} from "../website/javascripts/review-model";
+} from "../website/javascripts/review-model.js";
 
 const changes: ReviewChange[] = [
   {

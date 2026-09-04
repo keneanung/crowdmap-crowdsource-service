@@ -1,6 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
-import { ChangeRoomName, ModifyRoomExit } from "../src/models/business/change";
-import { reconcileChange } from "../src/models/business/changeReview";
+import { ChangeRoomName, ModifyRoomExit } from "../src/models/business/change.js";
+import { reconcileChange } from "../src/models/business/changeReview.js";
 
 const mapWithRoom = (name: string, north = -1): Mudlet.MudletMap =>
   ({

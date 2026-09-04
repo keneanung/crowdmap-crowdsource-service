@@ -1,12 +1,4 @@
-(function (root, factory) {
-  "use strict";
-  var model = factory();
-  if (typeof module === "object" && module.exports) {
-    module.exports = model;
-  } else {
-    root.CrowdmapReviewModel = model;
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+const model = (() => {
   "use strict";
 
   function targetKey(change) {
@@ -294,4 +286,20 @@
     targetKey: targetKey,
     typeLabel: typeLabel,
   };
-});
+})();
+
+if (typeof window !== "undefined") {
+  window.CrowdmapReviewModel = model;
+}
+
+export const {
+  canApply,
+  changeSummary,
+  filterChanges,
+  groupChanges,
+  isRelated,
+  relationBetween,
+  relationshipDetails,
+  targetKey,
+  typeLabel,
+} = model;

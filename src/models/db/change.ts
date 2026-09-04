@@ -20,7 +20,6 @@ import {
   SetRoomEnvironment as SetRoomEnvironmentBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
 } from "../business/change.js";
-} from "../business/change.js";
 import type { UpstreamConflict } from "../business/change.js";
 
 export interface ChangeBase {
