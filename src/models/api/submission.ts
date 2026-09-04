@@ -122,6 +122,36 @@ export interface CreateRoomSubmission extends RoomChangeBaseSubmission {
   type: "create-room";
 }
 
+export interface DeleteRoomSubmission extends RoomChangeBaseSubmission {
+  type: "delete-room";
+}
+
+export interface RenameAreaSubmission extends ChangeBaseSubmission {
+  type: "rename-area";
+  areaId: number;
+  name: string;
+}
+
+export interface DeleteAreaSubmission extends ChangeBaseSubmission {
+  type: "delete-area";
+  areaId: number;
+}
+
+export interface SetRoomWeightSubmission extends RoomChangeBaseSubmission {
+  type: "set-room-weight";
+  weight: number;
+}
+
+export interface SetRoomSymbolSubmission extends RoomChangeBaseSubmission {
+  type: "set-room-symbol";
+  symbol: string;
+}
+
+export interface SetRoomHashSubmission extends RoomChangeBaseSubmission {
+  type: "set-room-hash";
+  hash: string;
+}
+
 /**
  * Submit a change of coordinates of a room.
  */
@@ -238,9 +268,15 @@ export type ChangeSubmission =
   | UnlockSpecialExitSubmission
   | DeleteSpecialExitSubmission
   | CreateRoomSubmission
+  | DeleteRoomSubmission
   | SetRoomCoordinatesSubmission
   | CreateAreaSubmission
+  | RenameAreaSubmission
+  | DeleteAreaSubmission
   | SetRoomAreaSubmission
+  | SetRoomWeightSubmission
+  | SetRoomSymbolSubmission
+  | SetRoomHashSubmission
   | DeleteExitSubmission
   | ModifyExitWeightSubmission
   | ModifySpecialExitWeightSubmission
