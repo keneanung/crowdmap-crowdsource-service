@@ -440,6 +440,7 @@ main {
   z-index: 3;
 }
 .map-comparison.blinking .map-pane-candidate { transition: opacity 100ms linear; }
+.map-comparison.wipe.blinking .map-pane-candidate { clip-path: none; }
 .map-pane.blink-hidden { opacity: 0; }
 .property-panel {
   border-top: 1px solid var(--border);
@@ -458,6 +459,7 @@ main {
 .property-presence { border-left: 2px solid var(--accent); padding-left: 9px; }
 .property-presence.removal { border-left-color: var(--danger); }
 .room-diff-details { display: grid; gap: 5px; margin-top: 12px; max-height: 300px; overflow-y: auto; padding-right: 4px; }
+.room-diff-details[hidden] { display: none; }
 .property-diff-row { align-items: baseline; background: #0a1727; border: 1px solid #203650; border-radius: 7px; color: var(--text); cursor: pointer; display: grid; font-size: 12px; gap: 12px; grid-template-columns: minmax(120px, .8fr) minmax(0, 1.4fr); padding: 8px 10px; text-align: left; }
 .property-diff-row:hover { border-color: var(--focus); }
 .property-diff-row span:first-child { color: var(--warning); font-weight: 700; }
