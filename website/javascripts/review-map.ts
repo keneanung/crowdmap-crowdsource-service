@@ -22,6 +22,7 @@ let currentChanges: ReviewChange[] = [];
 let differenceMode = false;
 let syncing = false;
 let blinkTimer: number | undefined;
+let wipeMode = false;
 
 function room(snapshot: Snapshot | undefined, roomId: number) {
   if (!snapshot || snapshot.loaded.kind !== "plain") return undefined;
@@ -67,6 +68,12 @@ function rendererFor(snapshot: Snapshot, element: HTMLDivElement) {
   settings.highlight.fillAlpha = 0.18;
   settings.highlight.strokeWidth = 0.11;
   return new MapRenderer(snapshot.reader, settings, element);
+}
+
+function resizeRenderer(renderer: MapRenderer | undefined, element: HTMLDivElement) {
+  if (!renderer) return;
+  renderer.camera.setSize(element.clientWidth, element.clientHeight);
+  renderer.refresh();
 }
 
 function draw(renderer: MapRenderer | undefined, snapshot: Snapshot | undefined, roomId?: number) {
@@ -180,14 +187,22 @@ export function setWipe(value: number) {
 }
 
 export function setWipeMode(enabled: boolean) {
+  wipeMode = enabled;
+  if (!enabled && blinkTimer) {
+    window.clearInterval(blinkTimer);
+    blinkTimer = undefined;
+    comparisonElement.classList.remove("blinking");
+    candidateElement.parentElement?.classList.remove("blink-hidden");
+  }
   comparisonElement.classList.toggle("wipe", enabled);
-  window.setTimeout(() => {
-    baselineRenderer?.refresh();
-    candidateRenderer?.refresh();
+  window.requestAnimationFrame(() => {
+    resizeRenderer(baselineRenderer, baselineElement);
+    resizeRenderer(candidateRenderer, candidateElement);
   });
 }
 
 export function toggleBlink() {
+  if (!wipeMode) return false;
   if (blinkTimer) {
     window.clearInterval(blinkTimer);
     blinkTimer = undefined;

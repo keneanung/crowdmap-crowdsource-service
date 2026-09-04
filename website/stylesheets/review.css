@@ -388,6 +388,7 @@ main {
 }
 .difference-toggle input { accent-color: var(--accent); }
 .wipe-range input { accent-color: var(--accent); width: 92px; }
+.wipe-range input:disabled { cursor: not-allowed; opacity: .45; }
 .map-comparison {
   --wipe-position: 50%;
   background: #07111f;
@@ -427,14 +428,16 @@ main {
   clip-path: inset(0 calc(100% - var(--wipe-position)) 0 0);
 }
 .map-comparison.wipe .map-pane-baseline { border-right: 0; }
-.map-comparison.wipe .map-pane-candidate::after {
+.map-comparison.wipe::after {
   background: var(--accent);
   bottom: 0;
   content: "";
+  left: var(--wipe-position);
   position: absolute;
-  right: 0;
   top: 0;
+  transform: translateX(-1px);
   width: 2px;
+  z-index: 3;
 }
 .map-comparison.blinking .map-pane-candidate { transition: opacity 100ms linear; }
 .map-pane.blink-hidden { opacity: 0; }
@@ -462,6 +465,8 @@ main {
 .property-details-list { background: #0a1727; border: 1px solid #203650; border-radius: 7px; padding: 8px; }
 .property-details-list summary { color: var(--muted); cursor: pointer; font-size: 12px; margin-bottom: 7px; }
 .property-details-list .property-diff-row { margin-top: 5px; }
+.full-property-list { display: grid; gap: 5px; }
+.full-property-list h3 { color: var(--muted); font-size: 12px; letter-spacing: .08em; margin: 0 0 3px; text-transform: uppercase; }
 .unchanged-note { color: var(--muted); font-size: 12px; margin: 4px 0; }
 
 .review-guide {

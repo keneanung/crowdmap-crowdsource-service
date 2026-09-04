@@ -313,16 +313,41 @@ import * as model from "./review-model.js";
         : "No changed room properties are visible at this target.";
       elements.roomDiffSummary.appendChild(noDirectDiff);
     }
-    changed.forEach(function (field) {
-      addPropertyRow(elements.roomDiffDetails, field.label, field.before, field.after, roomNumber);
+    var fullProperties = document.createElement("section");
+    fullProperties.className = "full-property-list";
+    var fullPropertiesTitle = document.createElement("h3");
+    fullPropertiesTitle.textContent = "All room properties";
+    fullProperties.appendChild(fullPropertiesTitle);
+    [
+      ["name", "Name"],
+      ["env", "Environment"],
+      ["area", "Area"],
+      ["x", "X coordinate"],
+      ["y", "Y coordinate"],
+      ["z", "Level"],
+      ["weight", "Weight"],
+      ["roomChar", "Symbol"],
+      ["hash", "Hash"],
+    ].forEach(function (field) {
+      addPropertyRow(fullProperties, field[1], before[field[0]], after[field[0]], roomNumber);
     });
-    if (userDataChanges.length) {
+    elements.roomDiffDetails.appendChild(fullProperties);
+    var exitDetails = document.createElement("details");
+    exitDetails.className = "property-details-list";
+    var exitSummary = document.createElement("summary");
+    exitSummary.textContent = exits.size + " exit" + (exits.size === 1 ? "" : "s");
+    exitDetails.appendChild(exitSummary);
+    Array.from(exits).sort().forEach(function (direction) {
+      addPropertyRow(exitDetails, direction + " exit", (before.exits || {})[direction], (after.exits || {})[direction], roomNumber);
+    });
+    elements.roomDiffDetails.appendChild(exitDetails);
+    if (userDataKeys.size) {
       var data = document.createElement("details");
       data.className = "property-details-list";
       var summary = document.createElement("summary");
-      summary.textContent = userDataChanges.length + " changed user-data value" + (userDataChanges.length === 1 ? "" : "s");
+      summary.textContent = userDataKeys.size + " user-data value" + (userDataKeys.size === 1 ? "" : "s");
       data.appendChild(summary);
-      userDataChanges.forEach(function (key) {
+      Array.from(userDataKeys).sort().forEach(function (key) {
         addPropertyRow(data, "User data · " + key, (before.userData || {})[key], (after.userData || {})[key], roomNumber);
       });
       elements.roomDiffDetails.appendChild(data);
@@ -486,11 +511,16 @@ import * as model from "./review-model.js";
   elements.comparisonSideBySide.addEventListener("click", function () {
     elements.comparisonSideBySide.classList.add("active");
     elements.comparisonWipe.classList.remove("active");
+    elements.blink.disabled = true;
+    elements.blink.textContent = "Blink candidate";
+    elements.wipePosition.disabled = true;
     window.CrowdmapReviewMap.setWipeMode(false);
   });
   elements.comparisonWipe.addEventListener("click", function () {
     elements.comparisonWipe.classList.add("active");
     elements.comparisonSideBySide.classList.remove("active");
+    elements.blink.disabled = false;
+    elements.wipePosition.disabled = false;
     window.CrowdmapReviewMap.setWipeMode(true);
   });
   elements.wipePosition.addEventListener("input", function () {
@@ -511,6 +541,8 @@ import * as model from "./review-model.js";
     renderRoomDiff(event.detail.roomId);
   });
   elements.apply.addEventListener("click", applyUpdate);
+  elements.blink.disabled = true;
+  elements.wipePosition.disabled = true;
   loadChanges().then(function () {
     window.CrowdmapReviewMap.show([], [], undefined);
   });

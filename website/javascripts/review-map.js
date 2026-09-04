@@ -21778,6 +21778,7 @@ js: import "konva/skia-backend";
   var differenceMode = false;
   var syncing = false;
   var blinkTimer;
+  var wipeMode = false;
   function room(snapshot, roomId) {
     if (!snapshot || snapshot.loaded.kind !== "plain") return void 0;
     return snapshot.loaded.map.flatMap((area) => area.rooms).find((item) => item.id === roomId);
@@ -21817,6 +21818,11 @@ js: import "konva/skia-backend";
     settings.highlight.fillAlpha = 0.18;
     settings.highlight.strokeWidth = 0.11;
     return new li(snapshot.reader, settings, element);
+  }
+  function resizeRenderer(renderer, element) {
+    if (!renderer) return;
+    renderer.camera.setSize(element.clientWidth, element.clientHeight);
+    renderer.refresh();
   }
   function draw(renderer, snapshot, roomId) {
     if (!renderer || !snapshot) return;
@@ -21920,13 +21926,21 @@ js: import "konva/skia-backend";
     comparisonElement.style.setProperty("--wipe-position", String(value) + "%");
   }
   function setWipeMode(enabled) {
+    wipeMode = enabled;
+    if (!enabled && blinkTimer) {
+      window.clearInterval(blinkTimer);
+      blinkTimer = void 0;
+      comparisonElement.classList.remove("blinking");
+      candidateElement.parentElement?.classList.remove("blink-hidden");
+    }
     comparisonElement.classList.toggle("wipe", enabled);
-    window.setTimeout(() => {
-      baselineRenderer?.refresh();
-      candidateRenderer?.refresh();
+    window.requestAnimationFrame(() => {
+      resizeRenderer(baselineRenderer, baselineElement);
+      resizeRenderer(candidateRenderer, candidateElement);
     });
   }
   function toggleBlink() {
+    if (!wipeMode) return false;
     if (blinkTimer) {
       window.clearInterval(blinkTimer);
       blinkTimer = void 0;
