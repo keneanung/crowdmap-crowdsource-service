@@ -8,6 +8,11 @@ This service simplifies the process by using a base map and a stream of small at
 The change events are small enough to be recognizable by the service and group changes that are the same together. This
 allows for a vetting mechanism: users choose how often a change has been "seen" to include it in their downloaded maps.
 
+Mapping clients submit atomic changes to `POST /change`. They can source the
+vetted binary map from `GET /map?format=binary&timesSeen=N` and its version from
+`GET /map/version?timesSeen=N`. The API covers room and area creation, deletion,
+and metadata updates as well as normal and special-exit mutations.
+
 ## Hosting the service
 
 The service needs to be hosted separately for each different map. To make this easier, it is distributed in form of a

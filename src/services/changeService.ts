@@ -38,37 +38,44 @@ export class MongoChangeService implements ChangeService {
     await this.mongo.connect();
     const db = this.mongo.db(config.dbName);
     const collection = db.collection<ChangeDb>("changes");
-    this.indexesReady ??= collection.createIndexes([
-      {
-        key: { changeId: 1 },
-        unique: true,
-        name: "unique_change_id",
-      },
-      {
-        key: {
-          type: 1,
-          roomNumber: 1,
-          name: 1,
-          areaId: 1,
-          direction: 1,
-          destination: 1,
-          exitCommand: 1,
-          x: 1,
-          y: 1,
-          z: 1,
-          weight: 1,
-          environmentId: 1,
-          key: 1,
-          value: 1,
+    this.indexesReady ??= (async () => {
+      if (await collection.indexExists("unique_logical_change")) {
+        await collection.dropIndex("unique_logical_change");
+      }
+      return await collection.createIndexes([
+        {
+          key: { changeId: 1 },
+          unique: true,
+          name: "unique_change_id",
         },
-        unique: true,
-        name: "unique_logical_change",
-      },
-      {
-        key: { numberOfReporters: 1, changeId: 1 },
-        name: "vetted_changes",
-      },
-    ]);
+        {
+          key: {
+            type: 1,
+            roomNumber: 1,
+            name: 1,
+            areaId: 1,
+            direction: 1,
+            destination: 1,
+            exitCommand: 1,
+            x: 1,
+            y: 1,
+            z: 1,
+            weight: 1,
+            environmentId: 1,
+            key: 1,
+            value: 1,
+            symbol: 1,
+            hash: 1,
+          },
+          unique: true,
+          name: "unique_logical_change_v2",
+        },
+        {
+          key: { numberOfReporters: 1, changeId: 1 },
+          name: "vetted_changes",
+        },
+      ]);
+    })();
     await this.indexesReady;
     return collection;
   }

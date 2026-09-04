@@ -8,10 +8,17 @@ test("change reporters are merged with one atomic upsert", async () => {
     (filter: unknown, update: unknown, options: unknown) => Promise<void>
   >(async () => Promise.resolve());
   const createIndexes = jest.fn(async () => Promise.resolve([]));
+  const indexExists = jest.fn(async () => Promise.resolve(false));
+  const dropIndex = jest.fn(async () => Promise.resolve());
   const mongo = {
     connect: jest.fn(async () => Promise.resolve()),
     db: jest.fn(() => ({
-      collection: jest.fn(() => ({ createIndexes, updateOne })),
+      collection: jest.fn(() => ({
+        createIndexes,
+        indexExists,
+        dropIndex,
+        updateOne,
+      })),
     })),
   } as unknown as MongoClient;
   const service = new MongoChangeService(mongo);

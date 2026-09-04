@@ -58,6 +58,36 @@ export interface CreateRoomResponse extends RoomChangeBaseResponse {
   type: "create-room";
 }
 
+export interface DeleteRoomResponse extends RoomChangeBaseResponse {
+  type: "delete-room";
+}
+
+export interface RenameAreaResponse extends ChangeBaseResponse {
+  type: "rename-area";
+  areaId: number;
+  name: string;
+}
+
+export interface DeleteAreaResponse extends ChangeBaseResponse {
+  type: "delete-area";
+  areaId: number;
+}
+
+export interface SetRoomWeightResponse extends RoomChangeBaseResponse {
+  type: "set-room-weight";
+  weight: number;
+}
+
+export interface SetRoomSymbolResponse extends RoomChangeBaseResponse {
+  type: "set-room-symbol";
+  symbol: string;
+}
+
+export interface SetRoomHashResponse extends RoomChangeBaseResponse {
+  type: "set-room-hash";
+  hash: string;
+}
+
 export interface SetRoomCoordinatesResponse extends RoomChangeBaseResponse {
   type: "set-room-coordinates";
   x: number;
@@ -116,9 +146,15 @@ export type ChangeResponse =
   | UnlockSpecialExitResponse
   | DeleteSpecialExitResponse
   | CreateRoomResponse
+  | DeleteRoomResponse
   | SetRoomCoordinatesResponse
   | CreateAreaResponse
+  | RenameAreaResponse
+  | DeleteAreaResponse
   | SetRoomAreaResponse
+  | SetRoomWeightResponse
+  | SetRoomSymbolResponse
+  | SetRoomHashResponse
   | DeleteExitResponse
   | ModifyExitWeightResponse
   | ModifySpecialExitWeightResponse

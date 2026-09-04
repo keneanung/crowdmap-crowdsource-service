@@ -33,7 +33,9 @@ import {
   ChangeRoomName,
   CreateArea,
   CreateRoom,
+  DeleteArea,
   DeleteExit,
+  DeleteRoom,
   DeleteRoomUserData,
   DeleteSpecialExit,
   LockSpecialExit,
@@ -42,9 +44,13 @@ import {
   ModifyRoomUserData,
   ModifySpecialExit,
   ModifySpecialExitWeight,
+  RenameArea,
   SetRoomArea,
   SetRoomCoordinates,
   SetRoomEnvironment,
+  SetRoomHash,
+  SetRoomSymbol,
+  SetRoomWeight,
   UnlockSpecialExit,
 } from "../models/business/change.js";
 import type { User } from "../models/business/user.js";
@@ -99,189 +105,248 @@ export class ChangeController extends Controller {
     );
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
-    const responses = snapshot.changes.map<ChangeResponse>((change) => {
+    return snapshot.changes.map((change) => {
       if (!change.changeId) {
         throw new Error("Change does not have a changeId");
       }
-      switch (change.type) {
-        case "room-name": {
-          const typedChange = change as ChangeRoomName;
-          return {
-            type: "room-name",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            name: typedChange.name,
-            changeId: typedChange.changeId,
-          };
+      const response: ChangeResponse = (() => {
+        switch (change.type) {
+          case "room-name": {
+            const typedChange = change as ChangeRoomName;
+            return {
+              type: "room-name",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              name: typedChange.name,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "modify-exit": {
+            const typedChange = change as ModifyRoomExit;
+            return {
+              type: "modify-exit",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              direction: typedChange.direction,
+              destination: typedChange.destination,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "modify-special-exit": {
+            const typedChange = change as ModifySpecialExit;
+            return {
+              type: "modify-special-exit",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              exitCommand: typedChange.exitCommand,
+              destination: typedChange.destination,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "lock-special-exit": {
+            const typedChange = change as LockSpecialExit;
+            return {
+              type: "lock-special-exit",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              exitCommand: typedChange.exitCommand,
+              destination: typedChange.destination,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "unlock-special-exit": {
+            const typedChange = change as UnlockSpecialExit;
+            return {
+              type: "unlock-special-exit",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              exitCommand: typedChange.exitCommand,
+              destination: typedChange.destination,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "delete-special-exit": {
+            const typedChange = change as DeleteSpecialExit;
+            return {
+              type: "delete-special-exit",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              exitCommand: typedChange.exitCommand,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "create-room": {
+            const typedChange = change as CreateRoom;
+            return {
+              type: "create-room",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "delete-room": {
+            const typedChange = change as DeleteRoom;
+            return {
+              type: "delete-room",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "set-room-coordinates": {
+            const typedChange = change as SetRoomCoordinates;
+            return {
+              type: "set-room-coordinates",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              x: typedChange.x,
+              y: typedChange.y,
+              z: typedChange.z,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "create-area": {
+            const typedChange = change as CreateArea;
+            return {
+              type: "create-area",
+              name: typedChange.name,
+              areaId: typedChange.areaId,
+              reporters: typedChange.reporters.size,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "rename-area": {
+            const typedChange = change as RenameArea;
+            return {
+              type: "rename-area",
+              areaId: typedChange.areaId,
+              name: typedChange.name,
+              reporters: typedChange.reporters.size,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "delete-area": {
+            const typedChange = change as DeleteArea;
+            return {
+              type: "delete-area",
+              areaId: typedChange.areaId,
+              reporters: typedChange.reporters.size,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "set-room-area": {
+            const typedChange = change as SetRoomArea;
+            return {
+              type: "set-room-area",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              areaId: typedChange.areaId,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "set-room-weight": {
+            const typedChange = change as SetRoomWeight;
+            return {
+              type: "set-room-weight",
+              roomNumber: typedChange.roomNumber,
+              weight: typedChange.weight,
+              reporters: typedChange.reporters.size,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "set-room-symbol": {
+            const typedChange = change as SetRoomSymbol;
+            return {
+              type: "set-room-symbol",
+              roomNumber: typedChange.roomNumber,
+              symbol: typedChange.symbol,
+              reporters: typedChange.reporters.size,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "set-room-hash": {
+            const typedChange = change as SetRoomHash;
+            return {
+              type: "set-room-hash",
+              roomNumber: typedChange.roomNumber,
+              hash: typedChange.hash,
+              reporters: typedChange.reporters.size,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "delete-exit": {
+            const typedChange = change as DeleteExit;
+            return {
+              type: "delete-exit",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              direction: typedChange.direction,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "modify-exit-weight": {
+            const typedChange = change as ModifyExitWeight;
+            return {
+              type: "modify-exit-weight",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              direction: typedChange.direction,
+              weight: typedChange.weight,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "modify-special-exit-weight": {
+            const typedChange = change as ModifySpecialExitWeight;
+            return {
+              type: "modify-special-exit-weight",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              exitCommand: typedChange.exitCommand,
+              weight: typedChange.weight,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "set-room-environment": {
+            const typedChange = change as SetRoomEnvironment;
+            return {
+              type: "set-room-environment",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              environmentId: typedChange.environmentId,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "modify-room-user-data": {
+            const typedChange = change as ModifyRoomUserData;
+            return {
+              type: "modify-room-user-data",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              key: typedChange.key,
+              value: typedChange.value,
+              changeId: typedChange.changeId,
+            };
+          }
+          case "delete-room-user-data": {
+            const typedChange = change as DeleteRoomUserData;
+            return {
+              type: "delete-room-user-data",
+              roomNumber: typedChange.roomNumber,
+              reporters: typedChange.reporters.size,
+              key: typedChange.key,
+              changeId: typedChange.changeId,
+            };
+          }
+          default: {
+            return assertUnreachable(change);
+          }
         }
-        case "modify-exit": {
-          const typedChange = change as ModifyRoomExit;
-          return {
-            type: "modify-exit",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            direction: typedChange.direction,
-            destination: typedChange.destination,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "modify-special-exit": {
-          const typedChange = change as ModifySpecialExit;
-          return {
-            type: "modify-special-exit",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            exitCommand: typedChange.exitCommand,
-            destination: typedChange.destination,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "lock-special-exit": {
-          const typedChange = change as LockSpecialExit;
-          return {
-            type: "lock-special-exit",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            exitCommand: typedChange.exitCommand,
-            destination: typedChange.destination,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "unlock-special-exit": {
-          const typedChange = change as UnlockSpecialExit;
-          return {
-            type: "unlock-special-exit",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            exitCommand: typedChange.exitCommand,
-            destination: typedChange.destination,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "delete-special-exit": {
-          const typedChange = change as DeleteSpecialExit;
-          return {
-            type: "delete-special-exit",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            exitCommand: typedChange.exitCommand,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "create-room": {
-          const typedChange = change as CreateRoom;
-          return {
-            type: "create-room",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "set-room-coordinates": {
-          const typedChange = change as SetRoomCoordinates;
-          return {
-            type: "set-room-coordinates",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            x: typedChange.x,
-            y: typedChange.y,
-            z: typedChange.z,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "create-area": {
-          const typedChange = change as CreateArea;
-          return {
-            type: "create-area",
-            name: typedChange.name,
-            areaId: typedChange.areaId,
-            reporters: typedChange.reporters.size,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "set-room-area": {
-          const typedChange = change as SetRoomArea;
-          return {
-            type: "set-room-area",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            areaId: typedChange.areaId,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "delete-exit": {
-          const typedChange = change as DeleteExit;
-          return {
-            type: "delete-exit",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            direction: typedChange.direction,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "modify-exit-weight": {
-          const typedChange = change as ModifyExitWeight;
-          return {
-            type: "modify-exit-weight",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            direction: typedChange.direction,
-            weight: typedChange.weight,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "modify-special-exit-weight": {
-          const typedChange = change as ModifySpecialExitWeight;
-          return {
-            type: "modify-special-exit-weight",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            exitCommand: typedChange.exitCommand,
-            weight: typedChange.weight,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "set-room-environment": {
-          const typedChange = change as SetRoomEnvironment;
-          return {
-            type: "set-room-environment",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            environmentId: typedChange.environmentId,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "modify-room-user-data": {
-          const typedChange = change as ModifyRoomUserData;
-          return {
-            type: "modify-room-user-data",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            key: typedChange.key,
-            value: typedChange.value,
-            changeId: typedChange.changeId,
-          };
-        }
-        case "delete-room-user-data": {
-          const typedChange = change as DeleteRoomUserData;
-          return {
-            type: "delete-room-user-data",
-            roomNumber: typedChange.roomNumber,
-            reporters: typedChange.reporters.size,
-            key: typedChange.key,
-            changeId: typedChange.changeId,
-          };
-        }
-        default: {
-          return assertUnreachable(change);
-        }
+      })();
+      if (change.upstreamConflict) {
+        response.upstreamConflict = change.upstreamConflict;
       }
+      return response;
     });
-    responses.forEach((response, index) => {
-      const upstreamConflict = snapshot.changes[index].upstreamConflict;
-      if (upstreamConflict) response.upstreamConflict = upstreamConflict;
-    });
-    return responses;
   }
 
   /**
@@ -344,6 +409,9 @@ export class ChangeController extends Controller {
         case "create-room": {
           return new CreateRoom(change.roomNumber, [change.reporter]);
         }
+        case "delete-room": {
+          return new DeleteRoom(change.roomNumber, [change.reporter]);
+        }
         case "set-room-coordinates": {
           return new SetRoomCoordinates(
             change.roomNumber,
@@ -356,11 +424,38 @@ export class ChangeController extends Controller {
         case "create-area": {
           return new CreateArea(change.name, change.areaId, [change.reporter]);
         }
+        case "rename-area": {
+          return new RenameArea(change.areaId, change.name, [change.reporter]);
+        }
+        case "delete-area": {
+          return new DeleteArea(change.areaId, [change.reporter]);
+        }
         case "set-room-area": {
           return new SetRoomArea(
             change.roomNumber,
             [change.reporter],
             change.areaId,
+          );
+        }
+        case "set-room-weight": {
+          return new SetRoomWeight(
+            change.roomNumber,
+            [change.reporter],
+            change.weight,
+          );
+        }
+        case "set-room-symbol": {
+          return new SetRoomSymbol(
+            change.roomNumber,
+            [change.reporter],
+            change.symbol,
+          );
+        }
+        case "set-room-hash": {
+          return new SetRoomHash(
+            change.roomNumber,
+            [change.reporter],
+            change.hash,
           );
         }
         case "delete-exit": {

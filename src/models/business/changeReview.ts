@@ -2,8 +2,9 @@ import {
   Change,
   ChangeRoomName,
   CreateArea,
-  CreateRoom,
+  DeleteArea,
   DeleteExit,
+  DeleteRoom,
   DeleteRoomUserData,
   DeleteSpecialExit,
   LockSpecialExit,
@@ -12,9 +13,13 @@ import {
   ModifyRoomUserData,
   ModifySpecialExit,
   ModifySpecialExitWeight,
+  RenameArea,
   SetRoomArea,
   SetRoomCoordinates,
   SetRoomEnvironment,
+  SetRoomHash,
+  SetRoomSymbol,
+  SetRoomWeight,
   UnlockSpecialExit,
 } from "./change.js";
 
@@ -38,7 +43,8 @@ export const changeTargetState = (
 ): unknown => {
   switch (change.type) {
     case "create-room":
-      return Boolean(room(map, (change as CreateRoom).roomNumber));
+    case "delete-room":
+      return Boolean(room(map, (change as DeleteRoom).roomNumber));
     case "create-area": {
       const typed = change as CreateArea;
       return {
@@ -46,6 +52,10 @@ export const changeTargetState = (
         name: lookup(map.areaNames, typed.areaId) ?? null,
       };
     }
+    case "rename-area":
+      return lookup(map.areaNames, (change as RenameArea).areaId) ?? null;
+    case "delete-area":
+      return Boolean(lookup(map.areas, (change as DeleteArea).areaId));
     case "room-name": {
       const typed = change as ChangeRoomName;
       return room(map, typed.roomNumber)?.name ?? null;
@@ -62,6 +72,18 @@ export const changeTargetState = (
     case "set-room-environment": {
       const typed = change as SetRoomEnvironment;
       return room(map, typed.roomNumber)?.environment ?? null;
+    }
+    case "set-room-weight": {
+      const typed = change as SetRoomWeight;
+      return room(map, typed.roomNumber)?.weight ?? null;
+    }
+    case "set-room-symbol": {
+      const typed = change as SetRoomSymbol;
+      return room(map, typed.roomNumber)?.symbol ?? null;
+    }
+    case "set-room-hash": {
+      const typed = change as SetRoomHash;
+      return lookup(map.mpRoomDbHashToRoomId, typed.hash) ?? null;
     }
     case "modify-exit":
     case "delete-exit": {
@@ -119,10 +141,15 @@ export const desiredChangeState = (change: Change): unknown => {
   switch (change.type) {
     case "create-room":
       return true;
+    case "delete-room":
+    case "delete-area":
+      return false;
     case "create-area": {
       const typed = change as CreateArea;
       return { exists: true, name: typed.name };
     }
+    case "rename-area":
+      return (change as RenameArea).name;
     case "room-name":
       return (change as ChangeRoomName).name;
     case "set-room-coordinates": {
@@ -133,6 +160,12 @@ export const desiredChangeState = (change: Change): unknown => {
       return (change as SetRoomArea).areaId;
     case "set-room-environment":
       return (change as SetRoomEnvironment).environmentId;
+    case "set-room-weight":
+      return (change as SetRoomWeight).weight;
+    case "set-room-symbol":
+      return (change as SetRoomSymbol).symbol;
+    case "set-room-hash":
+      return (change as SetRoomHash).roomNumber;
     case "modify-exit":
       return (change as ModifyRoomExit).destination;
     case "delete-exit":

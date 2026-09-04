@@ -5,7 +5,9 @@ import {
   ChangeType,
   CreateArea as CreateAreaBusiness,
   CreateRoom as CreateRoomBusiness,
+  DeleteArea as DeleteAreaBusiness,
   DeleteExit as DeleteExitBusiness,
+  DeleteRoom as DeleteRoomBusiness,
   DeleteRoomUserData as DeleteRoomUserDataBusiness,
   DeleteSpecialExit as DeleteSpecialExitBusiness,
   Direction,
@@ -15,9 +17,13 @@ import {
   ModifyRoomUserData as ModifyRoomUserDataBusiness,
   ModifySpecialExit as ModifySpecialExitBusiness,
   ModifySpecialExitWeight as ModifySpecialExitWeightBusiness,
+  RenameArea as RenameAreaBusiness,
   SetRoomArea as SetRoomAreaBusiness,
   SetRoomCoordinates as SetRoomCoordinatesBusiness,
   SetRoomEnvironment as SetRoomEnvironmentBusiness,
+  SetRoomHash as SetRoomHashBusiness,
+  SetRoomSymbol as SetRoomSymbolBusiness,
+  SetRoomWeight as SetRoomWeightBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
 } from "../business/change.js";
 import type { UpstreamConflict } from "../business/change.js";
@@ -71,6 +77,36 @@ export interface DeleteSpecialExit extends RoomChangeBase {
 
 export interface CreateRoom extends RoomChangeBase {
   type: "create-room";
+}
+
+export interface DeleteRoom extends RoomChangeBase {
+  type: "delete-room";
+}
+
+export interface RenameArea extends ChangeBase {
+  type: "rename-area";
+  areaId: number;
+  name: string;
+}
+
+export interface DeleteArea extends ChangeBase {
+  type: "delete-area";
+  areaId: number;
+}
+
+export interface SetRoomWeight extends RoomChangeBase {
+  type: "set-room-weight";
+  weight: number;
+}
+
+export interface SetRoomSymbol extends RoomChangeBase {
+  type: "set-room-symbol";
+  symbol: string;
+}
+
+export interface SetRoomHash extends RoomChangeBase {
+  type: "set-room-hash";
+  hash: string;
 }
 
 export interface SetRoomCoordinates extends RoomChangeBase {
@@ -132,9 +168,15 @@ export type Change =
   | UnlockSpecialExit
   | DeleteSpecialExit
   | CreateRoom
+  | DeleteRoom
   | SetRoomCoordinates
   | CreateArea
+  | RenameArea
+  | DeleteArea
   | SetRoomArea
+  | SetRoomWeight
+  | SetRoomSymbol
+  | SetRoomHash
   | DeleteExit
   | ModifyExitWeight
   | ModifySpecialExitWeight
@@ -314,6 +356,19 @@ export const createRoomBusinessToDb = (
   };
 };
 
+export const deleteRoomDbToBusiness = (change: DeleteRoom): ChangeBusiness =>
+  new DeleteRoomBusiness(change.roomNumber, change.reporters, change.changeId);
+
+export const deleteRoomBusinessToDb = (
+  change: DeleteRoomBusiness,
+): DeleteRoom => ({
+  type: "delete-room",
+  roomNumber: change.roomNumber,
+  reporters: Array.from(change.reporters),
+  numberOfReporters: change.reporters.size,
+  changeId: change.changeId,
+});
+
 export const setRoomCoordinatesDbToBusiness = (
   change: SetRoomCoordinates,
 ): ChangeBusiness => {
@@ -363,6 +418,99 @@ export const createAreaBusinessToDb = (
     changeId: change.changeId,
   };
 };
+
+export const renameAreaDbToBusiness = (change: RenameArea): ChangeBusiness =>
+  new RenameAreaBusiness(
+    change.areaId,
+    change.name,
+    change.reporters,
+    change.changeId,
+  );
+
+export const renameAreaBusinessToDb = (
+  change: RenameAreaBusiness,
+): RenameArea => ({
+  type: "rename-area",
+  areaId: change.areaId,
+  name: change.name,
+  reporters: Array.from(change.reporters),
+  numberOfReporters: change.reporters.size,
+  changeId: change.changeId,
+});
+
+export const deleteAreaDbToBusiness = (change: DeleteArea): ChangeBusiness =>
+  new DeleteAreaBusiness(change.areaId, change.reporters, change.changeId);
+
+export const deleteAreaBusinessToDb = (
+  change: DeleteAreaBusiness,
+): DeleteArea => ({
+  type: "delete-area",
+  areaId: change.areaId,
+  reporters: Array.from(change.reporters),
+  numberOfReporters: change.reporters.size,
+  changeId: change.changeId,
+});
+
+export const setRoomWeightDbToBusiness = (
+  change: SetRoomWeight,
+): ChangeBusiness =>
+  new SetRoomWeightBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.weight,
+    change.changeId,
+  );
+
+export const setRoomWeightBusinessToDb = (
+  change: SetRoomWeightBusiness,
+): SetRoomWeight => ({
+  type: "set-room-weight",
+  roomNumber: change.roomNumber,
+  weight: change.weight,
+  reporters: Array.from(change.reporters),
+  numberOfReporters: change.reporters.size,
+  changeId: change.changeId,
+});
+
+export const setRoomSymbolDbToBusiness = (
+  change: SetRoomSymbol,
+): ChangeBusiness =>
+  new SetRoomSymbolBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.symbol,
+    change.changeId,
+  );
+
+export const setRoomSymbolBusinessToDb = (
+  change: SetRoomSymbolBusiness,
+): SetRoomSymbol => ({
+  type: "set-room-symbol",
+  roomNumber: change.roomNumber,
+  symbol: change.symbol,
+  reporters: Array.from(change.reporters),
+  numberOfReporters: change.reporters.size,
+  changeId: change.changeId,
+});
+
+export const setRoomHashDbToBusiness = (change: SetRoomHash): ChangeBusiness =>
+  new SetRoomHashBusiness(
+    change.roomNumber,
+    change.reporters,
+    change.hash,
+    change.changeId,
+  );
+
+export const setRoomHashBusinessToDb = (
+  change: SetRoomHashBusiness,
+): SetRoomHash => ({
+  type: "set-room-hash",
+  roomNumber: change.roomNumber,
+  hash: change.hash,
+  reporters: Array.from(change.reporters),
+  numberOfReporters: change.reporters.size,
+  changeId: change.changeId,
+});
 
 export const setRoomAreaDbToBusiness = (
   change: SetRoomArea,
@@ -559,6 +707,9 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     case "create-room": {
       return createRoomBusinessToDb(change as CreateRoomBusiness);
     }
+    case "delete-room": {
+      return deleteRoomBusinessToDb(change as DeleteRoomBusiness);
+    }
     case "set-room-coordinates": {
       return setRoomCoordinatesBusinessToDb(
         change as SetRoomCoordinatesBusiness,
@@ -567,8 +718,23 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
     case "create-area": {
       return createAreaBusinessToDb(change as CreateAreaBusiness);
     }
+    case "rename-area": {
+      return renameAreaBusinessToDb(change as RenameAreaBusiness);
+    }
+    case "delete-area": {
+      return deleteAreaBusinessToDb(change as DeleteAreaBusiness);
+    }
     case "set-room-area": {
       return setRoomAreaBusinessToDb(change as SetRoomAreaBusiness);
+    }
+    case "set-room-weight": {
+      return setRoomWeightBusinessToDb(change as SetRoomWeightBusiness);
+    }
+    case "set-room-symbol": {
+      return setRoomSymbolBusinessToDb(change as SetRoomSymbolBusiness);
+    }
+    case "set-room-hash": {
+      return setRoomHashBusinessToDb(change as SetRoomHashBusiness);
     }
     case "delete-exit": {
       return deleteExitBusinessToDb(change as DeleteExitBusiness);
@@ -603,55 +769,96 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   }
 };
 
-const changeDbToBusinessWithoutMetadata = (change: Change): ChangeBusiness => {
+export const changeDbToBusiness = (change: Change): ChangeBusiness => {
+  let businessChange: ChangeBusiness;
   switch (change.type) {
     case "room-name": {
-      return roomNameDbToBusiness(change);
+      businessChange = roomNameDbToBusiness(change);
+      break;
     }
     case "modify-exit": {
-      return modifyExitDbToBusiness(change);
+      businessChange = modifyExitDbToBusiness(change);
+      break;
     }
     case "modify-special-exit": {
-      return modifySpecialExitDbToBusiness(change);
+      businessChange = modifySpecialExitDbToBusiness(change);
+      break;
     }
     case "lock-special-exit": {
-      return lockSpecialExitDbToBusiness(change);
+      businessChange = lockSpecialExitDbToBusiness(change);
+      break;
     }
     case "unlock-special-exit": {
-      return unlockSpecialExitDbToBusiness(change);
+      businessChange = unlockSpecialExitDbToBusiness(change);
+      break;
     }
     case "delete-special-exit": {
-      return deleteSpecialExitDbToBusiness(change);
+      businessChange = deleteSpecialExitDbToBusiness(change);
+      break;
     }
     case "create-room": {
-      return crreateRoomDbToBusiness(change);
+      businessChange = crreateRoomDbToBusiness(change);
+      break;
+    }
+    case "delete-room": {
+      businessChange = deleteRoomDbToBusiness(change);
+      break;
     }
     case "set-room-coordinates": {
-      return setRoomCoordinatesDbToBusiness(change);
+      businessChange = setRoomCoordinatesDbToBusiness(change);
+      break;
     }
     case "create-area": {
-      return createAreaDbToBusiness(change);
+      businessChange = createAreaDbToBusiness(change);
+      break;
+    }
+    case "rename-area": {
+      businessChange = renameAreaDbToBusiness(change);
+      break;
+    }
+    case "delete-area": {
+      businessChange = deleteAreaDbToBusiness(change);
+      break;
     }
     case "set-room-area": {
-      return setRoomAreaDbToBusiness(change);
+      businessChange = setRoomAreaDbToBusiness(change);
+      break;
+    }
+    case "set-room-weight": {
+      businessChange = setRoomWeightDbToBusiness(change);
+      break;
+    }
+    case "set-room-symbol": {
+      businessChange = setRoomSymbolDbToBusiness(change);
+      break;
+    }
+    case "set-room-hash": {
+      businessChange = setRoomHashDbToBusiness(change);
+      break;
     }
     case "delete-exit": {
-      return deleteExitDbToBusiness(change);
+      businessChange = deleteExitDbToBusiness(change);
+      break;
     }
     case "modify-exit-weight": {
-      return modifyExitWeightDbToBusiness(change);
+      businessChange = modifyExitWeightDbToBusiness(change);
+      break;
     }
     case "modify-special-exit-weight": {
-      return modifySpecialExitWeightDbToBusiness(change);
+      businessChange = modifySpecialExitWeightDbToBusiness(change);
+      break;
     }
     case "set-room-environment": {
-      return setRoomEnvironmentDbToBusiness(change);
+      businessChange = setRoomEnvironmentDbToBusiness(change);
+      break;
     }
     case "modify-room-user-data": {
-      return modifyRoomUserDataDbToBusiness(change);
+      businessChange = modifyRoomUserDataDbToBusiness(change);
+      break;
     }
     case "delete-room-user-data": {
-      return deleteRoomUserDataDbToBusiness(change);
+      businessChange = deleteRoomUserDataDbToBusiness(change);
+      break;
     }
     default: {
       // @ts-expect-error There should be no way to get here
@@ -659,10 +866,6 @@ const changeDbToBusinessWithoutMetadata = (change: Change): ChangeBusiness => {
       throw new Error(`Unknown change type: ${change.type}`);
     }
   }
-};
-
-export const changeDbToBusiness = (change: Change): ChangeBusiness => {
-  const businessChange = changeDbToBusinessWithoutMetadata(change);
   businessChange.upstreamConflict = change.upstreamConflict;
   return businessChange;
 };
