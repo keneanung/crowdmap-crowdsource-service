@@ -19,7 +19,7 @@
   "license": "MIT",
   "private": "true",
   "dependencies": {
-    "@inversifyjs/binding-decorators": "^1.1.5",
+    "@inversifyjs/binding-decorators": "^3.0.0",
     "@tsoa/runtime": "^6.6.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
