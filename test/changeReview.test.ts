@@ -80,4 +80,20 @@ describe("baseline change reconciliation", () => {
       ),
     ).toEqual({ changeId: "exit-change", status: "resolved" });
   });
+
+  test("flags a deleted room even when the reported exit was already absent", () => {
+    const exitChange = new ModifyRoomExit(
+      10,
+      ["reporter"],
+      "north",
+      12,
+      "exit-change",
+    );
+    const mapWithoutRoom = mapWithRoom("Same");
+    mapWithoutRoom.rooms = {};
+
+    expect(
+      reconcileChange(exitChange, mapWithRoom("Same"), mapWithoutRoom).status,
+    ).toBe("upstream-conflict");
+  });
 });

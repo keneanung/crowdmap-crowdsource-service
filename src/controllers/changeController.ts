@@ -277,10 +277,6 @@ export class ChangeController extends Controller {
         }
       }
     });
-    responses.forEach((response, index) => {
-      const upstreamConflict = snapshot.changes[index].upstreamConflict;
-      if (upstreamConflict) response.upstreamConflict = upstreamConflict;
-    });
     return responses;
   }
 

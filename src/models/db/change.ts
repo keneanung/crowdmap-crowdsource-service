@@ -20,7 +20,6 @@ import {
   SetRoomEnvironment as SetRoomEnvironmentBusiness,
   UnlockSpecialExit as UnlockSpecialExitBusiness,
 } from "../business/change.js";
-import type { UpstreamConflict } from "../business/change.js";
 
 export interface ChangeBase {
   _id?: ObjectId;
@@ -28,7 +27,6 @@ export interface ChangeBase {
   reporters: string[];
   numberOfReporters: number;
   changeId: string;
-  upstreamConflict?: UpstreamConflict;
 }
 
 export interface RoomChangeBase extends ChangeBase {
@@ -663,6 +661,5 @@ const changeDbToBusinessWithoutMetadata = (change: Change): ChangeBusiness => {
 
 export const changeDbToBusiness = (change: Change): ChangeBusiness => {
   const businessChange = changeDbToBusinessWithoutMetadata(change);
-  businessChange.upstreamConflict = change.upstreamConflict;
   return businessChange;
 };

@@ -11,6 +11,7 @@ import * as model from "./review-model.js";
     rawVersion: "",
     search: "",
     selected: new Set(),
+    transientConflicts: new Map(),
   };
 
   var elements = {
@@ -393,6 +394,10 @@ import * as model from "./review-model.js";
           "Could not load changes (HTTP " + response.status + ")",
         );
       state.changes = await response.json();
+      state.changes.forEach(function (change) {
+        var conflict = state.transientConflicts.get(change.changeId);
+        if (conflict) change.upstreamConflict = conflict;
+      });
       state.rawVersion = response.headers.get("X-Map-Version-Raw") || "";
       state.selected.clear();
       state.activeId = null;
@@ -456,17 +461,24 @@ import * as model from "./review-model.js";
         return {};
       });
       var automaticallyResolved = result.automaticallyResolved || 0;
-      var conflicts = result.upstreamConflicts || 0;
+      var conflicts = Array.isArray(result.upstreamConflictDetails)
+        ? result.upstreamConflictDetails
+        : [];
+      state.transientConflicts = new Map(
+        conflicts.map(function (conflict) {
+          return [conflict.changeId, { reason: conflict.reason }];
+        }),
+      );
       showNotice(
         "Baseline updated. " +
           automaticallyResolved +
           " report" +
           (automaticallyResolved === 1 ? " was" : "s were") +
           " resolved automatically; " +
-          conflicts +
+          (result.upstreamConflicts || 0) +
           " upstream conflict" +
-          (conflicts === 1 ? " was" : "s were") +
-          " flagged.",
+          (conflicts.length === 1 ? " was" : "s were") +
+          " flagged for this review. They remain pending.",
         false,
       );
       await loadChanges();

@@ -48,6 +48,7 @@ interface BaselineReplacement {
 export interface BaselineUpdateResult {
   automaticallyResolved: number;
   upstreamConflicts: number;
+  upstreamConflictDetails: { changeId: string; reason: string }[];
 }
 
 @provide(MapService)
@@ -333,23 +334,18 @@ export class MapService {
       const resolved = Array.from(
         new Set([...obsoleteChanges, ...automaticallyResolved]),
       );
-      const conflicts = new Map(
-        replacement.reconciliation
+      const conflicts = replacement.reconciliation
           .filter(
             (result) =>
               result.status === "upstream-conflict" &&
               !resolved.includes(result.changeId),
           )
-          .map((result) => [
-            result.changeId,
-            {
-              baselineVersion: replacement.baselineVersion,
-              reason: result.reason ?? "Upstream changed the reported target.",
-            },
-          ]),
-      );
+          .map((result) => ({
+            changeId: result.changeId,
+            reason: result.reason ?? "Upstream changed the reported target.",
+          }));
       try {
-        await this.changeService.reconcileChanges(resolved, conflicts);
+        await this.changeService.reconcileChanges(resolved);
       } catch (error) {
         await replacement.rollback();
         throw error;
@@ -359,7 +355,8 @@ export class MapService {
         automaticallyResolved: automaticallyResolved.filter(
           (changeId) => !obsoleteChanges.includes(changeId),
         ).length,
-        upstreamConflicts: conflicts.size,
+        upstreamConflicts: conflicts.length,
+        upstreamConflictDetails: conflicts,
       };
     });
     baselineUpdateQueue = update.then(

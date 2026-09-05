@@ -23,20 +23,20 @@ test("change reporters are merged with one atomic upsert", async () => {
   expect(createIndexes).toHaveBeenCalledTimes(1);
   expect(updateOne).toHaveBeenCalledWith(
     { type: "room-name", roomNumber: 42, name: "A room" },
-    expect.arrayContaining([{ $unset: "upstreamConflict" }]),
+    expect.not.arrayContaining([{ $unset: "upstreamConflict" }]),
     { upsert: true },
   );
 });
 
-test("baseline reconciliation deletes resolved changes and records conflicts", async () => {
-  const bulkWrite = jest.fn<(operations: unknown[]) => Promise<void>>(
+test("baseline reconciliation deletes only resolved changes", async () => {
+  const deleteMany = jest.fn<(filter: unknown) => Promise<void>>(
     async () => Promise.resolve(),
   );
   const mongo = {
     connect: jest.fn(async () => Promise.resolve()),
     db: jest.fn(() => ({
       collection: jest.fn(() => ({
-        bulkWrite,
+        deleteMany,
         createIndexes: jest.fn(async () => Promise.resolve([])),
         indexExists: jest.fn(async () => Promise.resolve(false)),
       })),
@@ -44,34 +44,9 @@ test("baseline reconciliation deletes resolved changes and records conflicts", a
   } as unknown as MongoClient;
   const service = new MongoChangeService(mongo);
 
-  await service.reconcileChanges(
-    ["resolved-change"],
-    new Map([
-      [
-        "conflicting-change",
-        { baselineVersion: "467", reason: "Upstream changed the room name." },
-      ],
-    ]),
-  );
+  await service.reconcileChanges(["resolved-change"]);
 
-  expect(bulkWrite).toHaveBeenCalledWith([
-    {
-      deleteMany: {
-        filter: { changeId: { $in: ["resolved-change"] } },
-      },
-    },
-    {
-      updateOne: {
-        filter: { changeId: "conflicting-change" },
-        update: {
-          $set: {
-            upstreamConflict: {
-              baselineVersion: "467",
-              reason: "Upstream changed the room name.",
-            },
-          },
-        },
-      },
-    },
-  ]);
+  expect(deleteMany).toHaveBeenCalledWith({
+    changeId: { $in: ["resolved-change"] },
+  });
 });

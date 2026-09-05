@@ -123,7 +123,11 @@ test("applyChange should remove changes applied to the base map", async () => {
       obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
     .expect(200)
-    .expect({ automaticallyResolved: 0, upstreamConflicts: 0 });
+    .expect({
+      automaticallyResolved: 0,
+      upstreamConflicts: 0,
+      upstreamConflictDetails: [],
+    });
 
   await request(app)
     .get("/change")
@@ -187,12 +191,16 @@ test("applyChange automatically removes changes already present upstream", async
     .set("x-api-key", "abc123456")
     .send({ version: "466", obsoleteChanges: [] })
     .expect(200)
-    .expect({ automaticallyResolved: 1, upstreamConflicts: 0 });
+    .expect({
+      automaticallyResolved: 1,
+      upstreamConflicts: 0,
+      upstreamConflictDetails: [],
+    });
 
   await request(app).get("/change").expect(200).expect([]);
 });
 
-test("applyChange flags pending changes whose target changed upstream", async () => {
+test("applyChange returns transient flags for pending changes whose target changed upstream", async () => {
   await request(app).post("/change").send({
     type: "room-name",
     roomNumber: 1,
@@ -214,7 +222,17 @@ test("applyChange flags pending changes whose target changed upstream", async ()
       .set("x-api-key", "abc123456")
       .send({ version: "466", obsoleteChanges: [] })
       .expect(200)
-      .expect({ automaticallyResolved: 0, upstreamConflicts: 1 });
+      .expect({
+        automaticallyResolved: 0,
+        upstreamConflicts: 1,
+        upstreamConflictDetails: [
+          {
+            changeId: "018bcfe5-6800-7777-8d30-5e6a25dbfac1",
+            reason:
+              'Upstream changed this target from "" to "Different upstream name"; the report expects "Crowd-sourced name".',
+          },
+        ],
+      });
   } finally {
     await rm(upstreamMapFile, { force: true });
   }
@@ -228,10 +246,6 @@ test("applyChange flags pending changes whose target changed upstream", async ()
           type: "room-name",
           roomNumber: 1,
           name: "Crowd-sourced name",
-          upstreamConflict: {
-            baselineVersion: "467",
-            reason: expect.stringContaining("Different upstream name"),
-          },
         }),
       ]);
     });

@@ -2,7 +2,7 @@ import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
 import { MongoClient } from "mongodb";
 import { config } from "../config/values.js";
-import type { Change, UpstreamConflict } from "../models/business/change.js";
+import type { Change } from "../models/business/change.js";
 import {
   Change as ChangeDb,
   changeBusinessToDb,
@@ -17,10 +17,7 @@ export abstract class ChangeService {
     exclude?: string[],
   ): Promise<Change[]>;
   abstract applyChanges(apply: string[]): Promise<void>;
-  abstract reconcileChanges(
-    resolved: string[],
-    conflicts: Map<string, UpstreamConflict>,
-  ): Promise<void>;
+  abstract reconcileChanges(resolved: string[]): Promise<void>;
 }
 
 interface ChangeQuery {
@@ -94,7 +91,6 @@ export class MongoChangeService implements ChangeService {
             numberOfReporters: { $size: reporters },
           },
         },
-        { $unset: "upstreamConflict" },
       ],
       { upsert: true },
     );
@@ -127,22 +123,9 @@ export class MongoChangeService implements ChangeService {
     await collection.deleteMany({ changeId: { $in: apply } });
   }
 
-  public async reconcileChanges(
-    resolved: string[],
-    conflicts: Map<string, UpstreamConflict>,
-  ): Promise<void> {
+  public async reconcileChanges(resolved: string[]): Promise<void> {
+    if (resolved.length === 0) return;
     const collection = await this.getCollection();
-    const operations = [
-      ...(resolved.length > 0
-        ? [{ deleteMany: { filter: { changeId: { $in: resolved } } } }]
-        : []),
-      ...Array.from(conflicts, ([changeId, upstreamConflict]) => ({
-        updateOne: {
-          filter: { changeId },
-          update: { $set: { upstreamConflict } },
-        },
-      })),
-    ];
-    if (operations.length > 0) await collection.bulkWrite(operations);
+    await collection.deleteMany({ changeId: { $in: resolved } });
   }
 }

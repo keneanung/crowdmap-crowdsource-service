@@ -66,7 +66,8 @@ export const changeTargetState = (
     case "modify-exit":
     case "delete-exit": {
       const typed = change as ModifyRoomExit | DeleteExit;
-      return room(map, typed.roomNumber)?.[typed.direction] ?? -1;
+      const target = room(map, typed.roomNumber);
+      return target ? target[typed.direction] : null;
     }
     case "modify-exit-weight": {
       const typed = change as ModifyExitWeight;

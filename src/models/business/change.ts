@@ -48,7 +48,6 @@ export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
   reporters = new Set<string>();
   changeId: string;
-  upstreamConflict?: UpstreamConflict;
 
   constructor(reporters: string[], changeId?: string) {
     reporters.forEach((reporter) => this.reporters.add(reporter));
@@ -60,11 +59,6 @@ export abstract class ChangeBase<T extends ChangeBase<T>> {
     T,
     "reporters" | "changeId" | "apply" | "getIdentifyingParts"
   >;
-}
-
-export interface UpstreamConflict {
-  baselineVersion: string;
-  reason: string;
 }
 
 export class CreateArea extends ChangeBase<CreateArea> {

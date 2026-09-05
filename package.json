@@ -5,7 +5,7 @@
   "main": "build/src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\"",
+    "dev": "npm run build:review && concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\" \"npm run build:review -- --watch\"",
     "build": "tsoa spec-and-routes && npm run fix:esm-imports && tsc && npm run build:review && cp -R website/ build/",
     "fix:esm-imports": "node scripts/fix-esm-imports.mjs",
     "build:review": "esbuild website/javascripts/review-map.ts --bundle --format=iife --target=es2020 --outfile=website/javascripts/review-map.js",
