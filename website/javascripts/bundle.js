@@ -24243,9 +24243,8 @@ var PageControls = /*#__PURE__*/function () {
     var loaded = localStorage.getItem("settings");
 
     if (loaded) {
-      const oldTimesSeen = this.settings.timesSeen;
       Object.assign(this.settings, JSON.parse(loaded));
-      if(oldTimesSeen !== this.settings.timesSeen || mapData.length === 0) {
+      if(mapData.length === 0) {
         downloadNewMap(this.settings.timesSeen);
       }
     }

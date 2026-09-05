@@ -1,5 +1,8 @@
 import { injectable } from "inversify";
-import { Change } from "../../src/models/business/change.js";
+import type {
+  Change,
+  UpstreamConflict,
+} from "../../src/models/business/change.js";
 import {
   changeBusinessToDb,
   changeDbToBusiness,
@@ -22,6 +25,19 @@ export class MockChangeService implements ChangeService {
     this.changes = this.changes.filter(
       (change) => !apply.includes(change.changeId),
     );
+    return Promise.resolve();
+  }
+  public reconcileChanges(
+    resolved: string[],
+    conflicts: Map<string, UpstreamConflict>,
+  ): Promise<void> {
+    this.changes = this.changes.filter(
+      (change) => !resolved.includes(change.changeId),
+    );
+    this.changes.forEach((change) => {
+      const conflict = conflicts.get(change.changeId);
+      if (conflict) change.upstreamConflict = conflict;
+    });
     return Promise.resolve();
   }
 }

@@ -39,8 +39,15 @@ export interface RendererSnapshot extends ChangeSnapshot {
 }
 
 interface BaselineReplacement {
+  baselineVersion: string;
   complete(): Promise<void>;
+  reconciliation: NonNullable<MapWorkerResponse["reconciliation"]>;
   rollback(): Promise<void>;
+}
+
+export interface BaselineUpdateResult {
+  automaticallyResolved: number;
+  upstreamConflicts: number;
 }
 
 @provide(MapService)
@@ -230,7 +237,9 @@ export class MapService {
     });
   }
 
-  private async replaceBaseline(): Promise<BaselineReplacement> {
+  private async replaceBaseline(
+    changes: Change[],
+  ): Promise<BaselineReplacement> {
     const suffix = randomUUID();
     const stagedMap = `${config.mapFile}.${suffix}.staged`;
     const stagedVersion = `${config.versionFile}.${suffix}.staged`;
@@ -243,14 +252,16 @@ export class MapService {
         ),
       );
     };
+    let baselineVersion: string;
+    let reconciliation: NonNullable<MapWorkerResponse["reconciliation"]>;
 
     try {
       await Promise.all([
         downloadMapFile(stagedMap),
         downloadMapVersion(stagedVersion),
       ]);
-      const stagedVersionValue = (await readFile(stagedVersion, "utf8")).trim();
-      if (!stagedVersionValue) {
+      baselineVersion = (await readFile(stagedVersion, "utf8")).trim();
+      if (!baselineVersion) {
         throw new Error("Downloaded baseline version is empty");
       }
       await this.runMapWorker({
@@ -258,6 +269,16 @@ export class MapService {
         mapFile: stagedMap,
         operation: "validate",
       });
+      const reconciliationResponse = await this.runMapWorker({
+        changes: changes.map(changeBusinessToWorker),
+        comparisonMapFile: stagedMap,
+        mapFile: config.mapFile,
+        operation: "reconcile",
+      });
+      if (!reconciliationResponse.reconciliation) {
+        throw new Error("Map worker returned no reconciliation result");
+      }
+      reconciliation = reconciliationResponse.reconciliation;
       await Promise.all([
         copyFile(config.mapFile, backupMap),
         copyFile(config.versionFile, backupVersion),
@@ -278,7 +299,9 @@ export class MapService {
     }
 
     return {
+      baselineVersion,
       complete: cleanup,
+      reconciliation,
       rollback: async () => {
         await Promise.all([
           copyFile(backupMap, config.mapFile),
@@ -292,7 +315,7 @@ export class MapService {
   public async applyBaselineUpdate(
     expectedVersion: string,
     obsoleteChanges: string[],
-  ): Promise<void> {
+  ): Promise<BaselineUpdateResult> {
     const update = baselineUpdateQueue.then(async () => {
       const serverVersion = await this.readRawVersion();
       if (expectedVersion !== serverVersion) {
@@ -302,16 +325,47 @@ export class MapService {
       }
 
       baselineUpdateRevision += 1;
-      const replacement = await this.replaceBaseline();
+      const changes = await this.changeService.getChanges(0);
+      const replacement = await this.replaceBaseline(changes);
+      const automaticallyResolved = replacement.reconciliation
+        .filter((result) => result.status === "resolved")
+        .map((result) => result.changeId);
+      const resolved = Array.from(
+        new Set([...obsoleteChanges, ...automaticallyResolved]),
+      );
+      const conflicts = new Map(
+        replacement.reconciliation
+          .filter(
+            (result) =>
+              result.status === "upstream-conflict" &&
+              !resolved.includes(result.changeId),
+          )
+          .map((result) => [
+            result.changeId,
+            {
+              baselineVersion: replacement.baselineVersion,
+              reason: result.reason ?? "Upstream changed the reported target.",
+            },
+          ]),
+      );
       try {
-        await this.changeService.applyChanges(obsoleteChanges);
+        await this.changeService.reconcileChanges(resolved, conflicts);
       } catch (error) {
         await replacement.rollback();
         throw error;
       }
       await replacement.complete();
+      return {
+        automaticallyResolved: automaticallyResolved.filter(
+          (changeId) => !obsoleteChanges.includes(changeId),
+        ).length,
+        upstreamConflicts: conflicts.size,
+      };
     });
-    baselineUpdateQueue = update.catch(() => Promise.resolve());
+    baselineUpdateQueue = update.then(
+      () => undefined,
+      () => undefined,
+    );
     return update;
   }
 }

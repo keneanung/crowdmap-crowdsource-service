@@ -1,9 +1,11 @@
-import { beforeEach, expect, test } from "@jest/globals";
+import { beforeEach, expect, jest, test } from "@jest/globals";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
-import { readFile } from "node:fs/promises";
+import { MudletMapReader } from "mudlet-map-binary-reader";
+jest.setTimeout(15_000);
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { config } from "../src/config/values.js";
 import { fetchMock } from "./setup/mockFetch.js";
 
@@ -120,7 +122,8 @@ test("applyChange should remove changes applied to the base map", async () => {
       version: "466",
       obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
-    .expect(204);
+    .expect(200)
+    .expect({ automaticallyResolved: 0, upstreamConflicts: 0 });
 
   await request(app)
     .get("/change")
@@ -151,7 +154,7 @@ test("applyChange should leave changes not applied alone", async () => {
       version: "466",
       obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
-    .expect(204);
+    .expect(200);
 
   await request(app)
     .get("/change")
@@ -169,6 +172,71 @@ test("applyChange should leave changes not applied alone", async () => {
     });
 });
 
+test("applyChange automatically removes changes already present upstream", async () => {
+  await request(app).post("/change").send({
+    type: "set-room-coordinates",
+    roomNumber: 1,
+    x: 32568,
+    y: 0,
+    z: 0,
+    reporter: "Test Reporter",
+  });
+
+  await request(app)
+    .post("/change/apply")
+    .set("x-api-key", "abc123456")
+    .send({ version: "466", obsoleteChanges: [] })
+    .expect(200)
+    .expect({ automaticallyResolved: 1, upstreamConflicts: 0 });
+
+  await request(app).get("/change").expect(200).expect([]);
+});
+
+test("applyChange flags pending changes whose target changed upstream", async () => {
+  await request(app).post("/change").send({
+    type: "room-name",
+    roomNumber: 1,
+    name: "Crowd-sourced name",
+    reporter: "Test Reporter",
+  });
+
+  const upstreamMap = MudletMapReader.readBuffer(await readFile(config.mapFile));
+  upstreamMap.rooms[1].name = "Different upstream name";
+  const upstreamMapFile = `${config.mapFile}.upstream`;
+  await writeFile(upstreamMapFile, MudletMapReader.writeBuffer(upstreamMap));
+  fetchMock.mockResolvedValueOnce(
+    new Response(await readFile(upstreamMapFile), { status: 200 }),
+  );
+
+  try {
+    await request(app)
+      .post("/change/apply")
+      .set("x-api-key", "abc123456")
+      .send({ version: "466", obsoleteChanges: [] })
+      .expect(200)
+      .expect({ automaticallyResolved: 0, upstreamConflicts: 1 });
+  } finally {
+    await rm(upstreamMapFile, { force: true });
+  }
+
+  await request(app)
+    .get("/change")
+    .expect(200)
+    .expect((res) => {
+      expect(res.body).toEqual([
+        expect.objectContaining({
+          type: "room-name",
+          roomNumber: 1,
+          name: "Crowd-sourced name",
+          upstreamConflict: {
+            baselineVersion: "467",
+            reason: expect.stringContaining("Different upstream name"),
+          },
+        }),
+      ]);
+    });
+}, 15_000);
+
 test("applyChange should download new map version files", async () => {
   await request(app).post("/change").send({
     type: "room-name",
@@ -184,7 +252,7 @@ test("applyChange should download new map version files", async () => {
       version: "466",
       obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
-    .expect(204);
+    .expect(200);
 
   expect(await readFile(config.versionFile, "utf8")).not.toEqual("466");
 });
@@ -204,7 +272,7 @@ test("applyChange should download new map files", async () => {
       version: "466",
       obsoleteChanges: ["018bcfe5-6800-7777-8d30-5e6a25dbfac1"],
     })
-    .expect(204);
+    .expect(200);
 
   // lets take this as an indication that we tried to download a new map file (because we modified it)
   expect((await readFile(config.mapFile)).length).toBeGreaterThan(0);

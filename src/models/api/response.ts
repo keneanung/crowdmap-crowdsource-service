@@ -4,6 +4,10 @@ export interface ChangeBaseResponse {
   type: ChangeType;
   reporters: number;
   changeId: string;
+  upstreamConflict?: {
+    baselineVersion: string;
+    reason: string;
+  };
 }
 
 export interface CreateAreaResponse extends ChangeBaseResponse {
@@ -97,6 +101,11 @@ export interface ModifyRoomUserDataResponse extends RoomChangeBaseResponse {
 export interface DeleteRoomUserDataResponse extends RoomChangeBaseResponse {
   type: "delete-room-user-data";
   key: string;
+}
+
+export interface ReconciliationResponse {
+  automaticallyResolved: number;
+  upstreamConflicts: number;
 }
 
 export type ChangeResponse =

@@ -6,8 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\"",
-    "build": "tsoa spec-and-routes && npm run fix:esm-imports && tsc && cp -R website/ build/",
+    "build": "tsoa spec-and-routes && npm run fix:esm-imports && tsc && npm run build:review && cp -R website/ build/",
     "fix:esm-imports": "node scripts/fix-esm-imports.mjs",
+    "build:review": "esbuild website/javascripts/review-map.ts --bundle --format=iife --target=es2020 --outfile=website/javascripts/review-map.js",
     "start": "node build/src/server.js",
     "audit:production": "npm audit --omit=dev",
     "prelint": "tsoa spec-and-routes",
@@ -30,6 +31,7 @@
     "inversify": "^7.11.0",
     "mongodb": "^7.5.0",
     "mudlet-map-binary-reader": "^2.0.0",
+    "mudlet-map-renderer": "^2.6.1",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^14.0.0"
@@ -46,6 +48,7 @@
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.54.0",
     "concurrently": "^9.2.4",
+    "esbuild": "^0.27.3",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^30.2.0",

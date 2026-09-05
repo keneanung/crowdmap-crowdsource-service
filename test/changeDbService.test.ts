@@ -23,7 +23,55 @@ test("change reporters are merged with one atomic upsert", async () => {
   expect(createIndexes).toHaveBeenCalledTimes(1);
   expect(updateOne).toHaveBeenCalledWith(
     { type: "room-name", roomNumber: 42, name: "A room" },
-    expect.any(Array),
+    expect.arrayContaining([{ $unset: "upstreamConflict" }]),
     { upsert: true },
   );
+});
+
+test("baseline reconciliation deletes resolved changes and records conflicts", async () => {
+  const bulkWrite = jest.fn<(operations: unknown[]) => Promise<void>>(
+    async () => Promise.resolve(),
+  );
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        bulkWrite,
+        createIndexes: jest.fn(async () => Promise.resolve([])),
+        indexExists: jest.fn(async () => Promise.resolve(false)),
+      })),
+    })),
+  } as unknown as MongoClient;
+  const service = new MongoChangeService(mongo);
+
+  await service.reconcileChanges(
+    ["resolved-change"],
+    new Map([
+      [
+        "conflicting-change",
+        { baselineVersion: "467", reason: "Upstream changed the room name." },
+      ],
+    ]),
+  );
+
+  expect(bulkWrite).toHaveBeenCalledWith([
+    {
+      deleteMany: {
+        filter: { changeId: { $in: ["resolved-change"] } },
+      },
+    },
+    {
+      updateOne: {
+        filter: { changeId: "conflicting-change" },
+        update: {
+          $set: {
+            upstreamConflict: {
+              baselineVersion: "467",
+              reason: "Upstream changed the room name.",
+            },
+          },
+        },
+      },
+    },
+  ]);
 });
