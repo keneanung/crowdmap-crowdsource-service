@@ -125,6 +125,7 @@ test("applyChange should remove changes applied to the base map", async () => {
     .expect(200)
     .expect({
       automaticallyResolved: 0,
+      baselineVersion: "467",
       upstreamConflicts: 0,
       upstreamConflictDetails: [],
     });
@@ -193,6 +194,7 @@ test("applyChange automatically removes changes already present upstream", async
     .expect(200)
     .expect({
       automaticallyResolved: 1,
+      baselineVersion: "467",
       upstreamConflicts: 0,
       upstreamConflictDetails: [],
     });
@@ -224,6 +226,7 @@ test("applyChange returns transient flags for pending changes whose target chang
       .expect(200)
       .expect({
         automaticallyResolved: 0,
+        baselineVersion: "467",
         upstreamConflicts: 1,
         upstreamConflictDetails: [
           {

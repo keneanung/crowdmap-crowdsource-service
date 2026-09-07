@@ -47,6 +47,7 @@ interface BaselineReplacement {
 
 export interface BaselineUpdateResult {
   automaticallyResolved: number;
+  baselineVersion: string;
   upstreamConflicts: number;
   upstreamConflictDetails: { changeId: string; reason: string }[];
 }
@@ -355,6 +356,7 @@ export class MapService {
         automaticallyResolved: automaticallyResolved.filter(
           (changeId) => !obsoleteChanges.includes(changeId),
         ).length,
+        baselineVersion: replacement.baselineVersion,
         upstreamConflicts: conflicts.length,
         upstreamConflictDetails: conflicts,
       };

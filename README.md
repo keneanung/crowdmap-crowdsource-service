@@ -84,8 +84,8 @@ server verifies the displayed baseline version, validates the downloaded pair,
 and compares every pending report with the old and downloaded maps before
 replacing the baseline. Reports already satisfied by the downloaded map are
 removed automatically. Reports whose target changed upstream to a different
-value remain pending and are marked with the upstream baseline version and a
-reason. A baseline update can also be applied with nothing marked when the
+value remain pending and are flagged for the current review with the upstream
+baseline version and a reason. A baseline update can also be applied with nothing marked when the
 upstream update is unrelated to pending reports.
 
 ### Back up and restore

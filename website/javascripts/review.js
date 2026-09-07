@@ -132,13 +132,22 @@ import * as model from "./review-model.js";
       if (isRelated(change))
         badges.appendChild(makeBadge("Related edits", "badge-warning"));
       if (change.upstreamConflict)
-        badges.appendChild(makeBadge("Upstream conflict", "badge-danger"));
+        badges.appendChild(
+          makeBadge(
+            "Upstream conflict · " + change.upstreamConflict.baselineVersion,
+            "badge-danger",
+          ),
+        );
       badges.appendChild(makeBadge(change.changeId.slice(-8), "badge-id"));
       content.append(heading, summary, badges);
       if (change.upstreamConflict) {
         var conflict = document.createElement("p");
         conflict.className = "upstream-conflict";
-        conflict.textContent = change.upstreamConflict.reason;
+        conflict.textContent =
+          "Baseline " +
+          change.upstreamConflict.baselineVersion +
+          ": " +
+          change.upstreamConflict.reason;
         content.appendChild(conflict);
       }
       var relationships = model.relationshipDetails(change, state.groups);
@@ -466,7 +475,13 @@ import * as model from "./review-model.js";
         : [];
       state.transientConflicts = new Map(
         conflicts.map(function (conflict) {
-          return [conflict.changeId, { reason: conflict.reason }];
+          return [
+            conflict.changeId,
+            {
+              baselineVersion: result.baselineVersion,
+              reason: conflict.reason,
+            },
+          ];
         }),
       );
       showNotice(
