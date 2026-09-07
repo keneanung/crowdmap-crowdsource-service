@@ -11,6 +11,7 @@ import * as model from "./review-model.js";
     rawVersion: "",
     search: "",
     selected: new Set(),
+    stagedReview: null,
     transientConflicts: new Map(),
   };
 
@@ -27,11 +28,13 @@ import * as model from "./review-model.js";
     pendingCount: document.querySelector("#pending-count"),
     previewDescription: document.querySelector("#preview-description"),
     previewMarked: document.querySelector("#show-marked"),
+    reportFocus: document.querySelector("#report-focus"),
     previewTitle: document.querySelector("#preview-title"),
     comparisonSideBySide: document.querySelector("#comparison-side-by-side"),
     comparisonWipe: document.querySelector("#comparison-wipe"),
     queueStatus: document.querySelector("#queue-status"),
     refresh: document.querySelector("#refresh"),
+    stageUpstream: document.querySelector("#stage-upstream"),
     search: document.querySelector("#search"),
     selectedCount: document.querySelector("#selected-count"),
     showBaseline: document.querySelector("#show-baseline"),
@@ -74,6 +77,23 @@ import * as model from "./review-model.js";
     );
   }
 
+  function updateReportFocus() {
+    var reports = state.changes.filter(function (change) {
+      return typeof change.roomNumber === "number" &&
+        (!state.stagedReview || state.selected.has(change.changeId));
+    });
+    var rooms = new Map();
+    reports.forEach(function (change) {
+      if (!rooms.has(change.roomNumber)) rooms.set(change.roomNumber, []);
+      rooms.get(change.roomNumber).push(model.typeLabel(change.type));
+    });
+    elements.reportFocus.replaceChildren(new Option("Choose a reported room…", ""));
+    rooms.forEach(function (types, roomNumber) {
+      elements.reportFocus.add(new Option("Room " + roomNumber + " · " + types.join(", "), String(roomNumber)));
+    });
+    elements.reportFocus.disabled = rooms.size === 0;
+  }
+
   function renderList() {
     elements.changeList.replaceChildren();
     var changes = visibleChanges();
@@ -99,16 +119,27 @@ import * as model from "./review-model.js";
       var checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = state.selected.has(change.changeId);
+      checkbox.disabled = Boolean(state.stagedReview && change.upstreamResolved);
+      checkbox.title = state.stagedReview
+        ? change.upstreamResolved
+          ? "Already present in upstream; this report will be removed when the update is applied."
+          : checkbox.checked
+            ? "Checked: carry this report forward. Uncheck to discard it."
+            : "Unchecked: discard this report when applying the upstream update."
+        : "Mark this report as incorporated upstream.";
       checkbox.setAttribute(
         "aria-label",
-        "Mark " + model.typeLabel(change.type) + " as incorporated upstream",
+        state.stagedReview
+          ? "Carry " + model.typeLabel(change.type) + " into the reviewed upstream map"
+          : "Mark " + model.typeLabel(change.type) + " as incorporated upstream",
       );
       checkbox.addEventListener("click", function (event) {
         event.stopPropagation();
         if (checkbox.checked) state.selected.add(change.changeId);
         else state.selected.delete(change.changeId);
         updateActions();
-        if (state.filter === "selected") renderList();
+        updateReportFocus();
+        renderList();
       });
 
       var content = document.createElement("div");
@@ -138,6 +169,13 @@ import * as model from "./review-model.js";
             "badge-danger",
           ),
         );
+      if (change.upstreamResolved)
+        badges.appendChild(makeBadge("Resolved upstream", "badge-success"));
+      else if (state.stagedReview)
+        badges.appendChild(makeBadge(
+          state.selected.has(change.changeId) ? "Carry forward" : "Discard",
+          state.selected.has(change.changeId) ? "badge-success" : "badge-danger",
+        ));
       badges.appendChild(makeBadge(change.changeId.slice(-8), "badge-id"));
       content.append(heading, summary, badges);
       if (change.upstreamConflict) {
@@ -211,6 +249,7 @@ import * as model from "./review-model.js";
         return ids.includes(change.changeId);
       }),
       activeChange && activeChange.roomNumber,
+      state.stagedReview && state.stagedReview.id,
     );
     renderList();
   }
@@ -432,6 +471,9 @@ import * as model from "./review-model.js";
 
   async function applyUpdate() {
     var selectedIds = Array.from(state.selected);
+    var obsoleteIds = state.stagedReview
+      ? state.changes.filter(function (change) { return !state.selected.has(change.changeId); }).map(function (change) { return change.changeId; })
+      : selectedIds;
     var removal =
       selectedIds.length === 0
         ? " without removing any pending changes"
@@ -455,7 +497,7 @@ import * as model from "./review-model.js";
         },
         body: JSON.stringify({
           version: state.rawVersion,
-          obsoleteChanges: selectedIds,
+          obsoleteChanges: obsoleteIds,
         }),
       });
       if (!response.ok) {
@@ -496,6 +538,7 @@ import * as model from "./review-model.js";
           " flagged for this review. They remain pending.",
         false,
       );
+      state.stagedReview = null;
       await loadChanges();
       previewChanges([], null);
     } catch (error) {
@@ -521,15 +564,55 @@ import * as model from "./review-model.js";
   });
   elements.apiKey.addEventListener("input", updateActions);
   elements.refresh.addEventListener("click", loadChanges);
+  elements.stageUpstream.addEventListener("click", async function () {
+    if (!state.rawVersion) return;
+    elements.stageUpstream.disabled = true;
+    elements.stageUpstream.textContent = "Loading upstream…";
+    try {
+      var response = await fetch("change/review-upstream?version=" + encodeURIComponent(state.rawVersion));
+      if (!response.ok) throw new Error("Could not stage upstream (HTTP " + response.status + ")");
+      state.stagedReview = await response.json();
+      var outcomes = new Map(state.stagedReview.reconciliation.map(function (item) { return [item.changeId, item]; }));
+      state.selected = new Set(state.changes.filter(function (change) {
+        var outcome = outcomes.get(change.changeId);
+        change.upstreamConflict = outcome && outcome.status === "upstream-conflict"
+          ? { baselineVersion: state.stagedReview.upstreamVersion, reason: outcome.reason }
+          : undefined;
+        change.upstreamResolved = Boolean(outcome && outcome.status === "resolved");
+        return !change.upstreamResolved;
+      }).map(function (change) { return change.changeId; }));
+      elements.upstreamConflictCount.textContent = String(
+        state.changes.filter(function (change) { return Boolean(change.upstreamConflict); }).length,
+      );
+      elements.baselineVersion.textContent = state.stagedReview.upstreamVersion;
+      elements.previewTitle.textContent = "Incoming upstream and reviewed result";
+      elements.previewDescription.textContent = "The left pane is staged upstream; the right pane carries the selected reports forward.";
+      window.CrowdmapReviewMap.show(Array.from(state.selected), state.changes, undefined, state.stagedReview.id);
+      renderList();
+      updateReportFocus();
+      updateActions();
+      showNotice("Upstream " + state.stagedReview.upstreamVersion + " staged. Nothing has been applied locally.", false);
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      elements.stageUpstream.disabled = false;
+      elements.stageUpstream.textContent = "Load upstream update";
+    }
+  });
   elements.previewMarked.addEventListener("click", function () {
     previewChanges(Array.from(state.selected));
+  });
+  elements.reportFocus.addEventListener("change", function () {
+    var roomNumber = Number(elements.reportFocus.value);
+    if (Number.isInteger(roomNumber) && roomNumber > 0)
+      window.CrowdmapReviewMap.focus(roomNumber);
   });
   elements.showBaseline.addEventListener("click", function () {
     state.activeId = null;
     elements.previewTitle.textContent = "Baseline map";
     elements.previewDescription.textContent =
       "No pending changes are applied in this view.";
-    window.CrowdmapReviewMap.show([], [], undefined);
+    window.CrowdmapReviewMap.show([], [], undefined, state.stagedReview && state.stagedReview.id);
     renderList();
   });
   elements.differenceMode.addEventListener("change", function () {
@@ -571,6 +654,8 @@ import * as model from "./review-model.js";
   elements.blink.disabled = true;
   elements.wipePosition.disabled = true;
   loadChanges().then(function () {
-    window.CrowdmapReviewMap.show([], [], undefined);
+    updateReportFocus();
+    if (!state.stagedReview)
+      window.CrowdmapReviewMap.show([], [], undefined);
   });
 })();

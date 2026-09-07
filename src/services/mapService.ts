@@ -20,6 +20,7 @@ import { ChangeService } from "./changeService.js";
 
 let baselineUpdateQueue: Promise<void> = Promise.resolve();
 let baselineUpdateRevision = 0;
+const stagedUpstreamReviews = new Map<string, StagedUpstreamReview>();
 
 const isBaselineRevisionCurrent = (revision: number): boolean =>
   revision === baselineUpdateRevision;
@@ -36,6 +37,18 @@ export interface MapFileSnapshot extends ChangeSnapshot {
 
 export interface RendererSnapshot extends ChangeSnapshot {
   content: string;
+}
+
+export interface UpstreamReviewSnapshot {
+  id: string;
+  baselineVersion: string;
+  upstreamVersion: string;
+  reconciliation: NonNullable<MapWorkerResponse["reconciliation"]>;
+}
+
+interface StagedUpstreamReview extends UpstreamReviewSnapshot {
+  mapFile: string;
+  directory: string;
 }
 
 interface BaselineReplacement {
@@ -65,6 +78,8 @@ export class MapService {
     format: "binary" | "json",
     include: string[] = [],
     exclude: string[] = [],
+    mapFile = config.mapFile,
+    rawVersionOverride?: string,
   ): Promise<MapFileSnapshot> {
     // A concurrent baseline update can require regenerating the file.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -73,13 +88,13 @@ export class MapService {
       await baselineUpdateQueue;
       const [changes, rawVersion] = await Promise.all([
         this.changeService.getChanges(timesSeen, include, exclude),
-        this.readRawVersion(),
+        rawVersionOverride ?? this.readRawVersion(),
       ]);
       const file = await this.getTempMapFileName();
       try {
         await this.runMapWorker({
           changes: changes.map(changeBusinessToWorker),
-          mapFile: config.mapFile,
+          mapFile,
           operation: format,
           outputFile: file,
         });
@@ -97,6 +112,64 @@ export class MapService {
       }
       await rm(dirname(file), { recursive: true, force: true });
     }
+  }
+
+  public async stageUpstreamReview(
+    expectedBaselineVersion: string,
+  ): Promise<UpstreamReviewSnapshot> {
+    await baselineUpdateQueue;
+    const baselineVersion = await this.readRawVersion();
+    if (expectedBaselineVersion !== baselineVersion) {
+      throw new ConflictError("The map version provided does not match the current map version");
+    }
+    const directory = await mkdtemp(join(tmpdir(), "crowdmap-upstream-review-"));
+    const mapFile = join(directory, "map");
+    const versionFile = join(directory, "version");
+    try {
+      await Promise.all([downloadMapFile(mapFile), downloadMapVersion(versionFile)]);
+      const upstreamVersion = (await readFile(versionFile, "utf8")).trim();
+      if (!upstreamVersion) throw new Error("Downloaded upstream version is empty");
+      await this.runMapWorker({ changes: [], mapFile, operation: "validate" });
+      const changes = await this.changeService.getChanges(0);
+      const response = await this.runMapWorker({
+        changes: changes.map(changeBusinessToWorker),
+        comparisonMapFile: mapFile,
+        mapFile: config.mapFile,
+        operation: "reconcile",
+      });
+      if (!response.reconciliation) throw new Error("Map worker returned no reconciliation result");
+      const id = randomUUID();
+      const staged: StagedUpstreamReview = {
+        id,
+        baselineVersion,
+        upstreamVersion,
+        reconciliation: response.reconciliation,
+        mapFile,
+        directory,
+      };
+      stagedUpstreamReviews.set(id, staged);
+      setTimeout(() => {
+        const expired = stagedUpstreamReviews.get(id);
+        if (!expired) return;
+        stagedUpstreamReviews.delete(id);
+        void rm(expired.directory, { recursive: true, force: true });
+      }, 60 * 60 * 1000).unref();
+      return {
+        id: staged.id,
+        baselineVersion: staged.baselineVersion,
+        upstreamVersion: staged.upstreamVersion,
+        reconciliation: staged.reconciliation,
+      };
+    } catch (error) {
+      await rm(directory, { recursive: true, force: true });
+      throw error;
+    }
+  }
+
+  public getStagedUpstreamReview(id: string): StagedUpstreamReview {
+    const staged = stagedUpstreamReviews.get(id);
+    if (!staged) throw new Error("The staged upstream review has expired; load it again.");
+    return staged;
   }
 
   public async getRendererSnapshot(

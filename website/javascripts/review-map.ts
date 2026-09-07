@@ -47,9 +47,10 @@ function exitPairs(changes: ReviewChange[]) {
   return pairs;
 }
 
-function snapshotUrl(timesSeen: number, ids: string[]) {
+function snapshotUrl(timesSeen: number, ids: string[], reviewId?: string) {
   const query = new URLSearchParams({ format: "binary", timesSeen: String(timesSeen) });
   ids.forEach((id) => query.append("include", id));
+  if (reviewId) query.set("reviewId", reviewId);
   return "map?" + query;
 }
 
@@ -139,7 +140,7 @@ export function focus(roomId: number) {
   announceRoom(roomId);
 }
 
-export async function show(ids: string[], changes: ReviewChange[], roomId?: number) {
+export async function show(ids: string[], changes: ReviewChange[], roomId?: number, reviewId?: string) {
   baselineStatus.textContent = "Loading…";
   candidateStatus.textContent = "Loading…";
   currentChanges = changes;
@@ -147,9 +148,9 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
   comparisonElement.classList.remove("blinking");
   try {
     const result = await Promise.all([
-      fetchSnapshot(snapshotUrl(2147483647, [])),
+      fetchSnapshot(snapshotUrl(2147483647, [], reviewId)),
       fetchSnapshot(
-        ids.length > 0 ? snapshotUrl(0, ids) : snapshotUrl(2147483647, []),
+        ids.length > 0 ? snapshotUrl(0, ids, reviewId) : snapshotUrl(2147483647, [], reviewId),
       ),
     ]);
     baseline = result[0];

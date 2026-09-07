@@ -412,6 +412,14 @@ export class ChangeController extends Controller {
     await this.changeService.addChange(businessChange);
   }
 
+  /** Downloads and stages the configured upstream map for review without changing the local baseline. */
+  @Get("/review-upstream")
+  public async reviewUpstream(
+    @Query() version: string,
+  ) {
+    return await this.mapService.stageUpstreamReview(version);
+  }
+
   /**
    * Apply changes to the base map file. This will apply all changes listed in the submission.
    *

@@ -288,6 +288,10 @@ main {
   background: rgba(255, 123, 123, 0.14);
   color: var(--danger);
 }
+.badge-success {
+  background: rgba(94, 225, 178, 0.14);
+  color: #8bf0ca;
+}
 .badge-id {
   color: #7f96b0;
   font-family: monospace;
@@ -336,6 +340,20 @@ main {
 .preview-actions {
   display: flex;
   gap: 8px;
+}
+.room-jump {
+  color: var(--muted);
+  display: grid;
+  font-size: 11px;
+  gap: 3px;
+}
+.room-jump select {
+  background: var(--panel-raised);
+  border: 1px solid #3d5878;
+  border-radius: 6px;
+  color: var(--text);
+  max-width: 190px;
+  padding: 6px 8px;
 }
 .button {
   border: 1px solid transparent;

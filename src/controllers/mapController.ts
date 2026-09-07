@@ -42,6 +42,7 @@ export class MapController extends Controller {
     @Query() format: "binary" | "json",
     @Query() include: string[] = [],
     @Query() exclude: string[] = [],
+    @Query() reviewId?: string,
   ): Promise<Readable> {
     if (include.length > 0 && exclude.length > 0) {
       throw new ValidateError(
@@ -56,11 +57,16 @@ export class MapController extends Controller {
         "Cannot include and exclude changes at the same time",
       );
     }
+    const staged = reviewId
+      ? this.mapService.getStagedUpstreamReview(reviewId)
+      : undefined;
     const snapshot = await this.mapService.getChangedMapFile(
       timesSeen,
       format,
       include,
       exclude,
+      staged?.mapFile,
+      staged?.upstreamVersion,
     );
 
     this.setHeader(

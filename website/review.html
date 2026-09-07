@@ -20,6 +20,7 @@
       <button class="button button-secondary" id="refresh" type="button">
         Refresh
       </button>
+      <button class="button button-primary" id="stage-upstream" type="button">Load upstream update</button>
     </header>
 
     <main>
@@ -35,7 +36,7 @@
           ><span>upstream conflicts</span>
         </div>
         <div class="stat stat-selected">
-          <strong id="selected-count">0</strong><span>marked incorporated</span>
+          <strong id="selected-count">0</strong><span>carried forward</span>
         </div>
         <div class="baseline-version">
           <span>Baseline version</span
@@ -91,12 +92,18 @@
               </p>
             </div>
             <div class="preview-actions">
+              <label class="room-jump" for="report-focus">
+                <span>Jump to report</span>
+                <select id="report-focus" disabled>
+                  <option value="">Choose a reported room…</option>
+                </select>
+              </label>
               <button
                 class="button button-secondary"
                 id="show-baseline"
                 type="button"
               >
-                Baseline
+                Current baseline
               </button>
               <button
                 class="button button-secondary"
@@ -104,7 +111,7 @@
                 type="button"
                 disabled
               >
-                Preview marked
+                Preview carried reports
               </button>
             </div>
           </div>
@@ -117,11 +124,11 @@
           </div>
           <div class="map-comparison" id="map-comparison" aria-live="polite">
             <section class="map-pane map-pane-baseline">
-              <header><strong>Baseline</strong><span id="baseline-map-status">Loading…</span></header>
+              <header><strong>Incoming upstream</strong><span id="baseline-map-status">Loading…</span></header>
               <div id="baseline-map" class="renderer-map" aria-label="Baseline map"></div>
             </section>
             <section class="map-pane map-pane-candidate">
-              <header><strong>Candidate</strong><span id="candidate-map-status">Loading…</span></header>
+              <header><strong>Reviewed result</strong><span id="candidate-map-status">Loading…</span></header>
               <div id="candidate-map" class="renderer-map" aria-label="Candidate map"></div>
             </section>
           </div>
@@ -139,17 +146,13 @@
           </article>
 
           <article class="review-guide">
-            <h2>Reconcile a published map update</h2>
+            <h2>Stage and apply an upstream map update</h2>
             <ol>
               <li>
-                Review reports and mark changes you know were incorporated
-                upstream. Exact matches are removed automatically.
+                Load the new upstream map. Exact matches are resolved; unchanged reports are carried forward; conflicts can be kept or dropped.
               </li>
-              <li>Publish the corresponding upstream map and version files.</li>
-              <li>
-                Apply the update below. The server rechecks the baseline version
-                before replacing files.
-              </li>
+              <li>Inspect incoming upstream against the reviewed result above.</li>
+              <li>Apply the staged decision. The server rechecks the current baseline first.</li>
             </ol>
             <div class="apply-controls">
               <label>
@@ -167,13 +170,11 @@
                 type="button"
                 disabled
               >
-                Apply baseline update
+                Apply reviewed upstream update
               </button>
             </div>
             <p class="apply-note">
-              The server compares the old and new baseline at each reported
-              target. It automatically removes reports satisfied by upstream and
-              flags targets that upstream changed differently.
+              Loading upstream does not modify the local map. Resolved reports are removed only when this final step succeeds.
             </p>
           </article>
         </section>
