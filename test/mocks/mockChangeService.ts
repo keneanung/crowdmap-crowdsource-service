@@ -1,5 +1,5 @@
 import { injectable } from "inversify";
-import { Change } from "../../src/models/business/change.js";
+import type { Change } from "../../src/models/business/change.js";
 import {
   changeBusinessToDb,
   changeDbToBusiness,
@@ -21,6 +21,12 @@ export class MockChangeService implements ChangeService {
   public applyChanges(apply: string[]): Promise<void> {
     this.changes = this.changes.filter(
       (change) => !apply.includes(change.changeId),
+    );
+    return Promise.resolve();
+  }
+  public reconcileChanges(resolved: string[]): Promise<void> {
+    this.changes = this.changes.filter(
+      (change) => !resolved.includes(change.changeId),
     );
     return Promise.resolve();
   }

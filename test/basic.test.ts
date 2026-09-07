@@ -59,6 +59,29 @@ test("GET /docs returns the Swagger UI", async () => {
     .expect("Content-Type", "text/html; charset=utf-8");
 });
 
+test("GET /review.html returns the change review UI", async () => {
+  await request(app)
+    .get("/review.html")
+    .expect(200)
+    .expect("Content-Type", "text/html; charset=utf-8")
+    .expect((res) => {
+      expect(res.text).toContain("Review pending changes");
+      expect(res.text).toContain("javascripts/review-model.js");
+      expect(res.text).toContain("javascripts/review.js");
+    });
+});
+
+test("GET /javascripts/map-loader.js returns the map bootstrap", async () => {
+  await request(app)
+    .get("/javascripts/map-loader.js")
+    .expect(200)
+    .expect("Content-Type", /javascript/u)
+    .expect((res) => {
+      expect(res.text).toContain("map/renderer?");
+      expect(res.text).toContain("javascripts/bundle.js");
+    });
+});
+
 test("GET /unknown-path returns 404 Not Found", async () => {
   await request(app)
     .get("/unknown-path")

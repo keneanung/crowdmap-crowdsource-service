@@ -18,6 +18,7 @@ import {
   SetRoomEnvironment,
   UnlockSpecialExit,
 } from "./change.js";
+import type { ChangeReconciliation } from "./changeReview.js";
 
 type DataProperties<T extends Change> = T extends Change
   ? Omit<T, "apply" | "getIdentifyingParts">
@@ -56,11 +57,13 @@ export const changeWorkerToBusiness = (change: MapWorkerChange): Change => {
 
 export interface MapWorkerRequest {
   changes: MapWorkerChange[];
+  comparisonMapFile?: string;
   mapFile: string;
-  operation: "binary" | "json" | "renderer" | "validate";
+  operation: "binary" | "json" | "reconcile" | "renderer" | "validate";
   outputFile?: string;
 }
 
 export interface MapWorkerResponse {
   content?: string;
+  reconciliation?: ChangeReconciliation[];
 }

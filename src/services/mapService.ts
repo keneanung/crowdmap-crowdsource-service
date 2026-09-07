@@ -9,7 +9,7 @@ import { Worker } from "node:worker_threads";
 import { NIL } from "uuid";
 import { config } from "../config/values.js";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads.js";
-import { ConflictError } from "../models/api/error.js";
+import { ConflictError, NotFoundError } from "../models/api/error.js";
 import type { Change } from "../models/business/change.js";
 import {
   changeBusinessToWorker,
@@ -20,6 +20,7 @@ import { ChangeService } from "./changeService.js";
 
 let baselineUpdateQueue: Promise<void> = Promise.resolve();
 let baselineUpdateRevision = 0;
+const stagedUpstreamReviews = new Map<string, StagedUpstreamReview>();
 
 const isBaselineRevisionCurrent = (revision: number): boolean =>
   revision === baselineUpdateRevision;
@@ -38,9 +39,30 @@ export interface RendererSnapshot extends ChangeSnapshot {
   content: string;
 }
 
+export interface UpstreamReviewSnapshot {
+  id: string;
+  baselineVersion: string;
+  upstreamVersion: string;
+  reconciliation: NonNullable<MapWorkerResponse["reconciliation"]>;
+}
+
+interface StagedUpstreamReview extends UpstreamReviewSnapshot {
+  mapFile: string;
+  directory: string;
+}
+
 interface BaselineReplacement {
+  baselineVersion: string;
   complete(): Promise<void>;
+  reconciliation: NonNullable<MapWorkerResponse["reconciliation"]>;
   rollback(): Promise<void>;
+}
+
+export interface BaselineUpdateResult {
+  automaticallyResolved: number;
+  baselineVersion: string;
+  upstreamConflicts: number;
+  upstreamConflictDetails: { changeId: string; reason: string }[];
 }
 
 @provide(MapService)
@@ -56,6 +78,8 @@ export class MapService {
     format: "binary" | "json",
     include: string[] = [],
     exclude: string[] = [],
+    mapFile = config.mapFile,
+    rawVersionOverride?: string,
   ): Promise<MapFileSnapshot> {
     // A concurrent baseline update can require regenerating the file.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -64,13 +88,13 @@ export class MapService {
       await baselineUpdateQueue;
       const [changes, rawVersion] = await Promise.all([
         this.changeService.getChanges(timesSeen, include, exclude),
-        this.readRawVersion(),
+        rawVersionOverride ?? this.readRawVersion(),
       ]);
       const file = await this.getTempMapFileName();
       try {
         await this.runMapWorker({
           changes: changes.map(changeBusinessToWorker),
-          mapFile: config.mapFile,
+          mapFile,
           operation: format,
           outputFile: file,
         });
@@ -88,6 +112,65 @@ export class MapService {
       }
       await rm(dirname(file), { recursive: true, force: true });
     }
+  }
+
+  public async stageUpstreamReview(
+    expectedBaselineVersion: string,
+  ): Promise<UpstreamReviewSnapshot> {
+    await baselineUpdateQueue;
+    const baselineVersion = await this.readRawVersion();
+    if (expectedBaselineVersion !== baselineVersion) {
+      throw new ConflictError("The map version provided does not match the current map version");
+    }
+    const directory = await mkdtemp(join(tmpdir(), "crowdmap-upstream-review-"));
+    const mapFile = join(directory, "map");
+    const versionFile = join(directory, "version");
+    try {
+      await Promise.all([downloadMapFile(mapFile), downloadMapVersion(versionFile)]);
+      const upstreamVersion = (await readFile(versionFile, "utf8")).trim();
+      if (!upstreamVersion) throw new Error("Downloaded upstream version is empty");
+      await this.runMapWorker({ changes: [], mapFile, operation: "validate" });
+      const changes = await this.changeService.getChanges(0);
+      const response = await this.runMapWorker({
+        changes: changes.map(changeBusinessToWorker),
+        comparisonMapFile: mapFile,
+        mapFile: config.mapFile,
+        operation: "reconcile",
+      });
+      if (!response.reconciliation) throw new Error("Map worker returned no reconciliation result");
+      const id = randomUUID();
+      const staged: StagedUpstreamReview = {
+        id,
+        baselineVersion,
+        upstreamVersion,
+        reconciliation: response.reconciliation,
+        mapFile,
+        directory,
+      };
+      stagedUpstreamReviews.set(id, staged);
+      setTimeout(() => {
+        const expired = stagedUpstreamReviews.get(id);
+        if (!expired) return;
+        stagedUpstreamReviews.delete(id);
+        void rm(expired.directory, { recursive: true, force: true });
+      }, 60 * 60 * 1000).unref();
+      return {
+        id: staged.id,
+        baselineVersion: staged.baselineVersion,
+        upstreamVersion: staged.upstreamVersion,
+        reconciliation: staged.reconciliation,
+      };
+    } catch (error) {
+      await rm(directory, { recursive: true, force: true });
+      throw error;
+    }
+  }
+
+  public getStagedUpstreamReview(id: string): StagedUpstreamReview {
+    const staged = stagedUpstreamReviews.get(id);
+    if (!staged)
+      throw new NotFoundError("The staged upstream review has expired; load it again.");
+    return staged;
   }
 
   public async getRendererSnapshot(
@@ -230,7 +313,9 @@ export class MapService {
     });
   }
 
-  private async replaceBaseline(): Promise<BaselineReplacement> {
+  private async replaceBaseline(
+    changes: Change[],
+  ): Promise<BaselineReplacement> {
     const suffix = randomUUID();
     const stagedMap = `${config.mapFile}.${suffix}.staged`;
     const stagedVersion = `${config.versionFile}.${suffix}.staged`;
@@ -243,14 +328,16 @@ export class MapService {
         ),
       );
     };
+    let baselineVersion: string;
+    let reconciliation: NonNullable<MapWorkerResponse["reconciliation"]>;
 
     try {
       await Promise.all([
         downloadMapFile(stagedMap),
         downloadMapVersion(stagedVersion),
       ]);
-      const stagedVersionValue = (await readFile(stagedVersion, "utf8")).trim();
-      if (!stagedVersionValue) {
+      baselineVersion = (await readFile(stagedVersion, "utf8")).trim();
+      if (!baselineVersion) {
         throw new Error("Downloaded baseline version is empty");
       }
       await this.runMapWorker({
@@ -258,6 +345,16 @@ export class MapService {
         mapFile: stagedMap,
         operation: "validate",
       });
+      const reconciliationResponse = await this.runMapWorker({
+        changes: changes.map(changeBusinessToWorker),
+        comparisonMapFile: stagedMap,
+        mapFile: config.mapFile,
+        operation: "reconcile",
+      });
+      if (!reconciliationResponse.reconciliation) {
+        throw new Error("Map worker returned no reconciliation result");
+      }
+      reconciliation = reconciliationResponse.reconciliation;
       await Promise.all([
         copyFile(config.mapFile, backupMap),
         copyFile(config.versionFile, backupVersion),
@@ -278,7 +375,9 @@ export class MapService {
     }
 
     return {
+      baselineVersion,
       complete: cleanup,
+      reconciliation,
       rollback: async () => {
         await Promise.all([
           copyFile(backupMap, config.mapFile),
@@ -292,7 +391,7 @@ export class MapService {
   public async applyBaselineUpdate(
     expectedVersion: string,
     obsoleteChanges: string[],
-  ): Promise<void> {
+  ): Promise<BaselineUpdateResult> {
     const update = baselineUpdateQueue.then(async () => {
       const serverVersion = await this.readRawVersion();
       if (expectedVersion !== serverVersion) {
@@ -302,16 +401,44 @@ export class MapService {
       }
 
       baselineUpdateRevision += 1;
-      const replacement = await this.replaceBaseline();
+      const changes = await this.changeService.getChanges(0);
+      const replacement = await this.replaceBaseline(changes);
+      const automaticallyResolved = replacement.reconciliation
+        .filter((result) => result.status === "resolved")
+        .map((result) => result.changeId);
+      const resolved = Array.from(
+        new Set([...obsoleteChanges, ...automaticallyResolved]),
+      );
+      const conflicts = replacement.reconciliation
+          .filter(
+            (result) =>
+              result.status === "upstream-conflict" &&
+              !resolved.includes(result.changeId),
+          )
+          .map((result) => ({
+            changeId: result.changeId,
+            reason: result.reason ?? "Upstream changed the reported target.",
+          }));
       try {
-        await this.changeService.applyChanges(obsoleteChanges);
+        await this.changeService.reconcileChanges(resolved);
       } catch (error) {
         await replacement.rollback();
         throw error;
       }
       await replacement.complete();
+      return {
+        automaticallyResolved: automaticallyResolved.filter(
+          (changeId) => !obsoleteChanges.includes(changeId),
+        ).length,
+        baselineVersion: replacement.baselineVersion,
+        upstreamConflicts: conflicts.length,
+        upstreamConflictDetails: conflicts,
+      };
     });
-    baselineUpdateQueue = update.catch(() => Promise.resolve());
+    baselineUpdateQueue = update.then(
+      () => undefined,
+      () => undefined,
+    );
     return update;
   }
 }

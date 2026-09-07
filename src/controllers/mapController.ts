@@ -42,6 +42,7 @@ export class MapController extends Controller {
     @Query() format: "binary" | "json",
     @Query() include: string[] = [],
     @Query() exclude: string[] = [],
+    @Query() reviewId?: string,
   ): Promise<Readable> {
     if (include.length > 0 && exclude.length > 0) {
       throw new ValidateError(
@@ -56,11 +57,16 @@ export class MapController extends Controller {
         "Cannot include and exclude changes at the same time",
       );
     }
+    const staged = reviewId
+      ? this.mapService.getStagedUpstreamReview(reviewId)
+      : undefined;
     const snapshot = await this.mapService.getChangedMapFile(
       timesSeen,
       format,
       include,
       exclude,
+      staged?.mapFile,
+      staged?.upstreamVersion,
     );
 
     this.setHeader(
@@ -101,8 +107,29 @@ export class MapController extends Controller {
    */
   @Get("/renderer")
   @Produces("text/javascript")
-  public async getRendererMap(@Query() timesSeen: number): Promise<Readable> {
-    const snapshot = await this.mapService.getRendererSnapshot(timesSeen);
+  public async getRendererMap(
+    @Query() timesSeen: number,
+    @Query() include: string[] = [],
+    @Query() exclude: string[] = [],
+  ): Promise<Readable> {
+    if (include.length > 0 && exclude.length > 0) {
+      throw new ValidateError(
+        {
+          include: {
+            message: "Unable to include and exclude changes at the same time",
+          },
+          exclude: {
+            message: "Unable to include and exclude changes at the same time",
+          },
+        },
+        "Cannot include and exclude changes at the same time",
+      );
+    }
+    const snapshot = await this.mapService.getRendererSnapshot(
+      timesSeen,
+      include,
+      exclude,
+    );
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
     this.setHeader("Content-Type", "text/javascript");

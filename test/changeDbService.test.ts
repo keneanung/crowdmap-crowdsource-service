@@ -23,7 +23,30 @@ test("change reporters are merged with one atomic upsert", async () => {
   expect(createIndexes).toHaveBeenCalledTimes(1);
   expect(updateOne).toHaveBeenCalledWith(
     { type: "room-name", roomNumber: 42, name: "A room" },
-    expect.any(Array),
+    expect.not.arrayContaining([{ $unset: "upstreamConflict" }]),
     { upsert: true },
   );
+});
+
+test("baseline reconciliation deletes only resolved changes", async () => {
+  const deleteMany = jest.fn<(filter: unknown) => Promise<void>>(
+    async () => Promise.resolve(),
+  );
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        deleteMany,
+        createIndexes: jest.fn(async () => Promise.resolve([])),
+        indexExists: jest.fn(async () => Promise.resolve(false)),
+      })),
+    })),
+  } as unknown as MongoClient;
+  const service = new MongoChangeService(mongo);
+
+  await service.reconcileChanges(["resolved-change"]);
+
+  expect(deleteMany).toHaveBeenCalledWith({
+    changeId: { $in: ["resolved-change"] },
+  });
 });

@@ -99,6 +99,13 @@ export interface DeleteRoomUserDataResponse extends RoomChangeBaseResponse {
   key: string;
 }
 
+export interface ReconciliationResponse {
+  automaticallyResolved: number;
+  baselineVersion: string;
+  upstreamConflicts: number;
+  upstreamConflictDetails: { changeId: string; reason: string }[];
+}
+
 export type ChangeResponse =
   | ChangeRoomNameResponse
   | ModifyRoomExitResponse

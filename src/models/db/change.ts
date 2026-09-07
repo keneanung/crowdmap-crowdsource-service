@@ -601,7 +601,7 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   }
 };
 
-export const changeDbToBusiness = (change: Change): ChangeBusiness => {
+const changeDbToBusinessWithoutMetadata = (change: Change): ChangeBusiness => {
   switch (change.type) {
     case "room-name": {
       return roomNameDbToBusiness(change);
@@ -657,4 +657,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
       throw new Error(`Unknown change type: ${change.type}`);
     }
   }
+};
+
+export const changeDbToBusiness = (change: Change): ChangeBusiness => {
+  const businessChange = changeDbToBusinessWithoutMetadata(change);
+  return businessChange;
 };

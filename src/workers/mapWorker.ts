@@ -1,6 +1,7 @@
 import { MudletMapReader } from "mudlet-map-binary-reader";
 import { readFileSync, writeFileSync } from "node:fs";
 import { parentPort, workerData } from "node:worker_threads";
+import { reconcileChange } from "../models/business/changeReview.js";
 import {
   changeWorkerToBusiness,
   MapWorkerRequest,
@@ -11,9 +12,12 @@ const request = workerData as MapWorkerRequest;
 const map: Mudlet.MudletMap = MudletMapReader.readBuffer(
   readFileSync(request.mapFile),
 );
-request.changes.map(changeWorkerToBusiness).forEach((change) => {
-  change.apply(map);
-});
+const changes = request.changes.map(changeWorkerToBusiness);
+if (request.operation !== "reconcile") {
+  changes.forEach((change) => {
+    change.apply(map);
+  });
+}
 
 const response: MapWorkerResponse = {};
 switch (request.operation) {
@@ -37,6 +41,18 @@ switch (request.operation) {
       area: exportedMap.mapData[0].areaId,
     });
     response.content = `mapData = ${stringifiedMap}; colors = ${stringifiedColors}; position = ${stringifiedPosition};`;
+    break;
+  }
+  case "reconcile": {
+    if (!request.comparisonMapFile) {
+      throw new Error("Missing comparison map file");
+    }
+    const comparisonMap = MudletMapReader.readBuffer(
+      readFileSync(request.comparisonMapFile),
+    );
+    response.reconciliation = changes.map((change) =>
+      reconcileChange(change, map, comparisonMap),
+    );
     break;
   }
   case "validate":

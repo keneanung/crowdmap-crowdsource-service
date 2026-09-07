@@ -20,7 +20,10 @@ import {
   ConflictError,
   ValidateErrorJSON,
 } from "../models/api/error.js";
-import type { ChangeResponse } from "../models/api/response.js";
+import type {
+  ChangeResponse,
+  ReconciliationResponse,
+} from "../models/api/response.js";
 import type {
   ApplicationSubmission,
   ChangeSubmission,
@@ -96,7 +99,7 @@ export class ChangeController extends Controller {
     );
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
-    return snapshot.changes.map((change) => {
+    const responses = snapshot.changes.map<ChangeResponse>((change) => {
       if (!change.changeId) {
         throw new Error("Change does not have a changeId");
       }
@@ -274,6 +277,7 @@ export class ChangeController extends Controller {
         }
       }
     });
+    return responses;
   }
 
   /**
@@ -408,6 +412,24 @@ export class ChangeController extends Controller {
     await this.changeService.addChange(businessChange);
   }
 
+  /** Downloads and stages the configured upstream map for review without changing the local baseline. */
+  @Get("/review-upstream")
+  @Security("api_key")
+  @Response<AuthorizationError>(403, "Authorization Error")
+  @Response<ConflictError>(
+    409,
+    "The map version provided does not match the current map version",
+  )
+  public async reviewUpstream(
+    @Request() request: express.Request & { user: User },
+    @Query() version: string,
+  ) {
+    if (!request.user.roles.includes("map_admin")) {
+      throw new AuthorizationError("Access Denied");
+    }
+    return await this.mapService.stageUpstreamReview(version);
+  }
+
   /**
    * Apply changes to the base map file. This will apply all changes listed in the submission.
    *
@@ -423,11 +445,11 @@ export class ChangeController extends Controller {
   public async applyChanges(
     @Request() request: express.Request & { user: User },
     @Body() application: ApplicationSubmission,
-  ): Promise<void> {
+  ): Promise<ReconciliationResponse> {
     if (!request.user.roles.includes("map_admin")) {
       throw new AuthorizationError("Access Denied");
     }
-    await this.mapService.applyBaselineUpdate(
+    return await this.mapService.applyBaselineUpdate(
       application.version,
       application.obsoleteChanges,
     );
