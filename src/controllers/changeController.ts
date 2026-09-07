@@ -18,6 +18,7 @@ import {
 import {
   AuthorizationError,
   ConflictError,
+  NotFoundError,
   ValidateErrorJSON,
 } from "../models/api/error.js";
 import type {
@@ -414,9 +415,16 @@ export class ChangeController extends Controller {
 
   /** Downloads and stages the configured upstream map for review without changing the local baseline. */
   @Get("/review-upstream")
+  @Security("api_key")
+  @Response<AuthorizationError>(403, "Authorization Error")
+  @Response<NotFoundError>(404, "Staged review not found")
   public async reviewUpstream(
+    @Request() request: express.Request & { user: User },
     @Query() version: string,
   ) {
+    if (!request.user.roles.includes("map_admin")) {
+      throw new AuthorizationError("Access Denied");
+    }
     return await this.mapService.stageUpstreamReview(version);
   }
 

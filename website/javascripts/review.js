@@ -474,13 +474,13 @@ import * as model from "./review-model.js";
     var obsoleteIds = state.stagedReview
       ? state.changes.filter(function (change) { return !state.selected.has(change.changeId); }).map(function (change) { return change.changeId; })
       : selectedIds;
+    var removalCount = state.stagedReview ? obsoleteIds.length : selectedIds.length;
     var removal =
-      selectedIds.length === 0
+      removalCount === 0
         ? " without removing any pending changes"
-        : " and remove " +
-          selectedIds.length +
-          " incorporated change" +
-          (selectedIds.length === 1 ? "" : "s");
+        : state.stagedReview
+          ? " and discard " + removalCount + " report" + (removalCount === 1 ? "" : "s")
+          : " and remove " + removalCount + " incorporated change" + (removalCount === 1 ? "" : "s");
     var confirmed = window.confirm(
       "Apply the newly published upstream baseline" + removal + "?",
     );
@@ -544,7 +544,9 @@ import * as model from "./review-model.js";
     } catch (error) {
       showNotice(error.message, true);
     } finally {
-      elements.apply.textContent = "Apply baseline update";
+      elements.apply.textContent = state.stagedReview
+        ? "Apply reviewed upstream update"
+        : "Apply baseline update";
       updateActions();
     }
   }
@@ -569,7 +571,9 @@ import * as model from "./review-model.js";
     elements.stageUpstream.disabled = true;
     elements.stageUpstream.textContent = "Loading upstream…";
     try {
-      var response = await fetch("change/review-upstream?version=" + encodeURIComponent(state.rawVersion));
+      var response = await fetch("change/review-upstream?version=" + encodeURIComponent(state.rawVersion), {
+        headers: { "X-API-Key": elements.apiKey.value },
+      });
       if (!response.ok) throw new Error("Could not stage upstream (HTTP " + response.status + ")");
       state.stagedReview = await response.json();
       var outcomes = new Map(state.stagedReview.reconciliation.map(function (item) { return [item.changeId, item]; }));

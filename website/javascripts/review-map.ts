@@ -169,7 +169,7 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
     highlight(candidateRenderer, candidate, baseline, changes, "#5ee1b2");
     draw(baselineRenderer, baseline, roomId);
     draw(candidateRenderer, candidate, roomId);
-    baselineStatus.textContent = "Published map";
+    baselineStatus.textContent = reviewId ? "Staged upstream" : "Published map";
     candidateStatus.textContent = ids.length ? ids.length + " selected report" + (ids.length === 1 ? "" : "s") : "No reports selected";
     if (roomId) announceRoom(roomId);
   } catch (error) {

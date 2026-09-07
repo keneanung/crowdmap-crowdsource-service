@@ -55,23 +55,16 @@
     document.body.appendChild(bundle);
   }
 
-  fetch("map/renderer?" + query.toString())
-    .then(function (response) {
-      if (!response.ok) {
-        throw new Error("Map request failed with status " + response.status);
-      }
-      return response.text();
-    })
-    .then(function (source) {
-      window.eval(source);
-      loadRendererBundle();
-    })
-    .catch(function (error) {
-      if (status) {
-        status.textContent = "Preview unavailable: " + error.message;
-      } else {
-        document.querySelector(".map-container").textContent =
-          "Map unavailable: " + error.message;
-      }
-    });
+  var mapData = document.createElement("script");
+  mapData.src = "map/renderer?" + query.toString();
+  mapData.addEventListener("load", loadRendererBundle);
+  mapData.addEventListener("error", function () {
+    if (status) {
+      status.textContent = "Preview unavailable: map data could not be loaded.";
+    } else {
+      document.querySelector(".map-container").textContent =
+        "Map unavailable: map data could not be loaded.";
+    }
+  });
+  document.body.appendChild(mapData);
 })();

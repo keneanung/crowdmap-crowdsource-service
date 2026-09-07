@@ -9,7 +9,7 @@ import { Worker } from "node:worker_threads";
 import { NIL } from "uuid";
 import { config } from "../config/values.js";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads.js";
-import { ConflictError } from "../models/api/error.js";
+import { ConflictError, NotFoundError } from "../models/api/error.js";
 import type { Change } from "../models/business/change.js";
 import {
   changeBusinessToWorker,
@@ -168,7 +168,8 @@ export class MapService {
 
   public getStagedUpstreamReview(id: string): StagedUpstreamReview {
     const staged = stagedUpstreamReviews.get(id);
-    if (!staged) throw new Error("The staged upstream review has expired; load it again.");
+    if (!staged)
+      throw new NotFoundError("The staged upstream review has expired; load it again.");
     return staged;
   }
 
