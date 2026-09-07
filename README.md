@@ -85,6 +85,23 @@ If you prefer using an external/managed MongoDB instance, remove or comment out 
 set the environment variables `MONGO_CONNECTION_STRING` and `MONGO_DB_NAME` appropriately (either by editing the compose
 file or providing a `.env`).
 
+### Optional Ko-fi sponsorships
+
+Set `KO_FI_PROFILE_URL`, `KO_FI_MONTHLY_GOAL`, `KO_FI_CURRENCY`, and
+`KO_FI_WEBHOOK_TOKEN` together to enable `/sponsor.html`. The profile URL must
+be an HTTPS `ko-fi.com` URL; the goal is a positive number in the configured
+three-letter currency. When no profile is configured, the Sponsor navigation
+entry, sponsorship API, and sponsorship page are unavailable.
+
+In Ko-fi, configure a webhook to `https://your-service.example/sponsorship/webhook/kofi`
+and set its verification token to `KO_FI_WEBHOOK_TOKEN`. The service accepts
+Donation and Subscription notifications in the configured currency. It stores
+only the amount, currency, received time/month, and a one-way hash of the
+payment identifier for deduplication—never the notification's raw payload or
+donor fields. The current calendar month's total is displayed against the goal.
+The endpoint returns the HTTP `200` response Ko-fi requires before it stops
+retrying a notification.
+
 ### Review map changes
 
 Open `/review.html` to inspect pending reports. The review workspace can search

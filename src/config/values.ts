@@ -17,6 +17,10 @@ export interface ServiceConfig {
   privacyContactUrl?: string;
   privacyLogRetention?: string;
   privacyProcessorsAndTransfers?: string;
+  kofiProfileUrl?: string;
+  kofiMonthlyGoal?: number;
+  kofiCurrency: string;
+  kofiWebhookToken?: string;
 }
 
 export const config: ServiceConfig = {
@@ -37,6 +41,12 @@ export const config: ServiceConfig = {
   privacyContactUrl: process.env.PRIVACY_CONTACT_URL,
   privacyLogRetention: process.env.PRIVACY_LOG_RETENTION,
   privacyProcessorsAndTransfers: process.env.PRIVACY_PROCESSORS_AND_TRANSFERS,
+  kofiProfileUrl: process.env.KO_FI_PROFILE_URL,
+  kofiMonthlyGoal: process.env.KO_FI_MONTHLY_GOAL
+    ? Number(process.env.KO_FI_MONTHLY_GOAL)
+    : undefined,
+  kofiCurrency: process.env.KO_FI_CURRENCY ?? "USD",
+  kofiWebhookToken: process.env.KO_FI_WEBHOOK_TOKEN,
 };
 
 export const validateConfig = (values: ServiceConfig = config): void => {
@@ -49,6 +59,33 @@ export const validateConfig = (values: ServiceConfig = config): void => {
   }
   if (!Number.isInteger(values.trustProxy) || values.trustProxy < 0) {
     throw new Error("TRUST_PROXY must be a non-negative integer");
+  }
+  if (values.kofiProfileUrl) {
+    let profileUrl: URL;
+    try {
+      profileUrl = new URL(values.kofiProfileUrl);
+    } catch {
+      throw new Error("KO_FI_PROFILE_URL must be a valid URL");
+    }
+    if (
+      profileUrl.protocol !== "https:" ||
+      !["ko-fi.com", "www.ko-fi.com"].includes(profileUrl.hostname)
+    ) {
+      throw new Error("KO_FI_PROFILE_URL must be an HTTPS ko-fi.com URL");
+    }
+    if (
+      values.kofiMonthlyGoal === undefined ||
+      !Number.isFinite(values.kofiMonthlyGoal) ||
+      values.kofiMonthlyGoal <= 0
+    ) {
+      throw new Error("KO_FI_MONTHLY_GOAL must be a positive number");
+    }
+    if (!values.kofiWebhookToken) {
+      throw new Error("KO_FI_WEBHOOK_TOKEN is required with KO_FI_PROFILE_URL");
+    }
+  }
+  if (!/^[A-Z]{3}$/.test(values.kofiCurrency)) {
+    throw new Error("KO_FI_CURRENCY must be a three-letter uppercase currency code");
   }
   if (!values.connectionString) {
     throw new Error("MONGO_CONNECTION_STRING is required");

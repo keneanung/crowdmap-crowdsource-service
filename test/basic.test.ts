@@ -84,6 +84,18 @@ test("GET /privacy.html renders the privacy notice", async () => {
     });
 });
 
+test("sponsorship routes and navigation are unavailable without a Ko-fi profile", async () => {
+  await request(app).get("/sponsor.html").expect(404);
+  await request(app).get("/sponsorship/progress").expect(404);
+  await request(app)
+    .get("/")
+    .expect(200)
+    .expect((res) => {
+      expect(res.text).toContain("data-sponsorship-navigation");
+      expect(res.text).toContain("hidden");
+    });
+});
+
 test("GET / returns the current map explorer with a configurable report threshold", async () => {
   await request(app)
     .get("/")

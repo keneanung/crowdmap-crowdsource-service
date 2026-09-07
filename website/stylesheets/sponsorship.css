@@ -1,0 +1,15 @@
+.sponsorship-card {
+  background: rgb(14 27 45 / 90%);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  margin-top: 2.5rem;
+  max-width: 40rem;
+  padding: 2rem;
+}
+
+.sponsorship-label { color: var(--muted); margin: 0; }
+.sponsorship-total { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; margin: 0.35rem 0 1.25rem; }
+.sponsorship-of { color: var(--muted); font-size: 0.45em; font-weight: 400; }
+progress { accent-color: var(--accent); height: 1rem; width: 100%; }
+.sponsorship-button { background: var(--accent); border-radius: 0.45rem; color: #06151d; display: inline-block; font-weight: 700; margin-top: 1.75rem; padding: 0.75rem 1rem; text-decoration: none; }
+.sponsorship-button:hover, .sponsorship-button:focus-visible { background: #91edcf; }
