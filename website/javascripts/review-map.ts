@@ -148,7 +148,9 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
   try {
     const result = await Promise.all([
       fetchSnapshot(snapshotUrl(2147483647, [])),
-      fetchSnapshot(snapshotUrl(0, ids)),
+      fetchSnapshot(
+        ids.length > 0 ? snapshotUrl(0, ids) : snapshotUrl(2147483647, []),
+      ),
     ]);
     baseline = result[0];
     candidate = result[1];

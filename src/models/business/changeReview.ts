@@ -100,11 +100,10 @@ export const changeTargetState = (
     case "lock-special-exit":
     case "unlock-special-exit": {
       const typed = change as LockSpecialExit | UnlockSpecialExit;
-      return Boolean(
-        room(map, typed.roomNumber)?.mSpecialExitLocks.includes(
-          typed.exitCommand,
-        ),
-      );
+      const target = room(map, typed.roomNumber);
+      return target
+        ? target.mSpecialExitLocks.includes(typed.exitCommand)
+        : null;
     }
     case "modify-room-user-data":
     case "delete-room-user-data": {

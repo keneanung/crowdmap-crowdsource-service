@@ -1,5 +1,9 @@
 import { describe, expect, test } from "@jest/globals";
-import { ChangeRoomName, ModifyRoomExit } from "../src/models/business/change.js";
+import {
+  ChangeRoomName,
+  LockSpecialExit,
+  ModifyRoomExit,
+} from "../src/models/business/change.js";
 import { reconcileChange } from "../src/models/business/changeReview.js";
 
 const mapWithRoom = (name: string, north = -1): Mudlet.MudletMap =>
@@ -94,6 +98,22 @@ describe("baseline change reconciliation", () => {
 
     expect(
       reconcileChange(exitChange, mapWithRoom("Same"), mapWithoutRoom).status,
+    ).toBe("upstream-conflict");
+  });
+
+  test("flags a deleted room for a special-exit lock report", () => {
+    const lockChange = new LockSpecialExit(
+      10,
+      ["reporter"],
+      "enter portal",
+      12,
+      "lock-change",
+    );
+    const mapWithoutRoom = mapWithRoom("Same");
+    mapWithoutRoom.rooms = {};
+
+    expect(
+      reconcileChange(lockChange, mapWithRoom("Same"), mapWithoutRoom).status,
     ).toBe("upstream-conflict");
   });
 });
