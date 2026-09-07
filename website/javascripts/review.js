@@ -591,7 +591,15 @@ import * as model from "./review-model.js";
       elements.baselineVersion.textContent = state.stagedReview.upstreamVersion;
       elements.previewTitle.textContent = "Incoming upstream and reviewed result";
       elements.previewDescription.textContent = "The left pane is staged upstream; the right pane carries the selected reports forward.";
-      window.CrowdmapReviewMap.show(Array.from(state.selected), state.changes, undefined, state.stagedReview.id);
+      var carriedChanges = state.changes.filter(function (change) {
+        return state.selected.has(change.changeId);
+      });
+      window.CrowdmapReviewMap.show(
+        Array.from(state.selected),
+        carriedChanges,
+        undefined,
+        state.stagedReview.id,
+      );
       renderList();
       updateReportFocus();
       updateActions();
