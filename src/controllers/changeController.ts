@@ -18,7 +18,6 @@ import {
 import {
   AuthorizationError,
   ConflictError,
-  NotFoundError,
   ValidateErrorJSON,
 } from "../models/api/error.js";
 import type {
@@ -417,7 +416,10 @@ export class ChangeController extends Controller {
   @Get("/review-upstream")
   @Security("api_key")
   @Response<AuthorizationError>(403, "Authorization Error")
-  @Response<NotFoundError>(404, "Staged review not found")
+  @Response<ConflictError>(
+    409,
+    "The map version provided does not match the current map version",
+  )
   public async reviewUpstream(
     @Request() request: express.Request & { user: User },
     @Query() version: string,
