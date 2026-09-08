@@ -342,9 +342,6 @@ export class ChangeController extends Controller {
           }
         }
       })();
-      if (change.upstreamConflict) {
-        response.upstreamConflict = change.upstreamConflict;
-      }
       return response;
     });
     return responses;
