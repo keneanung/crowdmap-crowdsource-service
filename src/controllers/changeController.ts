@@ -344,7 +344,6 @@ export class ChangeController extends Controller {
       })();
       return response;
     });
-    return responses;
   }
 
   /**
