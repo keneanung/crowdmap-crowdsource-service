@@ -864,9 +864,5 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
       throw new Error(`Unknown change type: ${change.type}`);
     }
   }
-};
-
-export const changeDbToBusiness = (change: Change): ChangeBusiness => {
-  const businessChange = changeDbToBusinessWithoutMetadata(change);
   return businessChange;
 };
