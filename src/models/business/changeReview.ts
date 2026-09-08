@@ -2,6 +2,7 @@ import {
   Change,
   ChangeRoomName,
   CreateArea,
+  CreateRoom,
   DeleteArea,
   DeleteExit,
   DeleteRoom,
@@ -37,6 +38,14 @@ const room = (
   roomNumber: number,
 ): MudletRoom | undefined => lookup(map.rooms, roomNumber);
 
+const roomHash = (
+  map: Mudlet.MudletMap,
+  roomNumber: number,
+): string | null =>
+  Object.entries(map.mpRoomDbHashToRoomId).find(
+    ([, mappedRoomNumber]) => mappedRoomNumber === roomNumber,
+  )?.[0] ?? null;
+
 export const changeTargetState = (
   change: Change,
   map: Mudlet.MudletMap,
@@ -44,7 +53,9 @@ export const changeTargetState = (
   switch (change.type) {
     case "create-room":
     case "delete-room":
-      return Boolean(room(map, (change as DeleteRoom).roomNumber));
+      return Boolean(
+        room(map, (change as CreateRoom | DeleteRoom).roomNumber),
+      );
     case "create-area": {
       const typed = change as CreateArea;
       return {
@@ -83,7 +94,7 @@ export const changeTargetState = (
     }
     case "set-room-hash": {
       const typed = change as SetRoomHash;
-      return lookup(map.mpRoomDbHashToRoomId, typed.hash) ?? null;
+      return roomHash(map, typed.roomNumber);
     }
     case "modify-exit":
     case "delete-exit": {
@@ -165,7 +176,7 @@ export const desiredChangeState = (change: Change): unknown => {
     case "set-room-symbol":
       return (change as SetRoomSymbol).symbol;
     case "set-room-hash":
-      return (change as SetRoomHash).roomNumber;
+      return (change as SetRoomHash).hash;
     case "modify-exit":
       return (change as ModifyRoomExit).destination;
     case "delete-exit":
