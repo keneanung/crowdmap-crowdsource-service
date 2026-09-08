@@ -3,6 +3,7 @@ import {
   ChangeRoomName,
   LockSpecialExit,
   ModifyRoomExit,
+  SetRoomHash,
 } from "../src/models/business/change.js";
 import { reconcileChange } from "../src/models/business/changeReview.js";
 
@@ -115,5 +116,37 @@ describe("baseline change reconciliation", () => {
     expect(
       reconcileChange(lockChange, mapWithRoom("Same"), mapWithoutRoom).status,
     ).toBe("upstream-conflict");
+  });
+
+  test("reconciles room hashes by the room's current hash", () => {
+    const hashChange = new SetRoomHash(
+      10,
+      ["reporter"],
+      "reported-hash",
+      "hash-change",
+    );
+    const oldMap = mapWithRoom("Same");
+    oldMap.mpRoomDbHashToRoomId["old-hash"] = 10;
+    const resolvedMap = mapWithRoom("Same");
+    resolvedMap.mpRoomDbHashToRoomId["reported-hash"] = 10;
+    const conflictingMap = mapWithRoom("Same");
+    conflictingMap.mpRoomDbHashToRoomId["different-upstream-hash"] = 10;
+
+    expect(reconcileChange(hashChange, oldMap, resolvedMap)).toEqual({
+      changeId: "hash-change",
+      status: "resolved",
+    });
+    expect(reconcileChange(hashChange, oldMap, conflictingMap).status).toBe(
+      "upstream-conflict",
+    );
+  });
+
+  test("replaces a room's previous hash when applying a hash change", () => {
+    const map = mapWithRoom("Same");
+    map.mpRoomDbHashToRoomId["old-hash"] = 10;
+
+    new SetRoomHash(10, ["reporter"], "new-hash").apply(map);
+
+    expect(map.mpRoomDbHashToRoomId).toEqual({ "new-hash": 10 });
   });
 });
