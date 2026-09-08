@@ -767,96 +767,73 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   }
 };
 
-export const changeDbToBusiness = (change: Change): ChangeBusiness => {
-  let businessChange: ChangeBusiness;
+const changeDbToBusinessWithoutMetadata = (change: Change): ChangeBusiness => {
   switch (change.type) {
     case "room-name": {
-      businessChange = roomNameDbToBusiness(change);
-      break;
+      return roomNameDbToBusiness(change);
     }
     case "modify-exit": {
-      businessChange = modifyExitDbToBusiness(change);
-      break;
+      return modifyExitDbToBusiness(change);
     }
     case "modify-special-exit": {
-      businessChange = modifySpecialExitDbToBusiness(change);
-      break;
+      return modifySpecialExitDbToBusiness(change);
     }
     case "lock-special-exit": {
-      businessChange = lockSpecialExitDbToBusiness(change);
-      break;
+      return lockSpecialExitDbToBusiness(change);
     }
     case "unlock-special-exit": {
-      businessChange = unlockSpecialExitDbToBusiness(change);
-      break;
+      return unlockSpecialExitDbToBusiness(change);
     }
     case "delete-special-exit": {
-      businessChange = deleteSpecialExitDbToBusiness(change);
-      break;
+      return deleteSpecialExitDbToBusiness(change);
     }
     case "create-room": {
-      businessChange = crreateRoomDbToBusiness(change);
-      break;
+      return crreateRoomDbToBusiness(change);
     }
     case "delete-room": {
-      businessChange = deleteRoomDbToBusiness(change);
-      break;
+      return deleteRoomDbToBusiness(change);
     }
     case "set-room-coordinates": {
-      businessChange = setRoomCoordinatesDbToBusiness(change);
-      break;
+      return setRoomCoordinatesDbToBusiness(change);
     }
     case "create-area": {
-      businessChange = createAreaDbToBusiness(change);
-      break;
+      return createAreaDbToBusiness(change);
     }
     case "rename-area": {
-      businessChange = renameAreaDbToBusiness(change);
-      break;
+      return renameAreaDbToBusiness(change);
     }
     case "delete-area": {
-      businessChange = deleteAreaDbToBusiness(change);
-      break;
+      return deleteAreaDbToBusiness(change);
     }
     case "set-room-area": {
-      businessChange = setRoomAreaDbToBusiness(change);
-      break;
+      return setRoomAreaDbToBusiness(change);
     }
     case "set-room-weight": {
-      businessChange = setRoomWeightDbToBusiness(change);
-      break;
+      return setRoomWeightDbToBusiness(change);
     }
     case "set-room-symbol": {
-      businessChange = setRoomSymbolDbToBusiness(change);
-      break;
+      return setRoomSymbolDbToBusiness(change);
     }
     case "set-room-hash": {
-      businessChange = setRoomHashDbToBusiness(change);
-      break;
+      return setRoomHashDbToBusiness(change);
     }
     case "delete-exit": {
-      businessChange = deleteExitDbToBusiness(change);
-      break;
+      return deleteExitDbToBusiness(change);
     }
     case "modify-exit-weight": {
-      businessChange = modifyExitWeightDbToBusiness(change);
-      break;
+      return modifyExitWeightDbToBusiness(change);
     }
     case "modify-special-exit-weight": {
-      businessChange = modifySpecialExitWeightDbToBusiness(change);
-      break;
+      return modifySpecialExitWeightDbToBusiness(change);
     }
     case "set-room-environment": {
-      businessChange = setRoomEnvironmentDbToBusiness(change);
-      break;
+      return setRoomEnvironmentDbToBusiness(change);
     }
     case "modify-room-user-data": {
-      businessChange = modifyRoomUserDataDbToBusiness(change);
-      break;
+      return modifyRoomUserDataDbToBusiness(change);
     }
     case "delete-room-user-data": {
-      businessChange = deleteRoomUserDataDbToBusiness(change);
-      break;
+      return deleteRoomUserDataDbToBusiness(change);
     }
     default: {
       // @ts-expect-error There should be no way to get here
@@ -864,5 +841,9 @@ export const changeDbToBusiness = (change: Change): ChangeBusiness => {
       throw new Error(`Unknown change type: ${change.type}`);
     }
   }
+};
+
+export const changeDbToBusiness = (change: Change): ChangeBusiness => {
+  const businessChange = changeDbToBusinessWithoutMetadata(change);
   return businessChange;
 };
