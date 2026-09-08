@@ -1,6 +1,6 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
-import { MongoClient } from "mongodb";
+import { MongoClient, MongoServerError } from "mongodb";
 import { config } from "../config/values.js";
 import type { Change } from "../models/business/change.js";
 import {
@@ -37,7 +37,16 @@ export class MongoChangeService implements ChangeService {
     const collection = db.collection<ChangeDb>("changes");
     this.indexesReady ??= (async () => {
       if (await collection.indexExists("unique_logical_change")) {
-        await collection.dropIndex("unique_logical_change");
+        try {
+          await collection.dropIndex("unique_logical_change");
+        } catch (error) {
+          if (
+            !(error instanceof MongoServerError) ||
+            (error.code !== 27 && error.codeName !== "IndexNotFound")
+          ) {
+            throw error;
+          }
+        }
       }
       return await collection.createIndexes([
         {
