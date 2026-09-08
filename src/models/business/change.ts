@@ -573,6 +573,8 @@ export class SetRoomHash extends RoomChangeBase<SetRoomHash> {
   }
 
   public apply(map: Mudlet.MudletMap): void {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!map.rooms[this.roomNumber]) return;
     for (const [hash, roomNumber] of Object.entries(
       map.mpRoomDbHashToRoomId,
     )) {
