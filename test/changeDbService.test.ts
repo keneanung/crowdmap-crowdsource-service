@@ -43,7 +43,7 @@ test("legacy index migration tolerates a concurrent index drop", async () => {
   const indexExists = jest.fn(async () => Promise.resolve(true));
   const dropIndex = jest.fn(async () =>
     Promise.reject(
-      new MongoServerError({
+      Object.assign(new MongoServerError(), {
         code: 27,
         codeName: "IndexNotFound",
         errmsg: "index not found",
