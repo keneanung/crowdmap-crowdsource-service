@@ -41,10 +41,14 @@ const room = (
 const roomHash = (
   map: Mudlet.MudletMap,
   roomNumber: number,
-): string | null =>
-  Object.entries(map.mpRoomDbHashToRoomId).find(
-    ([, mappedRoomNumber]) => mappedRoomNumber === roomNumber,
-  )?.[0] ?? null;
+): string | null => {
+  if (!room(map, roomNumber)) return null;
+  return (
+    Object.entries(map.mpRoomDbHashToRoomId).find(
+      ([, mappedRoomNumber]) => mappedRoomNumber === roomNumber,
+    )?.[0] ?? null
+  );
+};
 
 export const changeTargetState = (
   change: Change,
