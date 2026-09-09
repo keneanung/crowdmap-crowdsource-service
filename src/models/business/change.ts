@@ -24,7 +24,25 @@ export type ChangeType =
   | "modify-room-user-data"
   | "delete-room-user-data";
 
+const resetAreaSize = (area: MudletArea): void => {
+  area.max_x = 0;
+  area.max_y = 0;
+  area.max_z = 0;
+  area.min_x = 0;
+  area.min_y = 0;
+  area.min_z = 0;
+  area.span = [0, 0, 0];
+  area.xmaxForZ = {};
+  area.ymaxForZ = {};
+  area.xminForZ = {};
+  area.yminForZ = {};
+  area.zLevels = [];
+};
+
 const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
+  resetAreaSize(area);
+  if (area.rooms.length === 0) return;
+
   const areaRooms = area.rooms.map((roomNumber) => map.rooms[roomNumber]);
   const xCoordinates = new Set(areaRooms.map((room) => room.x));
   const yCoordinates = new Set(areaRooms.map((room) => room.y));
@@ -35,18 +53,15 @@ const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
   area.min_x = Math.min(...xCoordinates);
   area.min_y = Math.min(...yCoordinates);
   area.min_z = Math.min(...zCoordinates);
-  for (const z of zCoordinates) {
-    if (!area.zLevels.includes(z)) {
-      area.zLevels.push(z);
-      area.zLevels.sort();
-    }
+  area.zLevels = Array.from(zCoordinates).sort((left, right) => left - right);
+  for (const z of area.zLevels) {
     const roomsOnThisZLevel = areaRooms.filter((room) => room.z === z);
-    const xFOrZ = roomsOnThisZLevel.map((room) => room.x);
-    const yFOrZ = roomsOnThisZLevel.map((room) => room.y);
-    area.xmaxForZ[z] = Math.max(...xFOrZ);
-    area.ymaxForZ[z] = Math.max(...yFOrZ);
-    area.xminForZ[z] = Math.min(...xFOrZ);
-    area.yminForZ[z] = Math.min(...yFOrZ);
+    const xForZ = roomsOnThisZLevel.map((room) => room.x);
+    const yForZ = roomsOnThisZLevel.map((room) => room.y);
+    area.xmaxForZ[z] = Math.max(...xForZ);
+    area.ymaxForZ[z] = Math.max(...yForZ);
+    area.xminForZ[z] = Math.min(...xForZ);
+    area.yminForZ[z] = Math.min(...yForZ);
   }
 };
 
@@ -152,7 +167,13 @@ export class RenameArea extends ChangeBase<RenameArea> {
 
   public apply(map: Mudlet.MudletMap): void {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (map.areas[this.areaId]) map.areaNames[this.areaId] = this.name;
+    if (!map.areas[this.areaId]) return;
+    const nameIsUsedByAnotherArea = Object.entries(map.areaNames).some(
+      ([areaId, areaName]) =>
+        Number(areaId) !== this.areaId && areaName === this.name,
+    );
+    if (nameIsUsedByAnotherArea) return;
+    map.areaNames[this.areaId] = this.name;
   }
 
   public getIdentifyingParts() {
@@ -475,7 +496,7 @@ export class DeleteRoom extends RoomChangeBase<DeleteRoom> {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (area) {
       area.rooms = area.rooms.filter((id) => id !== this.roomNumber);
-      if (area.rooms.length > 0) calculateNewAreaSize(map, area);
+      calculateNewAreaSize(map, area);
     }
     for (const otherRoom of Object.values(map.rooms)) {
       for (const direction of directions) {
