@@ -246,6 +246,71 @@ describe("baseline change reconciliation", () => {
     });
   });
 
+  test("does not rename an area to another area's name", () => {
+    const map = mapWithArea("Original name");
+    map.areas[8] = { rooms: [] } as unknown as MudletArea;
+    map.areaNames[8] = "Existing name";
+
+    new RenameArea(7, "Existing name", ["reporter"]).apply(map);
+
+    expect(map.areaNames[7]).toBe("Original name");
+    expect(map.areaNames[8]).toBe("Existing name");
+  });
+
+  test("resets derived area bounds when deleting its last room", () => {
+    const map = mapWithRoom("Same");
+    Object.assign(map.rooms[10], { area: 7, x: 4, y: 5, z: 6 });
+    map.areas[7] = {
+      max_x: 40,
+      max_y: 50,
+      max_z: 60,
+      min_x: -40,
+      min_y: -50,
+      min_z: -60,
+      rooms: [10],
+      span: [80, 100, 120],
+      xmaxForZ: { 6: 40 },
+      xminForZ: { 6: -40 },
+      ymaxForZ: { 6: 50 },
+      yminForZ: { 6: -50 },
+      zLevels: [6],
+    } as unknown as MudletArea;
+
+    new DeleteRoom(10, ["reporter"]).apply(map);
+
+    expect(map.areas[7]).toMatchObject({
+      max_x: 0,
+      max_y: 0,
+      max_z: 0,
+      min_x: 0,
+      min_y: 0,
+      min_z: 0,
+      rooms: [],
+      span: [0, 0, 0],
+      xmaxForZ: {},
+      xminForZ: {},
+      ymaxForZ: {},
+      yminForZ: {},
+      zLevels: [],
+    });
+  });
+
+  test("treats a stale hash entry for a deleted room as an upstream conflict", () => {
+    const hashChange = new SetRoomHash(
+      10,
+      ["reporter"],
+      "reported-hash",
+      "hash-change",
+    );
+    const oldMap = mapWithRoomHash("old-hash");
+    const newMap = mapWithRoomHash("reported-hash");
+    newMap.rooms = {};
+
+    expect(reconcileChange(hashChange, oldMap, newMap).status).toBe(
+      "upstream-conflict",
+    );
+  });
+
   test("replaces a room's previous hash when applying a hash change", () => {
     const map = mapWithRoom("Same");
     map.mpRoomDbHashToRoomId["old-hash"] = 10;
