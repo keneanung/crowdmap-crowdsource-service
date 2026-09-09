@@ -8,9 +8,15 @@ export type ChangeType =
   | "unlock-special-exit"
   | "delete-special-exit"
   | "create-room"
+  | "delete-room"
   | "set-room-coordinates"
   | "create-area"
+  | "rename-area"
+  | "delete-area"
   | "set-room-area"
+  | "set-room-weight"
+  | "set-room-symbol"
+  | "set-room-hash"
   | "delete-exit"
   | "modify-exit-weight"
   | "modify-special-exit-weight"
@@ -18,7 +24,25 @@ export type ChangeType =
   | "modify-room-user-data"
   | "delete-room-user-data";
 
+const resetAreaSize = (area: MudletArea): void => {
+  area.max_x = 0;
+  area.max_y = 0;
+  area.max_z = 0;
+  area.min_x = 0;
+  area.min_y = 0;
+  area.min_z = 0;
+  area.span = [0, 0, 0];
+  area.xmaxForZ = {};
+  area.ymaxForZ = {};
+  area.xminForZ = {};
+  area.yminForZ = {};
+  area.zLevels = [];
+};
+
 const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
+  resetAreaSize(area);
+  if (area.rooms.length === 0) return;
+
   const areaRooms = area.rooms.map((roomNumber) => map.rooms[roomNumber]);
   const xCoordinates = new Set(areaRooms.map((room) => room.x));
   const yCoordinates = new Set(areaRooms.map((room) => room.y));
@@ -29,20 +53,32 @@ const calculateNewAreaSize = (map: Mudlet.MudletMap, area: MudletArea) => {
   area.min_x = Math.min(...xCoordinates);
   area.min_y = Math.min(...yCoordinates);
   area.min_z = Math.min(...zCoordinates);
-  for (const z of zCoordinates) {
-    if (!area.zLevels.includes(z)) {
-      area.zLevels.push(z);
-      area.zLevels.sort();
-    }
+  area.zLevels = Array.from(zCoordinates).sort((left, right) => left - right);
+  for (const z of area.zLevels) {
     const roomsOnThisZLevel = areaRooms.filter((room) => room.z === z);
-    const xFOrZ = roomsOnThisZLevel.map((room) => room.x);
-    const yFOrZ = roomsOnThisZLevel.map((room) => room.y);
-    area.xmaxForZ[z] = Math.max(...xFOrZ);
-    area.ymaxForZ[z] = Math.max(...yFOrZ);
-    area.xminForZ[z] = Math.min(...xFOrZ);
-    area.yminForZ[z] = Math.min(...yFOrZ);
+    const xForZ = roomsOnThisZLevel.map((room) => room.x);
+    const yForZ = roomsOnThisZLevel.map((room) => room.y);
+    area.xmaxForZ[z] = Math.max(...xForZ);
+    area.ymaxForZ[z] = Math.max(...yForZ);
+    area.xminForZ[z] = Math.min(...xForZ);
+    area.yminForZ[z] = Math.min(...yForZ);
   }
 };
+
+const directions: Direction[] = [
+  "north",
+  "northeast",
+  "east",
+  "southeast",
+  "south",
+  "southwest",
+  "west",
+  "northwest",
+  "up",
+  "down",
+  "in",
+  "out",
+];
 
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
@@ -114,6 +150,60 @@ export class CreateArea extends ChangeBase<CreateArea> {
       type: this.type,
       areaId: this.areaId,
     };
+  }
+}
+
+export class RenameArea extends ChangeBase<RenameArea> {
+  type: ChangeType = "rename-area";
+
+  constructor(
+    public areaId: number,
+    public name: string,
+    reporters: string[],
+    changeId?: string,
+  ) {
+    super(reporters, changeId);
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!map.areas[this.areaId]) return;
+    const nameIsUsedByAnotherArea = Object.entries(map.areaNames).some(
+      ([areaId, areaName]) =>
+        Number(areaId) !== this.areaId && areaName === this.name,
+    );
+    if (nameIsUsedByAnotherArea) return;
+    map.areaNames[this.areaId] = this.name;
+  }
+
+  public getIdentifyingParts() {
+    return { type: this.type, areaId: this.areaId, name: this.name };
+  }
+}
+
+export class DeleteArea extends ChangeBase<DeleteArea> {
+  type: ChangeType = "delete-area";
+
+  constructor(
+    public areaId: number,
+    reporters: string[],
+    changeId?: string,
+  ) {
+    super(reporters, changeId);
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const area = map.areas[this.areaId];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!area || area.rooms.length > 0) return;
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete map.areas[this.areaId];
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete map.areaNames[this.areaId];
+  }
+
+  public getIdentifyingParts() {
+    return { type: this.type, areaId: this.areaId };
   }
 }
 
@@ -392,6 +482,133 @@ export class CreateRoom extends RoomChangeBase<CreateRoom> {
       type: this.type,
       roomNumber: this.roomNumber,
     };
+  }
+}
+
+export class DeleteRoom extends RoomChangeBase<DeleteRoom> {
+  type: ChangeType = "delete-room";
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!room) return;
+    const area = map.areas[room.area];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (area) {
+      area.rooms = area.rooms.filter((id) => id !== this.roomNumber);
+      calculateNewAreaSize(map, area);
+    }
+    for (const otherRoom of Object.values(map.rooms)) {
+      for (const direction of directions) {
+        if (otherRoom[direction] === this.roomNumber) otherRoom[direction] = -1;
+      }
+      for (const [command, destination] of Object.entries(
+        otherRoom.mSpecialExits,
+      )) {
+        if (destination === this.roomNumber) {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete otherRoom.mSpecialExits[command];
+          otherRoom.mSpecialExitLocks = otherRoom.mSpecialExitLocks.filter(
+            (exitCommand) => exitCommand !== command,
+          );
+        }
+      }
+    }
+    for (const [hash, roomNumber] of Object.entries(map.mpRoomDbHashToRoomId)) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      if (roomNumber === this.roomNumber) delete map.mpRoomDbHashToRoomId[hash];
+    }
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete map.rooms[this.roomNumber];
+  }
+
+  public getIdentifyingParts() {
+    return { type: this.type, roomNumber: this.roomNumber };
+  }
+}
+
+export class SetRoomWeight extends RoomChangeBase<SetRoomWeight> {
+  type: ChangeType = "set-room-weight";
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    public weight: number,
+    changeId?: string,
+  ) {
+    super(roomNumber, reporters, changeId);
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (room) room.weight = this.weight;
+  }
+
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      weight: this.weight,
+    };
+  }
+}
+
+export class SetRoomSymbol extends RoomChangeBase<SetRoomSymbol> {
+  type: ChangeType = "set-room-symbol";
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    public symbol: string,
+    changeId?: string,
+  ) {
+    super(roomNumber, reporters, changeId);
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (room) room.symbol = this.symbol;
+  }
+
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      symbol: this.symbol,
+    };
+  }
+}
+
+export class SetRoomHash extends RoomChangeBase<SetRoomHash> {
+  type: ChangeType = "set-room-hash";
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    public hash: string,
+    changeId?: string,
+  ) {
+    super(roomNumber, reporters, changeId);
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!map.rooms[this.roomNumber]) return;
+    for (const [hash, roomNumber] of Object.entries(
+      map.mpRoomDbHashToRoomId,
+    )) {
+      if (roomNumber === this.roomNumber && hash !== this.hash) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete map.mpRoomDbHashToRoomId[hash];
+      }
+    }
+    map.mpRoomDbHashToRoomId[this.hash] = this.roomNumber;
+  }
+
+  public getIdentifyingParts() {
+    return { type: this.type, roomNumber: this.roomNumber, hash: this.hash };
   }
 }
 
@@ -707,9 +924,15 @@ export type Change =
   | UnlockSpecialExit
   | DeleteSpecialExit
   | CreateRoom
+  | DeleteRoom
   | SetRoomCoordinates
   | CreateArea
+  | RenameArea
+  | DeleteArea
   | SetRoomArea
+  | SetRoomWeight
+  | SetRoomSymbol
+  | SetRoomHash
   | DeleteExit
   | ModifyExitWeight
   | ModifySpecialExitWeight

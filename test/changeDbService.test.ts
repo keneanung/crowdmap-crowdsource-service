@@ -1,5 +1,5 @@
 import { expect, jest, test } from "@jest/globals";
-import { MongoClient } from "mongodb";
+import { MongoClient, MongoServerError } from "mongodb";
 import { ChangeRoomName } from "../src/models/business/change.js";
 import { MongoChangeService } from "../src/services/changeService.js";
 
@@ -8,10 +8,17 @@ test("change reporters are merged with one atomic upsert", async () => {
     (filter: unknown, update: unknown, options: unknown) => Promise<void>
   >(async () => Promise.resolve());
   const createIndexes = jest.fn(async () => Promise.resolve([]));
+  const indexExists = jest.fn(async () => Promise.resolve(false));
+  const dropIndex = jest.fn(async () => Promise.resolve());
   const mongo = {
     connect: jest.fn(async () => Promise.resolve()),
     db: jest.fn(() => ({
-      collection: jest.fn(() => ({ createIndexes, updateOne })),
+      collection: jest.fn(() => ({
+        createIndexes,
+        indexExists,
+        dropIndex,
+        updateOne,
+      })),
     })),
   } as unknown as MongoClient;
   const service = new MongoChangeService(mongo);
@@ -26,6 +33,44 @@ test("change reporters are merged with one atomic upsert", async () => {
     expect.not.arrayContaining([{ $unset: "upstreamConflict" }]),
     { upsert: true },
   );
+});
+
+test("legacy index migration tolerates a concurrent index drop", async () => {
+  const updateOne = jest.fn<
+    (filter: unknown, update: unknown, options: unknown) => Promise<void>
+  >(async () => Promise.resolve());
+  const createIndexes = jest.fn(async () => Promise.resolve([]));
+  const indexExists = jest.fn(async () => Promise.resolve(true));
+  const dropIndex = jest.fn<(name: string) => Promise<void>>(async () =>
+    Promise.reject(
+      new MongoServerError({
+        code: 27,
+        codeName: "IndexNotFound",
+        errmsg: "index not found",
+      }),
+    ),
+  );
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        createIndexes,
+        indexExists,
+        dropIndex,
+        updateOne,
+      })),
+    })),
+  } as unknown as MongoClient;
+  const service = new MongoChangeService(mongo);
+
+  await expect(
+    service.addChange(
+      new ChangeRoomName(42, ["reporter-a"], "A room", "change-id"),
+    ),
+  ).resolves.toBeUndefined();
+
+  expect(dropIndex).toHaveBeenCalledWith("unique_logical_change");
+  expect(createIndexes).toHaveBeenCalledTimes(1);
 });
 
 test("baseline reconciliation deletes only resolved changes", async () => {

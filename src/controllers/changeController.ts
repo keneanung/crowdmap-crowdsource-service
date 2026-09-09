@@ -33,7 +33,9 @@ import {
   ChangeRoomName,
   CreateArea,
   CreateRoom,
+  DeleteArea,
   DeleteExit,
+  DeleteRoom,
   DeleteRoomUserData,
   DeleteSpecialExit,
   LockSpecialExit,
@@ -42,9 +44,13 @@ import {
   ModifyRoomUserData,
   ModifySpecialExit,
   ModifySpecialExitWeight,
+  RenameArea,
   SetRoomArea,
   SetRoomCoordinates,
   SetRoomEnvironment,
+  SetRoomHash,
+  SetRoomSymbol,
+  SetRoomWeight,
   UnlockSpecialExit,
 } from "../models/business/change.js";
 import type { User } from "../models/business/user.js";
@@ -177,6 +183,15 @@ export class ChangeController extends Controller {
             changeId: typedChange.changeId,
           };
         }
+        case "delete-room": {
+          const typedChange = change as DeleteRoom;
+          return {
+            type: "delete-room",
+            roomNumber: typedChange.roomNumber,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
         case "set-room-coordinates": {
           const typedChange = change as SetRoomCoordinates;
           return {
@@ -199,6 +214,25 @@ export class ChangeController extends Controller {
             changeId: typedChange.changeId,
           };
         }
+        case "rename-area": {
+          const typedChange = change as RenameArea;
+          return {
+            type: "rename-area",
+            areaId: typedChange.areaId,
+            name: typedChange.name,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
+        case "delete-area": {
+          const typedChange = change as DeleteArea;
+          return {
+            type: "delete-area",
+            areaId: typedChange.areaId,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
         case "set-room-area": {
           const typedChange = change as SetRoomArea;
           return {
@@ -206,6 +240,36 @@ export class ChangeController extends Controller {
             roomNumber: typedChange.roomNumber,
             reporters: typedChange.reporters.size,
             areaId: typedChange.areaId,
+            changeId: typedChange.changeId,
+          };
+        }
+        case "set-room-weight": {
+          const typedChange = change as SetRoomWeight;
+          return {
+            type: "set-room-weight",
+            roomNumber: typedChange.roomNumber,
+            weight: typedChange.weight,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
+        case "set-room-symbol": {
+          const typedChange = change as SetRoomSymbol;
+          return {
+            type: "set-room-symbol",
+            roomNumber: typedChange.roomNumber,
+            symbol: typedChange.symbol,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
+        case "set-room-hash": {
+          const typedChange = change as SetRoomHash;
+          return {
+            type: "set-room-hash",
+            roomNumber: typedChange.roomNumber,
+            hash: typedChange.hash,
+            reporters: typedChange.reporters.size,
             changeId: typedChange.changeId,
           };
         }
@@ -340,6 +404,9 @@ export class ChangeController extends Controller {
         case "create-room": {
           return new CreateRoom(change.roomNumber, [change.reporter]);
         }
+        case "delete-room": {
+          return new DeleteRoom(change.roomNumber, [change.reporter]);
+        }
         case "set-room-coordinates": {
           return new SetRoomCoordinates(
             change.roomNumber,
@@ -352,11 +419,38 @@ export class ChangeController extends Controller {
         case "create-area": {
           return new CreateArea(change.name, change.areaId, [change.reporter]);
         }
+        case "rename-area": {
+          return new RenameArea(change.areaId, change.name, [change.reporter]);
+        }
+        case "delete-area": {
+          return new DeleteArea(change.areaId, [change.reporter]);
+        }
         case "set-room-area": {
           return new SetRoomArea(
             change.roomNumber,
             [change.reporter],
             change.areaId,
+          );
+        }
+        case "set-room-weight": {
+          return new SetRoomWeight(
+            change.roomNumber,
+            [change.reporter],
+            change.weight,
+          );
+        }
+        case "set-room-symbol": {
+          return new SetRoomSymbol(
+            change.roomNumber,
+            [change.reporter],
+            change.symbol,
+          );
+        }
+        case "set-room-hash": {
+          return new SetRoomHash(
+            change.roomNumber,
+            [change.reporter],
+            change.hash,
           );
         }
         case "delete-exit": {
