@@ -6,8 +6,17 @@
     <title>Crowdmap Service</title>
     <link href="javascripts/map-explorer/index.min.css" rel="stylesheet" />
     <link href="stylesheets/map-explorer-host.css" rel="stylesheet" />
+    <link href="stylesheets/site-navigation.css" rel="stylesheet" />
   </head>
   <body>
+    <nav class="site-navigation" aria-label="Primary navigation">
+      <a class="site-navigation__brand" href="index.html">Crowdmap</a>
+      <ul class="site-navigation__links">
+        <li><a href="index.html" aria-current="page">Explorer</a></li>
+        <li><a href="review.html">Review</a></li>
+        <li><a href="privacy.html">Privacy Policy</a></li>
+      </ul>
+    </nav>
     <div id="root"></div>
     <form class="crowdmap-threshold" aria-label="Crowdmap inclusion threshold">
       <label for="times-seen">Changes reported by</label>

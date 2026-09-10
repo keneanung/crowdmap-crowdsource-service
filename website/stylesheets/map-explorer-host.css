@@ -8,6 +8,13 @@ body,
   height: 100%;
 }
 
+.site-navigation {
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+}
+
 .crowdmap-threshold {
   align-items: center;
   backdrop-filter: blur(8px);
