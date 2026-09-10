@@ -66,7 +66,11 @@ const renderPrivacyPage = async (): Promise<string> => {
   return rendered;
 };
 
-const renderedPrivacyPage = renderPrivacyPage();
+let renderedPrivacyPage: string | undefined;
+
+const getRenderedPrivacyPage = async (): Promise<string> => {
+  return (renderedPrivacyPage ??= await renderPrivacyPage());
+};
 
 app.set("trust proxy", config.trustProxy);
 
@@ -90,7 +94,7 @@ app.use(
 );
 app.get("/privacy.html", async (_request, response, next) => {
   try {
-    response.type("html").send(await renderedPrivacyPage);
+    response.type("html").send(await getRenderedPrivacyPage());
   } catch (error) {
     next(error);
   }
