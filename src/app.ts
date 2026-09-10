@@ -45,6 +45,29 @@ const escapeHtml = (value: string): string =>
     return entities[character] ?? character;
   });
 
+const renderPrivacyPage = async (): Promise<string> => {
+  const page = await readFile(privacyPage, "utf8");
+  const values: Record<string, string> = {
+    "{{privacy-controller-name}}": config.privacyControllerName ?? "",
+    "{{privacy-contact-url}}": config.privacyContactUrl ?? "",
+    "{{privacy-contact-label}}": (config.privacyContactUrl ?? "").replace(
+      /^mailto:/iu,
+      "",
+    ),
+    "{{privacy-log-retention}}": config.privacyLogRetention ?? "",
+    "{{privacy-processors-and-transfers}}":
+      config.privacyProcessorsAndTransfers ?? "",
+  };
+  const rendered = Object.entries(values).reduce(
+    (result, [placeholder, value]) =>
+      result.replaceAll(placeholder, escapeHtml(value)),
+    page,
+  );
+  return rendered;
+};
+
+const renderedPrivacyPage = renderPrivacyPage();
+
 app.set("trust proxy", config.trustProxy);
 
 app.use(requestObservability);
@@ -55,31 +78,6 @@ app.use(
     extended: true,
   }),
 );
-
-app.get("/privacy.html", async (_request, response, next) => {
-  try {
-    const page = await readFile(privacyPage, "utf8");
-    const values: Record<string, string> = {
-      "{{privacy-controller-name}}": config.privacyControllerName ?? "",
-      "{{privacy-contact-url}}": config.privacyContactUrl ?? "",
-      "{{privacy-contact-label}}": (config.privacyContactUrl ?? "").replace(
-        /^mailto:/u,
-        "",
-      ),
-      "{{privacy-log-retention}}": config.privacyLogRetention ?? "",
-      "{{privacy-processors-and-transfers}}":
-        config.privacyProcessorsAndTransfers ?? "",
-    };
-    const rendered = Object.entries(values).reduce(
-      (result, [placeholder, value]) =>
-        result.replaceAll(placeholder, escapeHtml(value)),
-      page,
-    );
-    response.type("html").send(rendered);
-  } catch (error) {
-    next(error);
-  }
-});
 app.use(json());
 app.use(
   rateLimit({
@@ -90,6 +88,13 @@ app.use(
     standardHeaders: true,
   }),
 );
+app.get("/privacy.html", async (_request, response, next) => {
+  try {
+    response.type("html").send(await renderedPrivacyPage);
+  } catch (error) {
+    next(error);
+  }
+});
 app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
   return res.send(swaggerUi.generateHTML(swaggerJson));
 });
