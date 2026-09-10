@@ -44,8 +44,9 @@
   if (!input) return;
   input.value = String(timesSeen);
   function updateThreshold() {
-    var next = Number(input.value);
-    if (validThreshold(next) === null) {
+    var value = input.value.trim();
+    var next = Number(value);
+    if (value === "" || validThreshold(next) === null) {
       input.value = String(timesSeen);
       return;
     }

@@ -188,6 +188,41 @@ test("the explorer config handles failed threshold persistence", async () => {
   expect(reloads).toBe(0);
 });
 
+test("the explorer config rejects an empty threshold", async () => {
+  const source = await readFile(
+    new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
+    "utf8",
+  );
+  const values = new Map<string, string>([["crowdmap-explorer", '{"timesSeen":3}']]);
+  let reloads = 0;
+  let onChange: (() => void) | undefined;
+  const input = {
+    value: "",
+    addEventListener(event: string, listener: () => void) {
+      if (event === "change") onChange = listener;
+    },
+  };
+
+  runInNewContext(source, {
+    JSON,
+    Number,
+    document: { querySelector: () => input },
+    encodeURIComponent,
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+    window: { location: { reload: () => reloads++ } },
+  });
+
+  input.value = "";
+  onChange?.();
+
+  expect(input.value).toBe("3");
+  expect(values.get("crowdmap-explorer")).toBe('{"timesSeen":3}');
+  expect(reloads).toBe(0);
+});
+
 test("the explorer config prevents threshold form submission and saves its value", async () => {
   const source = await readFile(
     new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
