@@ -5,6 +5,11 @@ const validConfig = {
   ...config,
   connectionString: "mongodb://mongo:27017",
   dbName: "crowdmap",
+  privacyControllerName: "Example controller",
+  privacyContactUrl: "https://example.test/privacy",
+  privacyLogRetention: "30 days",
+  privacyProcessorsAndTransfers:
+    "Hosted in the EEA; no transfers outside the EEA.",
 };
 
 test("rejects invalid ports and proxy trust values", () => {
@@ -23,6 +28,17 @@ test("requires MongoDB configuration", () => {
   expect(() => {
     validateConfig({ ...validConfig, dbName: undefined });
   }).toThrow("MONGO_DB_NAME");
+});
+
+test.each([
+  ["privacyControllerName", undefined],
+  ["privacyContactUrl", undefined],
+  ["privacyLogRetention", undefined],
+  ["privacyProcessorsAndTransfers", undefined],
+])("requires %s", (key, value) => {
+  expect(() => {
+    validateConfig({ ...validConfig, [key]: value });
+  }).toThrow("PRIVACY_");
 });
 
 test.each([

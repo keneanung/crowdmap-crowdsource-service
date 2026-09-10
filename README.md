@@ -57,8 +57,20 @@ on the host and run:
 
 ```shell
 export INITIAL_ADMIN_API_KEY="cm1_$(uuidgen).$(openssl rand -hex 32)"
+export PRIVACY_CONTROLLER_NAME="Example organisation or legal name"
+export PRIVACY_CONTACT_URL="https://example.org/privacy-contact"
+export PRIVACY_LOG_RETENTION="30 days"
+export PRIVACY_PROCESSORS_AND_TRANSFERS="Hosted in the EEA by Example Host; no transfers outside the EEA."
 docker compose up -d
 ```
+
+The privacy variables are intentionally required. Each deployment is its own
+data controller and must publish accurate controller/contact, log-retention,
+and processor/transfer information; the source repository never contains a
+maintainer's personal address. `PRIVACY_CONTACT_URL` must be an HTTPS contact
+page or a `mailto:` URL. If you use a third-country provider, state the country
+and transfer safeguard (for example an adequacy decision or SCCs) in
+`PRIVACY_PROCESSORS_AND_TRANSFERS`.
 
 The initial key is not written to application logs. It contains a public lookup ID before the `.` and a secret after it, but the complete value is one credential and must be kept secret. Store it in a password manager, use it to create individual administrator accounts, and then remove `INITIAL_ADMIN_API_KEY` from the deployment environment. Existing installations that already have an `admin` user do not use this value.
 

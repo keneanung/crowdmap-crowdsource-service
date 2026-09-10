@@ -7,6 +7,7 @@ import express, {
   urlencoded,
 } from "express";
 import rateLimit from "express-rate-limit";
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +31,19 @@ const mapExplorerDirectory = join(
   dirname(require.resolve("mudlet-map-browser-script/package.json")),
   "dist",
 );
+const privacyPage = join(currentDirectory, "../website/privacy.html");
+
+const escapeHtml = (value: string): string =>
+  value.replace(/[&<>'"]/gu, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#39;",
+      '"': "&quot;",
+    };
+    return entities[character] ?? character;
+  });
 
 app.set("trust proxy", config.trustProxy);
 
@@ -41,6 +55,31 @@ app.use(
     extended: true,
   }),
 );
+
+app.get("/privacy.html", async (_request, response, next) => {
+  try {
+    const page = await readFile(privacyPage, "utf8");
+    const values: Record<string, string> = {
+      "{{privacy-controller-name}}": config.privacyControllerName ?? "",
+      "{{privacy-contact-url}}": config.privacyContactUrl ?? "",
+      "{{privacy-contact-label}}": (config.privacyContactUrl ?? "").replace(
+        /^mailto:/u,
+        "",
+      ),
+      "{{privacy-log-retention}}": config.privacyLogRetention ?? "",
+      "{{privacy-processors-and-transfers}}":
+        config.privacyProcessorsAndTransfers ?? "",
+    };
+    const rendered = Object.entries(values).reduce(
+      (result, [placeholder, value]) =>
+        result.replaceAll(placeholder, escapeHtml(value)),
+      page,
+    );
+    response.type("html").send(rendered);
+  } catch (error) {
+    next(error);
+  }
+});
 app.use(json());
 app.use(
   rateLimit({
