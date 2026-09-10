@@ -1,4 +1,6 @@
 import { beforeEach, expect, test } from "@jest/globals";
+import { readFile } from "node:fs/promises";
+import { runInNewContext } from "node:vm";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
@@ -93,6 +95,43 @@ test("GET /javascripts/map-explorer-config.js configures the binary map source",
       expect(res.text).toContain("map?format=binary&timesSeen=");
       expect(res.text).toContain("crowdmap-explorer");
     });
+});
+
+test("the explorer config persists a zero report threshold", async () => {
+  const source = await readFile(
+    new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
+    "utf8",
+  );
+  const values = new Map<string, string>();
+  let reloads = 0;
+  let onChange: (() => void) | undefined;
+  const input = {
+    value: "",
+    addEventListener(event: string, listener: () => void) {
+      if (event === "change") onChange = listener;
+    },
+  };
+  const window = {
+    location: { reload: () => reloads++ },
+  };
+
+  runInNewContext(source, {
+    JSON,
+    Number,
+    document: { querySelector: () => input },
+    encodeURIComponent,
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+    window,
+  });
+
+  input.value = "0";
+  onChange?.();
+
+  expect(values.get("crowdmap-explorer")).toBe('{"timesSeen":0}');
+  expect(reloads).toBe(1);
 });
 
 test("GET /javascripts/map-explorer/index.min.js serves the packaged explorer", async () => {

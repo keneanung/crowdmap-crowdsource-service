@@ -39,7 +39,7 @@
   input.value = String(timesSeen);
   input.addEventListener("change", function () {
     var next = Number(input.value);
-    if (!validThreshold(next)) {
+    if (validThreshold(next) === null) {
       input.value = String(timesSeen);
       return;
     }
