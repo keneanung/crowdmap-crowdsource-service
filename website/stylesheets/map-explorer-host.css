@@ -11,6 +11,7 @@ body,
 .crowdmap-threshold {
   align-items: center;
   backdrop-filter: blur(8px);
+  background: var(--bs-body-bg, #212529);
   background: color-mix(in srgb, var(--bs-body-bg, #212529) 90%, transparent);
   border: 1px solid var(--bs-border-color, #495057);
   border-radius: 0.5rem;

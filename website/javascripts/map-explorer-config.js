@@ -24,7 +24,12 @@
   }
 
   function saveThreshold(timesSeen) {
-    localStorage.setItem(settingKey, JSON.stringify({ timesSeen: timesSeen }));
+    try {
+      localStorage.setItem(settingKey, JSON.stringify({ timesSeen: timesSeen }));
+      return true;
+    } catch (_error) {
+      return false;
+    }
   }
 
   var timesSeen = storedThreshold();
@@ -36,6 +41,7 @@
   };
 
   var input = document.querySelector("#times-seen");
+  if (!input) return;
   input.value = String(timesSeen);
   input.addEventListener("change", function () {
     var next = Number(input.value);
@@ -43,7 +49,10 @@
       input.value = String(timesSeen);
       return;
     }
-    saveThreshold(next);
+    if (!saveThreshold(next)) {
+      input.value = String(timesSeen);
+      return;
+    }
     window.location.reload();
   });
 })();

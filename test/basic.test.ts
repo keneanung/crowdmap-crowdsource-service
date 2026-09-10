@@ -134,6 +134,60 @@ test("the explorer config persists a zero report threshold", async () => {
   expect(reloads).toBe(1);
 });
 
+test("the explorer config still initializes without a threshold control", async () => {
+  const source = await readFile(
+    new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
+    "utf8",
+  );
+  const window: { MAP_CONFIG?: { mapUrl: string } } = {};
+
+  expect(() => {
+    runInNewContext(source, {
+      JSON,
+      Number,
+      document: { querySelector: () => null },
+      encodeURIComponent,
+      localStorage: { getItem: () => null },
+      window,
+    });
+  }).not.toThrow();
+  expect(window.MAP_CONFIG?.mapUrl).toBe("map?format=binary&timesSeen=0");
+});
+
+test("the explorer config handles failed threshold persistence", async () => {
+  const source = await readFile(
+    new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
+    "utf8",
+  );
+  let reloads = 0;
+  let onChange: (() => void) | undefined;
+  const input = {
+    value: "",
+    addEventListener(event: string, listener: () => void) {
+      if (event === "change") onChange = listener;
+    },
+  };
+
+  runInNewContext(source, {
+    JSON,
+    Number,
+    document: { querySelector: () => input },
+    encodeURIComponent,
+    localStorage: {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("storage unavailable");
+      },
+    },
+    window: { location: { reload: () => reloads++ } },
+  });
+
+  input.value = "3";
+  expect(() => onChange?.()).not.toThrow();
+  expect(input.value).toBe("0");
+  expect(reloads).toBe(0);
+});
+
 test("GET /javascripts/map-explorer/index.min.js serves the packaged explorer", async () => {
   await request(app)
     .get("/javascripts/map-explorer/index.min.js")
