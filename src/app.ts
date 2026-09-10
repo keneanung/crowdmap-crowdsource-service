@@ -7,6 +7,7 @@ import express, {
   urlencoded,
 } from "express";
 import rateLimit from "express-rate-limit";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import swaggerUi from "swagger-ui-express";
@@ -24,6 +25,11 @@ import { getRequestId, log, requestObservability } from "./observability.js";
 
 export const app = express();
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const mapExplorerDirectory = join(
+  dirname(require.resolve("mudlet-map-browser-script/package.json")),
+  "dist",
+);
 
 app.set("trust proxy", config.trustProxy);
 
@@ -51,6 +57,10 @@ app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
 
 RegisterRoutes(app);
 
+app.use(
+  "/javascripts/map-explorer",
+  express.static(mapExplorerDirectory, { maxAge: "1h" }),
+);
 app.use(express.static(join(currentDirectory, "../website")));
 
 app.use(function notFoundHandler(_req, res: ExResponse) {
