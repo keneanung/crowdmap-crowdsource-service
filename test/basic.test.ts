@@ -73,6 +73,17 @@ test("GET /review.html returns the change review UI", async () => {
     });
 });
 
+test("GET /privacy.html renders the privacy notice", async () => {
+  await request(app)
+    .get("/privacy.html")
+    .expect(200)
+    .expect("Content-Type", "text/html; charset=utf-8")
+    .expect((res) => {
+      expect(res.text).toContain("Privacy Policy");
+      expect(res.text).not.toContain("{{privacy-");
+    });
+});
+
 test("GET / returns the current map explorer with a configurable report threshold", async () => {
   await request(app)
     .get("/")
