@@ -77,9 +77,9 @@ test("GET / returns the current map explorer with a configurable report threshol
     .expect(200)
     .expect("Content-Type", "text/html; charset=utf-8")
     .expect((res) => {
-      expect(res.text).toContain("javascripts/map-explorer.css");
+      expect(res.text).toContain("javascripts/map-explorer/index.min.css");
       expect(res.text).toContain("javascripts/map-explorer-config.js");
-      expect(res.text).toContain("javascripts/map-explorer.js");
+      expect(res.text).toContain("javascripts/map-explorer/index.min.js");
       expect(res.text).toContain('id="times-seen"');
     });
 });
@@ -95,9 +95,9 @@ test("GET /javascripts/map-explorer-config.js configures the binary map source",
     });
 });
 
-test("GET /javascripts/map-explorer.js returns the packaged explorer", async () => {
+test("GET /javascripts/map-explorer/index.min.js serves the packaged explorer", async () => {
   await request(app)
-    .get("/javascripts/map-explorer.js")
+    .get("/javascripts/map-explorer/index.min.js")
     .expect(200)
     .expect("Content-Type", /javascript/u)
     .expect((res) => {

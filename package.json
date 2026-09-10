@@ -5,11 +5,10 @@
   "main": "build/src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "npm run build:review && npm run build:explorer && concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\" \"npm run build:review -- --watch\"",
-    "build": "tsoa spec-and-routes && npm run fix:esm-imports && tsc && npm run build:review && npm run build:explorer && cp -R website/ build/",
+    "dev": "npm run build:review && concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\" \"npm run build:review -- --watch\"",
+    "build": "tsoa spec-and-routes && npm run fix:esm-imports && tsc && npm run build:review && cp -R website/ build/",
     "fix:esm-imports": "node scripts/fix-esm-imports.mjs",
     "build:review": "esbuild website/javascripts/review-map.ts --bundle --format=iife --target=es2020 --outfile=website/javascripts/review-map.js",
-    "build:explorer": "node scripts/copy-map-explorer.mjs",
     "start": "node build/src/server.js",
     "audit:production": "npm audit --omit=dev",
     "prelint": "tsoa spec-and-routes",

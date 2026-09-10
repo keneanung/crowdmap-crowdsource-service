@@ -51,6 +51,15 @@ app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
 
 RegisterRoutes(app);
 
+app.use(
+  "/javascripts/map-explorer",
+  express.static(
+    join(
+      process.cwd(),
+      "node_modules/mudlet-map-browser-script/dist",
+    ),
+  ),
+);
 app.use(express.static(join(currentDirectory, "../website")));
 
 app.use(function notFoundHandler(_req, res: ExResponse) {
