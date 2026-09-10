@@ -43,7 +43,7 @@
   var input = document.querySelector("#times-seen");
   if (!input) return;
   input.value = String(timesSeen);
-  input.addEventListener("change", function () {
+  function updateThreshold() {
     var next = Number(input.value);
     if (validThreshold(next) === null) {
       input.value = String(timesSeen);
@@ -54,5 +54,13 @@
       return;
     }
     window.location.reload();
-  });
+  }
+
+  input.addEventListener("change", updateThreshold);
+  if (input.form) {
+    input.form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      updateThreshold();
+    });
+  }
 })();

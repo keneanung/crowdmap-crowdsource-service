@@ -59,7 +59,7 @@ RegisterRoutes(app);
 
 app.use(
   "/javascripts/map-explorer",
-  express.static(mapExplorerDirectory),
+  express.static(mapExplorerDirectory, { maxAge: "1h" }),
 );
 app.use(express.static(join(currentDirectory, "../website")));
 

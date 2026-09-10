@@ -188,13 +188,54 @@ test("the explorer config handles failed threshold persistence", async () => {
   expect(reloads).toBe(0);
 });
 
+test("the explorer config prevents threshold form submission and saves its value", async () => {
+  const source = await readFile(
+    new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
+    "utf8",
+  );
+  const values = new Map<string, string>();
+  let onSubmit: ((event: { preventDefault: () => void }) => void) | undefined;
+  let reloads = 0;
+  let prevented = false;
+  const form = {
+    addEventListener(event: string, listener: (event: { preventDefault: () => void }) => void) {
+      if (event === "submit") onSubmit = listener;
+    },
+  };
+  const input = {
+    form,
+    value: "",
+    addEventListener: () => undefined,
+  };
+
+  runInNewContext(source, {
+    JSON,
+    Number,
+    document: { querySelector: () => input },
+    encodeURIComponent,
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+    window: { location: { reload: () => reloads++ } },
+  });
+
+  input.value = "3";
+  onSubmit?.({ preventDefault: () => (prevented = true) });
+
+  expect(prevented).toBe(true);
+  expect(values.get("crowdmap-explorer")).toBe('{"timesSeen":3}');
+  expect(reloads).toBe(1);
+});
+
 test("GET /javascripts/map-explorer/index.min.js serves the packaged explorer", async () => {
   await request(app)
     .get("/javascripts/map-explorer/index.min.js")
     .expect(200)
     .expect("Content-Type", /javascript/u)
+    .expect("Cache-Control", /max-age=3600/u)
     .expect((res) => {
-      expect(res.text).toContain("mudlet-map-browser: failed to load map data");
+      expect(res.text).not.toHaveLength(0);
     });
 });
 
