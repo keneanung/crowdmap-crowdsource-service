@@ -1,12 +1,21 @@
-import { beforeEach, expect, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test } from "@jest/globals";
 import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 import request from "supertest";
 import { app } from "../src/app.js";
+import { config } from "../src/config/values.js";
+import { iocContainer } from "../src/ioc/ioc.js";
+import { SponsorshipService } from "../src/services/sponsorshipService.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
 beforeEach(() => {
   setupChangeServiceMock();
+});
+
+const sponsorshipConfig = { ...config };
+
+afterEach(() => {
+  Object.assign(config, sponsorshipConfig);
 });
 
 test("getChanges returns empty array when no changes", async () => {
@@ -94,6 +103,37 @@ test("sponsorship routes and navigation are unavailable without a Ko-fi profile"
       expect(res.text).toContain("data-sponsorship-navigation");
       expect(res.text).toContain("hidden");
     });
+});
+
+test("Ko-fi webhook accepts only verified supported URL-encoded payments", async () => {
+  const received: unknown[] = [];
+  Object.assign(config, {
+    kofiProfileUrl: "https://ko-fi.com/crowdmap",
+    kofiMonthlyGoal: 20,
+    kofiCurrency: "USD",
+    kofiWebhookToken: "secret",
+  });
+  iocContainer.rebindSync<SponsorshipService>(SponsorshipService).toConstantValue({
+    isEnabled: () => true,
+    getProgress: () => Promise.resolve(undefined),
+    recordPayment: (payment) => {
+      received.push(payment);
+      return Promise.resolve();
+    },
+  } as SponsorshipService);
+  const event = {
+    verification_token: "secret",
+    kofi_transaction_id: "payment-1",
+    timestamp: "2026-09-11T12:00:00Z",
+    type: "Donation",
+    amount: "2.50",
+    currency: "USD",
+  };
+  await request(app).post("/sponsorship/webhook/kofi").type("form").send({ data: JSON.stringify(event) }).expect(200);
+  await request(app).post("/sponsorship/webhook/kofi").type("form").send({ data: JSON.stringify({ ...event, verification_token: "wrong" }) }).expect(200);
+  await request(app).post("/sponsorship/webhook/kofi").type("form").send({ data: "not json" }).expect(200);
+  await request(app).post("/sponsorship/webhook/kofi").type("form").send({ data: JSON.stringify({ ...event, type: "Shop Order" }) }).expect(200);
+  expect(received).toHaveLength(1);
 });
 
 test("GET / returns the current map explorer with a configurable report threshold", async () => {
