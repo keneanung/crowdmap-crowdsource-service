@@ -100,7 +100,11 @@ export const validateConfig = (values: ServiceConfig = config): void => {
     const minorUnits = Math.round(
       values.kofiMonthlyGoal * 10 ** values.kofiCurrencyDecimalPlaces,
     );
-    if (!Number.isSafeInteger(minorUnits) || minorUnits <= 0) {
+    if (
+      !Number.isSafeInteger(minorUnits) ||
+      minorUnits <= 0 ||
+      minorUnits / 10 ** values.kofiCurrencyDecimalPlaces !== values.kofiMonthlyGoal
+    ) {
       throw new Error("KO_FI_MONTHLY_GOAL must be a positive safe minor-unit amount");
     }
   }
