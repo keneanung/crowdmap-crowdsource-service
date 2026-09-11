@@ -96,6 +96,14 @@ export const validateConfig = (values: ServiceConfig = config): void => {
   ) {
     throw new Error("KO_FI_CURRENCY_DECIMAL_PLACES must be an integer between 0 and 6");
   }
+  if (values.kofiMonthlyGoal !== undefined) {
+    const minorUnits = Math.round(
+      values.kofiMonthlyGoal * 10 ** values.kofiCurrencyDecimalPlaces,
+    );
+    if (!Number.isSafeInteger(minorUnits) || minorUnits <= 0) {
+      throw new Error("KO_FI_MONTHLY_GOAL must be a positive safe minor-unit amount");
+    }
+  }
   if (!values.connectionString) {
     throw new Error("MONGO_CONNECTION_STRING is required");
   }
