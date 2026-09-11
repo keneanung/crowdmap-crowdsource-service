@@ -20,6 +20,7 @@ export interface ServiceConfig {
   kofiProfileUrl?: string;
   kofiMonthlyGoal?: number;
   kofiCurrency: string;
+  kofiCurrencyDecimalPlaces: number;
   kofiWebhookToken?: string;
 }
 
@@ -46,6 +47,7 @@ export const config: ServiceConfig = {
     ? Number(process.env.KO_FI_MONTHLY_GOAL)
     : undefined,
   kofiCurrency: process.env.KO_FI_CURRENCY ?? "USD",
+  kofiCurrencyDecimalPlaces: Number(process.env.KO_FI_CURRENCY_DECIMAL_PLACES ?? 2),
   kofiWebhookToken: process.env.KO_FI_WEBHOOK_TOKEN,
 };
 
@@ -86,6 +88,13 @@ export const validateConfig = (values: ServiceConfig = config): void => {
   }
   if (!/^[A-Z]{3}$/.test(values.kofiCurrency)) {
     throw new Error("KO_FI_CURRENCY must be a three-letter uppercase currency code");
+  }
+  if (
+    !Number.isInteger(values.kofiCurrencyDecimalPlaces) ||
+    values.kofiCurrencyDecimalPlaces < 0 ||
+    values.kofiCurrencyDecimalPlaces > 6
+  ) {
+    throw new Error("KO_FI_CURRENCY_DECIMAL_PLACES must be an integer between 0 and 6");
   }
   if (!values.connectionString) {
     throw new Error("MONGO_CONNECTION_STRING is required");
