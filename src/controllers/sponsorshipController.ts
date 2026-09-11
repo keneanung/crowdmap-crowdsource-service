@@ -27,30 +27,32 @@ const verifiedToken = (token: unknown): boolean => {
 
 const parsePayment = (raw: unknown): KofiPayment | undefined => {
   if (typeof raw !== "string") return undefined;
-  let payload: KofiPayload;
+  let payload: unknown;
   try {
-    payload = JSON.parse(raw) as KofiPayload;
+    payload = JSON.parse(raw);
   } catch {
     return undefined;
   }
-  if (!verifiedToken(payload.verification_token)) return undefined;
-  if (payload.type !== "Donation" && payload.type !== "Subscription") return undefined;
-  if (typeof payload.amount !== "string" && typeof payload.amount !== "number") return undefined;
-  const amount = Number(payload.amount);
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return undefined;
+  const kofiPayload = payload as KofiPayload;
+  if (!verifiedToken(kofiPayload.verification_token)) return undefined;
+  if (kofiPayload.type !== "Donation" && kofiPayload.type !== "Subscription") return undefined;
+  if (typeof kofiPayload.amount !== "string" && typeof kofiPayload.amount !== "number") return undefined;
+  const amount = Number(kofiPayload.amount);
   const minorAmount = Math.round(amount * 10 ** config.kofiCurrencyDecimalPlaces);
   if (
     !Number.isFinite(amount) ||
     !Number.isSafeInteger(minorAmount) ||
     minorAmount <= 0 ||
-    payload.currency !== config.kofiCurrency
+    kofiPayload.currency !== config.kofiCurrency
   ) return undefined;
-  const sourceId = payload.kofi_transaction_id ?? payload.message_id;
+  const sourceId = kofiPayload.kofi_transaction_id ?? kofiPayload.message_id;
   if (typeof sourceId !== "string" || sourceId.length === 0) return undefined;
-  const receivedAt = typeof payload.timestamp === "string" ? new Date(payload.timestamp) : new Date();
+  const receivedAt = typeof kofiPayload.timestamp === "string" ? new Date(kofiPayload.timestamp) : new Date();
   if (Number.isNaN(receivedAt.getTime())) return undefined;
   return {
     amount,
-    currency: payload.currency,
+    currency: kofiPayload.currency,
     receivedAt,
     // Keep an irreversible identifier for idempotency; do not retain Ko-fi's raw ID.
     eventId: createHash("sha256").update(sourceId).digest("hex"),
