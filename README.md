@@ -96,9 +96,13 @@ entry, sponsorship API, and sponsorship page are unavailable.
 In Ko-fi, configure a webhook to `https://your-service.example/sponsorship/webhook/kofi`
 and set its verification token to `KO_FI_WEBHOOK_TOKEN`. The service accepts
 Donation and Subscription notifications in the configured currency. It stores
-only the amount, currency, received time/month, and a one-way hash of the
-payment identifier for deduplication—never the notification's raw payload or
-donor fields. The current calendar month's total is displayed against the goal.
+only the amount, currency, received time, remaining sponsorship credit, and a
+hash of the payment identifier—never the notification's raw payload or donor
+fields. Unused credit carries into later calendar months; at each reset, one
+monthly goal is consumed from the outstanding credit. Fully used payment records
+are deleted, while the hashed identifier is retained for 30 days to prevent
+delayed duplicate webhooks. The current outstanding credit is displayed against
+the goal.
 The endpoint returns the HTTP `200` response Ko-fi requires before it stops
 retrying a notification.
 
