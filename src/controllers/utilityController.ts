@@ -1,7 +1,7 @@
 import { provide } from "@inversifyjs/binding-decorators";
+import { Controller, Get, Produces, Request, Route, Tags } from "@tsoa/runtime";
 import * as express from "express";
 import { inject } from "inversify";
-import { Controller, Get, Produces, Request, Route, Tags } from "tsoa";
 import { ServiceUnavailableError } from "../models/api/error.js";
 import { renderMetrics } from "../observability.js";
 import { HealthService } from "../services/healthService.js";
@@ -33,10 +33,15 @@ export class UtilityController extends Controller {
       id: string;
       name: string;
       status: "ok" | "unavailable";
-      error?: string;
     }[];
   }> {
-    await this.healthService.checkReadiness();
+    try {
+      await this.healthService.checkReadiness();
+    } catch (error) {
+      throw new ServiceUnavailableError("Service is not ready", {
+        cause: error,
+      });
+    }
     return {
       status: "ok",
       projects: await this.healthService.getProjectStatuses(),

@@ -12,6 +12,7 @@ const userService = iocContainer.get<UserService>(UserService, {
 });
 const changeService = iocContainer.get<ChangeService>(ChangeService);
 const mapService = iocContainer.get<MapService>(MapService);
+const PROJECT_RETRY_INTERVAL_MS = 60_000;
 
 const checkAdminUser = userService.getUser("admin").then(async (adminUser) => {
   if (adminUser) return;
@@ -29,12 +30,14 @@ const checkAdminUser = userService.getUser("admin").then(async (adminUser) => {
   if (created) log("info", "initial_admin_created");
 });
 
-const initializeProjects = async (): Promise<void> => {
+const initializeProjects = async (
+  projects = config.projects,
+): Promise<void> => {
   const results = await Promise.allSettled(
-    config.projects.map((project) => mapService.initializeProject(project)),
+    projects.map((project) => mapService.initializeProject(project)),
   );
   results.forEach((result, index) => {
-    const project = config.projects[index];
+    const project = projects[index];
     if (result.status === "rejected")
       log("error", "project_initialization_failed", {
         projectId: project.id,
@@ -45,7 +48,23 @@ const initializeProjects = async (): Promise<void> => {
 };
 
 let server: Server | undefined;
+let projectRetryTimer: NodeJS.Timeout | undefined;
+let projectRetryRunning = false;
 let shuttingDown = false;
+const retryUnavailableProjects = async (): Promise<void> => {
+  if (projectRetryRunning) return;
+  const unavailable = config.projects.filter(
+    (project) => mapService.projectStatus(project).status === "unavailable",
+  );
+  if (unavailable.length === 0) return;
+  projectRetryRunning = true;
+  try {
+    await initializeProjects(unavailable);
+  } finally {
+    projectRetryRunning = false;
+  }
+};
+
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -56,6 +75,7 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   }, 10_000);
   forcedExit.unref();
   try {
+    if (projectRetryTimer) clearInterval(projectRetryTimer);
     if (server)
       await new Promise<void>((resolve, reject) => {
         server?.close((error) => {
@@ -80,6 +100,10 @@ Promise.all([
     server = app.listen(config.port, () => {
       log("info", "server_listening", { port: config.port });
     });
+    projectRetryTimer = setInterval(() => {
+      void retryUnavailableProjects();
+    }, PROJECT_RETRY_INTERVAL_MS);
+    projectRetryTimer.unref();
     process.once("SIGTERM", () => {
       void shutdown("SIGTERM");
     });

@@ -1,7 +1,4 @@
 import { provide } from "@inversifyjs/binding-decorators";
-import type * as express from "express";
-import { inject } from "inversify";
-import { createHash, timingSafeEqual } from "node:crypto";
 import {
   Controller,
   Get,
@@ -11,7 +8,10 @@ import {
   Route,
   SuccessResponse,
   Tags,
-} from "tsoa";
+} from "@tsoa/runtime";
+import type * as express from "express";
+import { inject } from "inversify";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { config } from "../config/values.js";
 import { NotFoundError } from "../models/api/error.js";
 import type {

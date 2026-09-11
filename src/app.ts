@@ -1,3 +1,4 @@
+import { ValidateError } from "@tsoa/runtime";
 import cors from "cors";
 import express, {
   Request as ExRequest,
@@ -12,7 +13,6 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import swaggerUi from "swagger-ui-express";
-import { ValidateError } from "tsoa";
 import { RegisterRoutes } from "../generated/routes.js";
 import swaggerJson from "../generated/swagger.json" with { type: "json" };
 import { config } from "./config/values.js";

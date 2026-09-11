@@ -131,8 +131,8 @@ export class MapService {
     try {
       if (!existsSync(project.mapFile)) await downloadMapFile(project);
       if (!existsSync(project.versionFile)) await downloadMapVersion(project);
+      await this.validateBaselineContents(project);
       runtime.availabilityError = undefined;
-      await this.validateBaseline(project);
     } catch (error) {
       runtime.availabilityError =
         error instanceof Error ? error : new Error(String(error));
@@ -140,24 +140,16 @@ export class MapService {
     }
   }
 
-  public async projectStatus(project: MapProject): Promise<{
+  public projectStatus(project: MapProject): {
     id: string;
     name: string;
     status: "ok" | "unavailable";
-    error?: string;
-  }> {
-    try {
-      this.assertAvailable(project);
-      await this.validateBaseline(project);
-      return { id: project.id, name: project.name, status: "ok" };
-    } catch (error) {
-      return {
-        id: project.id,
-        name: project.name,
-        status: "unavailable",
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+  } {
+    return {
+      id: project.id,
+      name: project.name,
+      status: this.runtime(project).availabilityError ? "unavailable" : "ok",
+    };
   }
 
   public async getTempMapFileName(): Promise<string> {
@@ -438,6 +430,10 @@ export class MapService {
     this.assertAvailable(project);
     const runtime = this.runtime(project);
     await runtime.baselineUpdateQueue;
+    await this.validateBaselineContents(project);
+  }
+
+  private async validateBaselineContents(project: MapProject): Promise<void> {
     const version = await this.readRawVersion(project);
     if (!version) {
       throw new Error("Baseline version is empty");

@@ -12,8 +12,8 @@ const API_KEY_ID_PATTERN =
 export const canAdministerProject = (user: User, projectId: string): boolean =>
   user.roles.includes("site_admin") ||
   (user.roles.includes("map_admin") &&
-    user.mapAdminProjects?.includes(projectId) === true) ||
-  (config.projects.length === 1 && user.roles.includes("map_admin"));
+    (user.mapAdminProjects?.includes(projectId) === true ||
+      (user.mapAdminProjects === undefined && config.projects.length === 1)));
 
 @provide(UserService)
 export class UserService {

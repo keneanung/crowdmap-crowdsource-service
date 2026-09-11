@@ -1,5 +1,4 @@
 import { provide } from "@inversifyjs/binding-decorators";
-import { inject } from "inversify";
 import {
   Body,
   Controller,
@@ -13,7 +12,8 @@ import {
   SuccessResponse,
   Tags,
   ValidateError,
-} from "tsoa";
+} from "@tsoa/runtime";
+import { inject } from "inversify";
 import {
   AuthorizationError,
   ConflictError,

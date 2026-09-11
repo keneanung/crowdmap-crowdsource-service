@@ -134,6 +134,20 @@ test("map administrators are project-scoped while site administrators are global
   expect(canAdministerProject(siteAdmin, "beta")).toBe(true);
 });
 
+test("an explicit empty project assignment revokes single-project administration", () => {
+  config.projects = [project("alpha")];
+  const legacyAdmin = {
+    name: "legacy-admin",
+    roles: ["map_admin"] as "map_admin"[],
+    salt: "salt",
+    hashed_api_key: "hash",
+  };
+  expect(canAdministerProject(legacyAdmin, "alpha")).toBe(true);
+  expect(
+    canAdministerProject({ ...legacyAdmin, mapAdminProjects: [] }, "alpha"),
+  ).toBe(false);
+});
+
 test("a broken project does not make a healthy project unavailable", async () => {
   const directory = await mkdtemp(join(tmpdir(), "crowdmap-health-test-"));
   const healthy = project("healthy", directory);
@@ -161,6 +175,19 @@ test("a broken project does not make a healthy project unavailable", async () =>
   await expect(service.getRawVersion(broken)).rejects.toThrow(
     "Map project broken is unavailable",
   );
+  expect(service.projectStatus(broken)).toEqual({
+    id: "broken",
+    name: "broken map",
+    status: "unavailable",
+  });
+
+  await copyFile(
+    join(process.cwd(), "test/setup/baselineFiles/map"),
+    broken.mapFile,
+  );
+  await expect(service.initializeProject(broken)).resolves.toBeUndefined();
+  await expect(service.getRawVersion(broken)).resolves.toBe("broken-v1");
+  expect(service.projectStatus(broken).status).toBe("ok");
   await rm(directory, { recursive: true, force: true });
 });
 

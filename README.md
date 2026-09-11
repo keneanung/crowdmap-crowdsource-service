@@ -47,7 +47,9 @@ variables are not supported. Start from the tracked example:
 
 ```shell
 cp config.example.yaml config.yaml
-chmod 600 config.yaml
+# The official image runs as node (UID/GID 1000).
+chgrp 1000 config.yaml
+chmod 640 config.yaml
 ```
 
 `projects.resolver: single` requires exactly one definition and needs no DNS
@@ -88,9 +90,10 @@ Express resolves `X-Forwarded-Host` only through `platform.trustProxy`, so set
 that value narrowly to the actual reverse-proxy hop count.
 
 Relative baseline paths are resolved from the directory containing the YAML
-file. To use a different filename or location outside Compose, set only the
-bootstrap variable `CONFIG_FILE`; it defaults to `config.yaml` in the working
-directory.
+file, and all paths are normalized before uniqueness checks. Compose supplies
+the file as a Docker secret from the host-side `config.yaml`. Outside Compose,
+the service defaults to `config.yaml` in the working directory; set only the
+bootstrap variable `CONFIG_FILE` to use another location.
 
 Do not add a production project called `test`. Run tests as a separate deployment
 of the same image with its own Mongo database, volume, host mappings, and secrets.
@@ -121,9 +124,12 @@ on the host and run:
 
 ```shell
 cp config.example.yaml config.yaml
-# Edit every example value, including platform privacy details and the initial key.
+# Generate a unique bootstrap credential and paste it as platform.initialAdminApiKey:
+printf 'cm1_%s.%s\n' "$(uuidgen | tr '[:upper:]' '[:lower:]')" "$(openssl rand -hex 32)"
+# Edit every example value and add the generated initial key.
 $EDITOR config.yaml
-chmod 600 config.yaml
+chgrp 1000 config.yaml
+chmod 640 config.yaml
 docker compose up -d
 ```
 
@@ -249,7 +255,8 @@ Then stop the app and restore the complete recovery set before starting it again
 backup_dir="backup-YYYYMMDDTHHMMSSZ"
 docker compose stop app
 cp "$backup_dir/config.yaml" config.yaml
-chmod 600 config.yaml
+chgrp 1000 config.yaml
+chmod 640 config.yaml
 docker compose exec -T mongo mongorestore --drop --archive --gzip < "$backup_dir/mongo.archive.gz"
 docker compose cp "$backup_dir/data/." app:/opt/data
 docker compose run --rm --no-deps --user root app chown -R node:node /opt/data
@@ -273,7 +280,9 @@ with project-compound indexes.
 
 The container health check covers required platform dependencies such as MongoDB.
 `GET /utility/status` additionally reports every configured project as `ok` or
-`unavailable`; one broken baseline does not make healthy project hosts unavailable.
+`unavailable` from the last startup or retry check; one broken baseline does not
+make healthy project hosts unavailable. Unavailable projects are validated again
+every 60 seconds, while detailed validation errors remain in the service logs.
 
 ## Contributing
 

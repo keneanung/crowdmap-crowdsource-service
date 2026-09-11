@@ -1,6 +1,4 @@
 import { provide } from "@inversifyjs/binding-decorators";
-import * as express from "express";
-import { inject } from "inversify";
 import {
   Body,
   Controller,
@@ -15,7 +13,9 @@ import {
   Security,
   SuccessResponse,
   Tags,
-} from "tsoa";
+} from "@tsoa/runtime";
+import * as express from "express";
+import { inject } from "inversify";
 import {
   AuthorizationError,
   ConflictError,

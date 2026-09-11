@@ -20,7 +20,7 @@ const validConfig: ServiceConfig = {
     "Hosted in the EEA; no transfers outside the EEA.",
 };
 
-test("loads nested YAML and resolves relative baseline paths from its directory", async () => {
+test("loads nested YAML and normalizes baseline paths", async () => {
   const directory = await mkdtemp(join(tmpdir(), "crowdmap-config-test-"));
   const configFile = join(directory, "service.yaml");
   await writeFile(
@@ -40,7 +40,7 @@ projects:
     - id: example
       name: Example map
       baseline:
-        mapFile: data/map
+        mapFile: ${directory}/data/../data/map
         versionFile: data/version
       upstream:
         mapUrl: https://example.test/map

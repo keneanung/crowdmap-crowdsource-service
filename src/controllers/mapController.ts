@@ -1,8 +1,4 @@
 import { provide } from "@inversifyjs/binding-decorators";
-import * as fs from "fs";
-import { inject } from "inversify";
-import { dirname } from "path";
-import { Readable } from "stream";
 import {
   Controller,
   Get,
@@ -12,7 +8,11 @@ import {
   Route,
   Tags,
   ValidateError,
-} from "tsoa";
+} from "@tsoa/runtime";
+import * as fs from "fs";
+import { inject } from "inversify";
+import { dirname } from "path";
+import { Readable } from "stream";
 import { log } from "../observability.js";
 import {
   type ProjectRequest,

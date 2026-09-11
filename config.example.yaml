@@ -4,8 +4,9 @@ platform:
   mongo:
     connectionString: mongodb://mongo:27017
     database: crowdmap
-  # Required only while bootstrapping an empty user database. Treat it as a secret.
-  initialAdminApiKey: cm1_00000000-0000-0000-0000-000000000000.replace-with-a-random-secret
+  # Before bootstrapping an empty user database, add initialAdminApiKey with a
+  # freshly generated cm1_<UUID>.<random-secret> credential. Never use an
+  # example or committed value. Remove the setting after creating named admins.
   privacy:
     controllerName: Example organisation
     contactUrl: https://example.org/privacy-contact

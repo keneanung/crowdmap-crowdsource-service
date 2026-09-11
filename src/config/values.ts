@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { parse } from "yaml";
 
@@ -96,12 +96,18 @@ const numberWithDefault = (
 
 const resolveDataFile = (configDirectory: string, value: unknown): string => {
   if (typeof value !== "string") return "";
-  return path.isAbsolute(value) ? value : path.resolve(configDirectory, value);
+  return path.resolve(configDirectory, value);
+};
+
+const defaultConfigFile = (): string => {
+  const composeSecret = "/run/secrets/config.yaml";
+  return existsSync(composeSecret)
+    ? composeSecret
+    : path.join(process.cwd(), "config.yaml");
 };
 
 export const loadConfig = (
-  configFile = process.env.CONFIG_FILE ??
-    path.join(process.cwd(), "config.yaml"),
+  configFile = process.env.CONFIG_FILE ?? defaultConfigFile(),
 ): ServiceConfig => {
   let parsed: unknown;
   try {

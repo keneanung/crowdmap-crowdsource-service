@@ -24,9 +24,9 @@ services:
       - 3000:3000
     volumes:
       - map-data:/opt/data
-      # Copy config.example.yaml to config.yaml, customize it, and keep secrets
-      # readable only by the account running Docker.
-      - ./config.yaml:/opt/serve/config.yaml:ro
+    secrets:
+      - source: service-config
+        target: config.yaml
     # change this if you want to keep your version stable. This will pull a new service image on every start.
     #pull_policy: always
     healthcheck:
@@ -39,3 +39,7 @@ services:
 volumes:
   mongo-data:
   map-data:
+
+secrets:
+  service-config:
+    file: ./config.yaml
