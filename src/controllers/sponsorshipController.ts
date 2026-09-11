@@ -37,7 +37,13 @@ const parsePayment = (raw: unknown): KofiPayment | undefined => {
   if (payload.type !== "Donation" && payload.type !== "Subscription") return undefined;
   if (typeof payload.amount !== "string" && typeof payload.amount !== "number") return undefined;
   const amount = Number(payload.amount);
-  if (!Number.isFinite(amount) || amount <= 0 || payload.currency !== config.kofiCurrency) return undefined;
+  const minorAmount = Math.round(amount * 10 ** config.kofiCurrencyDecimalPlaces);
+  if (
+    !Number.isFinite(amount) ||
+    !Number.isSafeInteger(minorAmount) ||
+    minorAmount <= 0 ||
+    payload.currency !== config.kofiCurrency
+  ) return undefined;
   const sourceId = payload.kofi_transaction_id ?? payload.message_id;
   if (typeof sourceId !== "string" || sourceId.length === 0) return undefined;
   const receivedAt = typeof payload.timestamp === "string" ? new Date(payload.timestamp) : new Date();
