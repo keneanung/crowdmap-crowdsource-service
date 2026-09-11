@@ -70,3 +70,26 @@ test("accepts a complete service configuration", () => {
     validateConfig(validConfig);
   }).not.toThrow();
 });
+
+test("requires a complete valid Ko-fi configuration when sponsorship is enabled", () => {
+  expect(() => {
+    validateConfig({ ...validConfig, kofiProfileUrl: "https://ko-fi.com/crowdmap" });
+  }).toThrow("KO_FI_MONTHLY_GOAL");
+  expect(() => {
+    validateConfig({
+      ...validConfig,
+      kofiProfileUrl: "https://example.com/crowdmap",
+      kofiMonthlyGoal: 20,
+      kofiWebhookToken: "secret",
+    });
+  }).toThrow("KO_FI_PROFILE_URL");
+  expect(() => {
+    validateConfig({
+      ...validConfig,
+      kofiProfileUrl: "https://ko-fi.com/crowdmap",
+      kofiMonthlyGoal: 20,
+      kofiWebhookToken: "secret",
+      kofiCurrency: "EUR",
+    });
+  }).not.toThrow();
+});

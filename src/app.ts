@@ -99,6 +99,13 @@ app.get("/privacy.html", async (_request, response, next) => {
     next(error);
   }
 });
+app.use("/sponsorship", (_req: ExRequest, res: ExResponse, next: NextFunction) => {
+  if (!config.kofiProfileUrl) {
+    res.status(404).json({ message: "Not Found" });
+    return;
+  }
+  next();
+});
 app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
   return res.send(swaggerUi.generateHTML(swaggerJson));
 });
@@ -109,6 +116,13 @@ app.use(
   "/javascripts/map-explorer",
   express.static(mapExplorerDirectory, { maxAge: "1h" }),
 );
+app.get("/sponsor.html", (_req: ExRequest, res: ExResponse) => {
+  if (!config.kofiProfileUrl) {
+    res.status(404).json({ message: "Not Found" });
+    return;
+  }
+  res.sendFile(join(currentDirectory, "../website/sponsor.html"));
+});
 app.use(express.static(join(currentDirectory, "../website")));
 
 app.use(function notFoundHandler(_req, res: ExResponse) {

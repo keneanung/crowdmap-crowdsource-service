@@ -85,6 +85,41 @@ If you prefer using an external/managed MongoDB instance, remove or comment out 
 set the environment variables `MONGO_CONNECTION_STRING` and `MONGO_DB_NAME` appropriately (either by editing the compose
 file or providing a `.env`).
 
+### Optional Ko-fi sponsorships
+
+Set `KO_FI_PROFILE_URL`, `KO_FI_MONTHLY_GOAL`, `KO_FI_CURRENCY`,
+`KO_FI_CURRENCY_DECIMAL_PLACES`, and `KO_FI_WEBHOOK_TOKEN` together to enable
+`/sponsor.html`. `KO_FI_CURRENCY_DECIMAL_PLACES` is the number of minor-unit
+digits for the configured currency (default `2` for USD/EUR; set `0` for JPY).
+The profile URL must
+be an HTTPS `ko-fi.com` URL; the goal is a positive number in the configured
+three-letter currency. When no profile is configured, the Sponsor navigation
+entry, sponsorship API, and sponsorship page are unavailable.
+
+In Ko-fi, configure a webhook to `https://your-service.example/sponsorship/webhook/kofi`
+and set its verification token to `KO_FI_WEBHOOK_TOKEN`. The service accepts
+Donation and Subscription notifications in the configured currency. It stores
+only the amount, currency, received time, remaining sponsorship credit, and a
+hash of the payment identifier—never the notification's raw payload or donor
+fields. Unused credit carries into later calendar months; at each reset, one
+monthly goal is consumed from the outstanding credit. Fully used payment records
+are deleted, while the hashed identifier is retained for 30 days to prevent
+delayed duplicate webhooks. The current outstanding credit is displayed against
+the goal.
+The endpoint returns the HTTP `200` response Ko-fi requires before it stops
+retrying a notification.
+
+#### Sponsorship tracking limits
+
+Sponsorship progress is an informational, best-effort estimate of operating
+cost coverage; it is not a payment ledger or accounting system. The included
+standalone MongoDB deployment does not provide multi-document transactions.
+Run one application replica when sponsorships are enabled. After an unexpected
+process or database failure during a month transition, a delayed duplicate
+notification or cleanup can temporarily leave the displayed credit inaccurate
+until it is reviewed. Do not use this feature to make financial commitments,
+allocate donor benefits, or determine access to a service.
+
 ### Review map changes
 
 Open `/review.html` to inspect pending reports. The review workspace can search

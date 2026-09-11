@@ -13,6 +13,7 @@
       <ul class="site-navigation__links">
         <li><a href="index.html">Explorer</a></li>
         <li><a href="review.html">Review</a></li>
+        <li data-sponsorship-navigation hidden><a href="sponsor.html">Sponsor</a></li>
         <li><a href="privacy.html" aria-current="page">Privacy Policy</a></li>
       </ul>
     </nav>
@@ -25,7 +26,28 @@
         processes personal data. It applies to this deployment only, not to the
         open-source project or other installations.
       </p>
-      <p class="updated">Last updated: 10 September 2026</p>
+      <p class="updated">Last updated: 11 September 2026</p>
+
+      <section class="policy-section">
+        <h2>Sponsorships through Ko-fi</h2>
+        <p>
+          If this deployment enables sponsorships, the sponsor link opens Ko-fi.
+          Ko-fi processes contributions as an independent controller under its
+          <a href="https://ko-fi.com/privacy">own privacy policy</a>. The link
+          does not send your name, email address, or other browser data to Ko-fi
+          beyond what your browser normally sends when visiting a link.
+        </p>
+        <p>
+          Ko-fi sends this service a payment notification so it can show progress
+          toward its monthly operating-cost goal. The notification may contain
+          donor details, but this service discards them and retains only the
+          payment amount, remaining sponsorship credit, currency, payment time,
+          calendar month, and a hashed
+          event identifier used to prevent duplicate counting. This processing is
+          based on the controller’s legitimate interests under Article 6(1)(f)
+          GDPR: showing funding progress and preventing duplicate records.
+        </p>
+      </section>
 
       <section class="policy-section">
         <h2>Controller and contact</h2>
@@ -73,7 +95,10 @@
           Pending reports are retained until an authorised administrator removes
           them or they are incorporated into the baseline map. The application
           does not automatically delete other pending reports. Request logs are
-          retained for {{privacy-log-retention}}.
+          retained for {{privacy-log-retention}}. Sponsorship payment records are
+          retained while their credit is needed for a current or future monthly
+          goal, then deleted. A hashed event identifier is retained for 30 days
+          after deletion to prevent duplicate webhook notifications.
         </p>
       </section>
 
@@ -106,9 +131,11 @@
           You can also lodge a complaint with the data-protection supervisory
           authority responsible for your habitual residence, place of work, or
           the place of the alleged infringement. To help locate a report, include
-          its reporter pseudonym and any relevant report details in your request.
+          its reporter pseudonym and any relevant report details in your request;
+          for a sponsorship payment, include its amount, currency, and date.
         </p>
       </section>
     </main>
+    <script src="javascripts/sponsorship-navigation.js"></script>
   </body>
 </html>
