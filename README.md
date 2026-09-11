@@ -109,6 +109,17 @@ the goal.
 The endpoint returns the HTTP `200` response Ko-fi requires before it stops
 retrying a notification.
 
+#### Sponsorship tracking limits
+
+Sponsorship progress is an informational, best-effort estimate of operating
+cost coverage; it is not a payment ledger or accounting system. The included
+standalone MongoDB deployment does not provide multi-document transactions.
+Run one application replica when sponsorships are enabled. After an unexpected
+process or database failure during a month transition, a delayed duplicate
+notification or cleanup can temporarily leave the displayed credit inaccurate
+until it is reviewed. Do not use this feature to make financial commitments,
+allocate donor benefits, or determine access to a service.
+
 ### Review map changes
 
 Open `/review.html` to inspect pending reports. The review workspace can search
