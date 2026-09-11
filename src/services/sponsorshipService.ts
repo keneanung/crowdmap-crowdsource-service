@@ -6,6 +6,7 @@ import type { KofiPayment, SponsorshipProgress } from "../models/business/sponso
 
 interface StoredPayment extends KofiPayment {
   remainingAmount?: number;
+  settledMonth?: string;
 }
 
 interface SponsorshipState {
@@ -28,8 +29,20 @@ const nextMonth = (month: string): string => {
   return monthFor(next);
 };
 
+const toMinorUnits = (amount: number): number => {
+  const value = Math.round(amount * 10 ** config.kofiCurrencyDecimalPlaces);
+  if (!Number.isSafeInteger(value)) throw new Error("Ko-fi payment amount is too large");
+  return value;
+};
+
+const fromMinorUnits = (amount: number): number =>
+  amount / 10 ** config.kofiCurrencyDecimalPlaces;
+
 @provide(SponsorshipService)
 export class SponsorshipService {
+  private indexesReady?: Promise<void>;
+  private settling?: Promise<void>;
+
   constructor(@inject(MongoClient) private readonly mongo: MongoClient) {}
 
   public isEnabled(): boolean {
@@ -42,38 +55,58 @@ export class SponsorshipService {
     const payments = database.collection<StoredPayment>("kofi_payments");
     const state = database.collection<SponsorshipState>("sponsorship_state");
     const consumedEvents = database.collection<ConsumedEvent>("kofi_consumed_events");
-    await payments.createIndexes([
-      { key: { eventId: 1 }, unique: true, name: "unique_kofi_event" },
-      { key: { currency: 1, receivedAt: 1 }, name: "sponsorship_credits" },
-    ]);
-    await consumedEvents.createIndexes([
-      { key: { eventId: 1 }, unique: true, name: "unique_consumed_kofi_event" },
-      { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "expired_consumed_kofi_events" },
-    ]);
+    this.indexesReady ??= Promise.all([
+      payments.createIndexes([
+        { key: { eventId: 1 }, unique: true, name: "unique_kofi_event" },
+        { key: { currency: 1, receivedAt: 1 }, name: "sponsorship_credits" },
+      ]),
+      consumedEvents.createIndexes([
+        { key: { eventId: 1 }, unique: true, name: "unique_consumed_kofi_event" },
+        { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "expired_consumed_kofi_events" },
+      ]),
+    ]).then(() => undefined);
+    await this.indexesReady;
     return { consumedEvents, payments, state };
   }
 
   private async settleCompletedMonths(now: Date): Promise<void> {
+    return (this.settling ??= this.settleSequentially(now).finally(() => {
+      this.settling = undefined;
+    }));
+  }
+
+  private async settleSequentially(now: Date): Promise<void> {
     const { consumedEvents, payments, state } = await this.getCollections();
     const currentMonth = monthFor(now);
     const existingState = await state.findOne({ _id: "settlement" });
     let activeMonth = existingState?.activeMonth ?? currentMonth;
     if (!existingState) {
-      await state.insertOne({ _id: "settlement", activeMonth });
+      try {
+        await state.updateOne(
+          { _id: "settlement" },
+          { $setOnInsert: { activeMonth } },
+          { upsert: true },
+        );
+      } catch (error) {
+        if (!(error instanceof MongoServerError) || error.code !== 11000) throw error;
+      }
+      activeMonth = (await state.findOne({ _id: "settlement" }))?.activeMonth ?? activeMonth;
     }
 
     while (activeMonth < currentMonth) {
-      let amountToUse = config.kofiMonthlyGoal ?? 0;
+      let amountToUse = toMinorUnits(config.kofiMonthlyGoal ?? 0);
       const credits = await payments
         .find({ currency: config.kofiCurrency })
         .sort({ receivedAt: 1, eventId: 1 })
         .toArray();
       for (const credit of credits) {
-        if (amountToUse <= 0) break;
-        const remainingAmount = credit.remainingAmount ?? credit.amount;
-        const afterSettlement = remainingAmount - Math.min(remainingAmount, amountToUse);
-        amountToUse -= remainingAmount - afterSettlement;
-        if (afterSettlement <= 0) {
+        if (amountToUse === 0) break;
+        if (credit.settledMonth === activeMonth) continue;
+        const remainingAmount = toMinorUnits(credit.remainingAmount ?? credit.amount);
+        const usedAmount = Math.min(remainingAmount, amountToUse);
+        const afterSettlement = remainingAmount - usedAmount;
+        amountToUse -= usedAmount;
+        if (afterSettlement === 0) {
           await consumedEvents.updateOne(
             { eventId: credit.eventId },
             {
@@ -88,7 +121,7 @@ export class SponsorshipService {
         } else {
           await payments.updateOne(
             { eventId: credit.eventId },
-            { $set: { remainingAmount: afterSettlement } },
+            { $set: { remainingAmount: fromMinorUnits(afterSettlement), settledMonth: activeMonth } },
           );
         }
       }
@@ -123,10 +156,10 @@ export class SponsorshipService {
     const credits = await payments
       .find({ currency: config.kofiCurrency })
       .toArray();
-    const raised = credits.reduce(
-      (total, credit) => total + (credit.remainingAmount ?? credit.amount),
+    const raised = fromMinorUnits(credits.reduce(
+      (total, credit) => total + toMinorUnits(credit.remainingAmount ?? credit.amount),
       0,
-    );
+    ));
     return {
       currency: config.kofiCurrency,
       goal: config.kofiMonthlyGoal,
