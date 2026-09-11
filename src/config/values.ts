@@ -74,7 +74,7 @@ const projects = Object.freeze(
       Array.isArray(project)
     )
       throw new Error("Every MAP_PROJECTS entry must be an object");
-    return Object.freeze({ ...project }) as unknown as MapProject;
+    return Object.freeze({ ...project }) as MapProject;
   }),
 );
 const firstProject = projects[0] ?? legacyProject();
