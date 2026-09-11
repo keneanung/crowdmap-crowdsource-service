@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/require-await */
-import { afterEach, beforeEach, expect, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { MongoClient } from "mongodb";
 import { config } from "../src/config/values.js";
 import { SponsorshipService } from "../src/services/sponsorshipService.js";
@@ -15,6 +15,8 @@ interface Payment {
 const originalConfig = { ...config };
 
 beforeEach(() => {
+  jest.useFakeTimers();
+  jest.setSystemTime(new Date("2026-09-01T00:00:00Z"));
   Object.assign(config, {
     kofiProfileUrl: "https://ko-fi.com/crowdmap",
     kofiMonthlyGoal: 20,
@@ -23,6 +25,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  jest.useRealTimers();
   Object.assign(config, originalConfig);
 });
 
