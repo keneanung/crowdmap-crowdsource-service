@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import { afterEach, beforeEach, expect, test } from "@jest/globals";
 import { MongoClient } from "mongodb";
 import { config } from "../src/config/values.js";
@@ -48,7 +49,8 @@ test("carries unused sponsorship credit into following months and deletes consum
       { eventId }: { eventId: string },
       { $set }: { $set: Partial<Payment> },
     ) => {
-      Object.assign(payments.find((payment) => payment.eventId === eventId)!, $set);
+      const payment = payments.find((candidate) => candidate.eventId === eventId);
+      if (payment) Object.assign(payment, $set);
     },
   };
   const mongo = {
@@ -62,8 +64,12 @@ test("carries unused sponsorship credit into following months and deletes consum
             insertOne: async (state: { activeMonth: string }) => {
               activeMonth = state.activeMonth;
             },
-            updateOne: async (_filter: unknown, { $set }: { $set: { activeMonth: string } }) => {
-              activeMonth = $set.activeMonth;
+            updateOne: async (
+              _filter: unknown,
+              update: { $set?: { activeMonth: string }; $setOnInsert?: { activeMonth: string } },
+            ) => {
+              activeMonth = update.$set?.activeMonth ?? update.$setOnInsert?.activeMonth ?? activeMonth;
+              return { matchedCount: 1 };
             },
           };
         }
