@@ -1,5 +1,6 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
+import { randomUUID } from "node:crypto";
 import { MongoClient, MongoServerError } from "mongodb";
 import { config } from "../config/values.js";
 import type { KofiPayment, SponsorshipProgress } from "../models/business/sponsorship.js";
@@ -12,6 +13,8 @@ interface StoredPayment extends KofiPayment {
 interface SponsorshipState {
   _id: "settlement";
   activeMonth: string;
+  lockId?: string;
+  lockExpiresAt?: Date;
 }
 
 interface ConsumedEvent {
@@ -20,6 +23,7 @@ interface ConsumedEvent {
 }
 
 const DEDUPLICATION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const SETTLEMENT_LOCK_MS = 2 * 60 * 1000;
 
 const monthFor = (date: Date): string => date.toISOString().slice(0, 7);
 
@@ -79,24 +83,43 @@ export class SponsorshipService {
     const { consumedEvents, payments, state } = await this.getCollections();
     const currentMonth = monthFor(now);
     const existingState = await state.findOne({ _id: "settlement" });
-    let activeMonth = existingState?.activeMonth ?? currentMonth;
+    const initialActiveMonth = existingState?.activeMonth ?? currentMonth;
     if (!existingState) {
       try {
         await state.updateOne(
           { _id: "settlement" },
-          { $setOnInsert: { activeMonth } },
+          { $setOnInsert: { activeMonth: initialActiveMonth } },
           { upsert: true },
         );
       } catch (error) {
         if (!(error instanceof MongoServerError) || error.code !== 11000) throw error;
       }
-      activeMonth = (await state.findOne({ _id: "settlement" }))?.activeMonth ?? activeMonth;
     }
 
-    while (activeMonth < currentMonth) {
+    const lockId = randomUUID();
+    let acquired = false;
+    while (!acquired) {
+      const result = await state.updateOne(
+        {
+          _id: "settlement",
+          $or: [
+            { lockId: { $exists: false } },
+            { lockExpiresAt: { $lte: new Date() } },
+          ],
+        },
+        { $set: { lockId, lockExpiresAt: new Date(Date.now() + SETTLEMENT_LOCK_MS) } },
+      );
+      acquired = result.matchedCount === 1;
+      if (!acquired) await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    }
+
+    try {
+      let activeMonth = (await state.findOne({ _id: "settlement" }))?.activeMonth ?? currentMonth;
+      while (activeMonth < currentMonth) {
       let amountToUse = toMinorUnits(config.kofiMonthlyGoal ?? 0);
+      const cutoff = new Date(`${nextMonth(activeMonth)}-01T00:00:00.000Z`);
       const credits = await payments
-        .find({ currency: config.kofiCurrency })
+        .find({ currency: config.kofiCurrency, receivedAt: { $lt: cutoff } })
         .sort({ receivedAt: 1, eventId: 1 })
         .toArray();
       for (const credit of credits) {
@@ -126,7 +149,13 @@ export class SponsorshipService {
         }
       }
       activeMonth = nextMonth(activeMonth);
-      await state.updateOne({ _id: "settlement" }, { $set: { activeMonth } });
+      await state.updateOne({ _id: "settlement", lockId }, { $set: { activeMonth } });
+      }
+    } finally {
+      await state.updateOne(
+        { _id: "settlement", lockId },
+        { $unset: { lockId: "", lockExpiresAt: "" } },
+      );
     }
   }
 
