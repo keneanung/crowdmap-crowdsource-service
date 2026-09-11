@@ -39,7 +39,7 @@ export class UserService {
     roles: Role[],
     mapAdminProjects?: string[],
   ): Promise<User> {
-    this.validateMapAdminProjects(mapAdminProjects);
+    this.validateMapAdminProjects(roles, mapAdminProjects);
     const parsedApiKey = this.parseApiKey(api_key);
     if (!parsedApiKey) {
       throw new Error("API key must use the cm1_<key-id>.<secret> format");
@@ -138,7 +138,7 @@ export class UserService {
     roles: Role[],
     mapAdminProjects?: string[],
   ): Promise<boolean> {
-    this.validateMapAdminProjects(mapAdminProjects);
+    this.validateMapAdminProjects(roles, mapAdminProjects);
     return this.userDbService.updateRoles(name, roles, mapAdminProjects);
   }
 
@@ -182,7 +182,18 @@ export class UserService {
     return newApiKey;
   }
 
-  private validateMapAdminProjects(projectIds?: string[]): void {
+  private validateMapAdminProjects(
+    roles: Role[],
+    projectIds?: string[],
+  ): void {
+    if (
+      roles.includes("map_admin") &&
+      config.projects.length > 1 &&
+      projectIds === undefined
+    )
+      throw new ConflictError(
+        "mapAdminProjects is required for map administrators in multi-project mode",
+      );
     if (!projectIds) return;
     const configured = new Set(config.projects.map((project) => project.id));
     const unknown = projectIds.find((id) => !configured.has(id));

@@ -139,20 +139,21 @@ app.get("/", (request: ProjectRequest, response, next) => {
     next();
     return;
   }
+  const externalPort = new URL(`http://${request.host}`).port;
   const links = config.projects
     .map((project) => {
       const host = Object.entries(config.hostProjectMap).find(
         ([, id]) => id === project.id,
       )?.[0];
-      return host
-        ? `<li><a href="//${escapeHtml(host)}/">${escapeHtml(project.name)}</a></li>`
-        : "";
+      if (!host) return "";
+      const authority = externalPort ? `${host}:${externalPort}` : host;
+      return `<li><a href="//${escapeHtml(authority)}/">${escapeHtml(project.name)}</a></li>`;
     })
     .join("");
   response
     .type("html")
     .send(
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Crowdmap projects</title><link rel="stylesheet" href="/stylesheets/site-navigation.css"></head><body><nav class="site-navigation"><a class="site-navigation__brand" href="/">Crowdmap</a><ul><li><a href="/privacy.html">Privacy</a></li>${config.kofiProfileUrl ? '<li><a href="/sponsor.html">Sponsor</a></li>' : ""}</ul></nav><main><h1>Map projects</h1><p>Select a map project to open its explorer.</p><ul>${links}</ul></main></body></html>`,
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Crowdmap projects</title><link rel="stylesheet" href="/stylesheets/site-navigation.css"></head><body><nav class="site-navigation"><a class="site-navigation__brand" href="/">Crowdmap</a><ul class="site-navigation__links"><li><a href="/privacy.html">Privacy</a></li>${config.kofiProfileUrl ? '<li><a href="/sponsor.html">Sponsor</a></li>' : ""}</ul></nav><main><h1>Map projects</h1><p>Select a map project to open its explorer.</p><ul>${links}</ul></main></body></html>`,
     );
 });
 app.get("/index.html", (request: ProjectRequest, response, next) => {

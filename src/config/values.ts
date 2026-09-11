@@ -251,6 +251,9 @@ const validateDownloadUrl = (name: string, value: string): void => {
     throw new Error(`${name} must use HTTP or HTTPS`);
 };
 
+const HOSTNAME_PATTERN =
+  /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/u;
+
 export const validateConfig = (values: ServiceConfig): void => {
   if (!Number.isInteger(values.port) || values.port < 1 || values.port > 65535)
     throw new Error("platform.port must be an integer between 1 and 65535");
@@ -319,19 +322,16 @@ export const validateConfig = (values: ServiceConfig): void => {
       throw new Error(
         "projects.platformHost is required for the host resolver",
       );
-    if (
-      values.platformHost !== values.platformHost.toLowerCase() ||
-      values.platformHost.includes(":")
-    )
+    if (!HOSTNAME_PATTERN.test(values.platformHost))
       throw new Error(
-        "projects.platformHost must be a lowercase hostname without a port",
+        "projects.platformHost must be a valid lowercase hostname without a port",
       );
     if (Object.keys(values.hostProjectMap).length === 0)
       throw new Error("projects.hosts is required for the host resolver");
     for (const [host, projectId] of Object.entries(values.hostProjectMap)) {
-      if (host !== host.toLowerCase() || host.includes(":"))
+      if (!HOSTNAME_PATTERN.test(host))
         throw new Error(
-          `projects.hosts keys must be lowercase hostnames: ${host}`,
+          `projects.hosts keys must be valid lowercase hostnames: ${host}`,
         );
       if (!ids.has(projectId))
         throw new Error(`Host ${host} references unknown project ${projectId}`);

@@ -83,6 +83,20 @@ test("requires every project to have a host mapping in host mode", () => {
   }).toThrow("Project second has no projects.hosts mapping");
 });
 
+test.each(["foo/bar", "foo@evil.test", " leading.example.test"])(
+  "rejects an invalid project hostname: %s",
+  (host) => {
+    expect(() => {
+      validateConfig({
+        ...validConfig,
+        projectResolver: "host",
+        platformHost: "maps.example.test",
+        hostProjectMap: { [host]: validConfig.projects[0].id },
+      });
+    }).toThrow("projects.hosts keys must be valid lowercase hostnames");
+  },
+);
+
 test.each([
   ["projects.resolver", "projects:\n  resolver: invalid\n  definitions: []\n"],
   [

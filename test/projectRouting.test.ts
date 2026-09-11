@@ -73,11 +73,12 @@ test("unknown hosts are rejected and the platform host renders a selector", asyn
     .expect(404);
   await request(app)
     .get("/")
-    .set("Host", "maps.example.test")
+    .set("Host", "maps.example.test:3000")
     .expect(200)
     .expect((response) => {
       expect(response.text).toContain("ALPHA map");
-      expect(response.text).toContain("alpha.example.test");
+      expect(response.text).toContain('href="//alpha.example.test:3000/"');
+      expect(response.text).toContain('class="site-navigation__links"');
     });
   await request(app)
     .get("/review.html")
