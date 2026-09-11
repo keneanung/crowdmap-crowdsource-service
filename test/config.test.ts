@@ -56,6 +56,15 @@ test("rejects non-HTTP download URLs with a targeted error", () => {
   }).toThrow("MAP_DOWNLOAD_URL must use HTTP or HTTPS");
 });
 
+test.each(["mailto:", "mailto:?subject=privacy"])(
+  "rejects an empty mailto privacy contact URL: %s",
+  (privacyContactUrl) => {
+    expect(() => {
+      validateConfig({ ...validConfig, privacyContactUrl });
+    }).toThrow("mailto address");
+  },
+);
+
 test("accepts a complete service configuration", () => {
   expect(() => {
     validateConfig(validConfig);

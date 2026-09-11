@@ -74,6 +74,9 @@ export const validateConfig = (values: ServiceConfig = config): void => {
   ) {
     throw new Error("PRIVACY_CONTACT_URL must use HTTPS or mailto");
   }
+  if (privacyContactUrl.protocol === "mailto:" && !privacyContactUrl.pathname) {
+    throw new Error("PRIVACY_CONTACT_URL mailto address is required");
+  }
   if (!values.privacyLogRetention) {
     throw new Error("PRIVACY_LOG_RETENTION is required");
   }

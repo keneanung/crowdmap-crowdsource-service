@@ -2,10 +2,24 @@
   color-scheme: dark;
 }
 
-html,
-body,
-#root {
+html {
   height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.site-navigation {
+  flex: 0 0 auto;
+}
+
+#root {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .crowdmap-threshold {

@@ -60,7 +60,7 @@ const renderPrivacyPage = async (): Promise<string> => {
   };
   const rendered = Object.entries(values).reduce(
     (result, [placeholder, value]) =>
-      result.replaceAll(placeholder, escapeHtml(value)),
+      result.replaceAll(placeholder, () => escapeHtml(value)),
     page,
   );
   return rendered;
