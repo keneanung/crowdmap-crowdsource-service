@@ -7,6 +7,7 @@ import type { KofiPayment, SponsorshipProgress } from "../models/business/sponso
 
 interface StoredPayment extends KofiPayment {
   remainingAmount?: number;
+  settledAmount?: number;
   settledMonth?: string;
 }
 
@@ -32,6 +33,8 @@ const nextMonth = (month: string): string => {
   const next = new Date(Date.UTC(year, calendarMonth));
   return monthFor(next);
 };
+
+const monthStart = (month: string): Date => new Date(`${month}-01T00:00:00.000Z`);
 
 const toMinorUnits = (amount: number): number => {
   const value = Math.round(amount * 10 ** config.kofiCurrencyDecimalPlaces);
@@ -116,40 +119,53 @@ export class SponsorshipService {
     try {
       let activeMonth = (await state.findOne({ _id: "settlement" }))?.activeMonth ?? currentMonth;
       while (activeMonth < currentMonth) {
-      let amountToUse = toMinorUnits(config.kofiMonthlyGoal ?? 0);
-      const cutoff = new Date(`${nextMonth(activeMonth)}-01T00:00:00.000Z`);
-      const credits = await payments
-        .find({ currency: config.kofiCurrency, receivedAt: { $lt: cutoff } })
-        .sort({ receivedAt: 1, eventId: 1 })
-        .toArray();
-      for (const credit of credits) {
-        if (amountToUse === 0) break;
-        if (credit.settledMonth === activeMonth) continue;
-        const remainingAmount = toMinorUnits(credit.remainingAmount ?? credit.amount);
-        const usedAmount = Math.min(remainingAmount, amountToUse);
-        const afterSettlement = remainingAmount - usedAmount;
-        amountToUse -= usedAmount;
-        if (afterSettlement === 0) {
-          await consumedEvents.updateOne(
+        let amountToUse = toMinorUnits(config.kofiMonthlyGoal ?? 0);
+        const cutoff = monthStart(nextMonth(activeMonth));
+        const credits = await payments
+          .find({ currency: config.kofiCurrency, receivedAt: { $lt: cutoff } })
+          .sort({ receivedAt: 1, eventId: 1 })
+          .toArray();
+        for (const credit of credits) {
+          if (credit.settledMonth === activeMonth) {
+            amountToUse = Math.max(0, amountToUse - toMinorUnits(credit.settledAmount ?? 0));
+            continue;
+          }
+          if (amountToUse === 0) break;
+          const remainingAmount = toMinorUnits(credit.remainingAmount ?? credit.amount);
+          const usedAmount = Math.min(remainingAmount, amountToUse);
+          const afterSettlement = remainingAmount - usedAmount;
+          amountToUse -= usedAmount;
+          const renewed = await state.updateOne(
+            { _id: "settlement", lockId },
+            { $set: { lockExpiresAt: new Date(Date.now() + SETTLEMENT_LOCK_MS) } },
+          );
+          if (renewed.matchedCount !== 1) throw new Error("Sponsorship settlement lease was lost");
+          await payments.updateOne(
             { eventId: credit.eventId },
             {
               $set: {
-                eventId: credit.eventId,
-                expiresAt: new Date(now.getTime() + DEDUPLICATION_RETENTION_MS),
+                remainingAmount: fromMinorUnits(afterSettlement),
+                settledAmount: fromMinorUnits(usedAmount),
+                settledMonth: activeMonth,
               },
             },
-            { upsert: true },
           );
-          await payments.deleteOne({ eventId: credit.eventId });
-        } else {
-          await payments.updateOne(
-            { eventId: credit.eventId },
-            { $set: { remainingAmount: fromMinorUnits(afterSettlement), settledMonth: activeMonth } },
-          );
+          if (afterSettlement === 0) {
+            await consumedEvents.updateOne(
+              { eventId: credit.eventId },
+              { $set: { eventId: credit.eventId, expiresAt: new Date(now.getTime() + DEDUPLICATION_RETENTION_MS) } },
+              { upsert: true },
+            );
+          }
         }
-      }
-      activeMonth = nextMonth(activeMonth);
-      await state.updateOne({ _id: "settlement", lockId }, { $set: { activeMonth } });
+        const settledMonth = activeMonth;
+        activeMonth = nextMonth(activeMonth);
+        const updated = await state.updateOne(
+          { _id: "settlement", lockId, activeMonth: settledMonth },
+          { $set: { activeMonth } },
+        );
+        if (updated.matchedCount !== 1) throw new Error("Sponsorship settlement state changed unexpectedly");
+        await payments.deleteMany({ remainingAmount: 0, settledMonth: { $lt: activeMonth } });
       }
     } finally {
       await state.updateOne(
