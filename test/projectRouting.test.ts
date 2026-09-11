@@ -13,10 +13,10 @@ const original = {
 const createProject = (id: string): MapProject => ({
   id,
   name: `${id.toUpperCase()} map`,
-  mapFile: config.mapFile,
-  versionFile: config.versionFile,
-  mapDownloadUrl: config.mapDownloadUrl,
-  versionDownloadUrl: config.versionDownloadUrl,
+  mapFile: config.projects[0].mapFile,
+  versionFile: config.projects[0].versionFile,
+  mapDownloadUrl: config.projects[0].mapDownloadUrl,
+  versionDownloadUrl: config.projects[0].versionDownloadUrl,
 });
 
 beforeAll(() => {

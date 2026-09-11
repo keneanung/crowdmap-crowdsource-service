@@ -6,7 +6,7 @@ WORKDIR /source
 COPY package.json package-lock.json /source/
 
 RUN npm ci
-COPY tsconfig.json tsoa.json ./
+COPY tsconfig.json tsoa.json config.example.yaml ./
 COPY src/ /source/src/
 COPY website/ /source/website/
 COPY scripts/ /source/scripts/

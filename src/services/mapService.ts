@@ -140,9 +140,7 @@ export class MapService {
     }
   }
 
-  public async projectStatus(
-    project: MapProject,
-  ): Promise<{
+  public async projectStatus(project: MapProject): Promise<{
     id: string;
     name: string;
     status: "ok" | "unavailable";

@@ -1,7 +1,6 @@
-import * as dotenv from "dotenv";
+import { readFileSync } from "node:fs";
 import * as path from "node:path";
-
-dotenv.config({ quiet: true });
+import { parse } from "yaml";
 
 export interface MapProject {
   readonly id: string;
@@ -33,91 +32,210 @@ export interface ServiceConfig {
   projectResolver: ProjectResolverMode;
   hostProjectMap: Readonly<Record<string, string>>;
   platformHost?: string;
-  /** Legacy aliases for the default project. */
-  mapFile: string;
-  mapDownloadUrl: string;
-  versionFile: string;
-  versionDownloadUrl: string;
 }
 
-const legacyProject = (): MapProject => ({
-  id: process.env.PROJECT_ID ?? "default",
-  name: process.env.PROJECT_NAME ?? "Crowdmap",
-  mapFile: process.env.MAP_FILE ?? path.join(process.cwd(), "map"),
-  mapDownloadUrl:
-    process.env.MAP_DOWNLOAD_URL ??
-    "https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/map",
-  versionFile: process.env.VERSION_FILE ?? path.join(process.cwd(), "version"),
-  versionDownloadUrl:
-    process.env.VERSION_DOWNLOAD_URL ??
-    "https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/version.txt",
-});
+interface YamlProject {
+  id?: unknown;
+  name?: unknown;
+  baseline?: {
+    mapFile?: unknown;
+    versionFile?: unknown;
+  };
+  upstream?: {
+    mapUrl?: unknown;
+    versionUrl?: unknown;
+  };
+}
 
-const parseJson = <T>(name: string, fallback: T): T => {
-  const raw = process.env[name];
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch (error) {
-    throw new Error(`${name} must contain valid JSON`, { cause: error });
-  }
+interface YamlConfig {
+  platform?: {
+    port?: unknown;
+    trustProxy?: unknown;
+    mongo?: {
+      connectionString?: unknown;
+      database?: unknown;
+    };
+    initialAdminApiKey?: unknown;
+    privacy?: {
+      controllerName?: unknown;
+      contactUrl?: unknown;
+      logRetention?: unknown;
+      processorsAndTransfers?: unknown;
+    };
+    sponsorship?: {
+      profileUrl?: unknown;
+      monthlyGoal?: unknown;
+      currency?: unknown;
+      currencyDecimalPlaces?: unknown;
+      webhookToken?: unknown;
+    };
+  };
+  projects?: {
+    resolver?: unknown;
+    platformHost?: unknown;
+    hosts?: unknown;
+    definitions?: unknown;
+  };
+}
+
+const optionalString = (name: string, value: unknown): string | undefined => {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error(`${name} must be a string`);
+  return value;
 };
 
-const parsedProjects = parseJson<unknown>("MAP_PROJECTS", [legacyProject()]);
-if (!Array.isArray(parsedProjects))
-  throw new Error("MAP_PROJECTS must be a JSON array");
-const projects = Object.freeze(
-  parsedProjects.map((project) => {
-    if (
-      typeof project !== "object" ||
-      project === null ||
-      Array.isArray(project)
-    )
-      throw new Error("Every MAP_PROJECTS entry must be an object");
-    return Object.freeze({ ...project }) as MapProject;
-  }),
-);
-const firstProject = projects[0] ?? legacyProject();
+const numberWithDefault = (
+  name: string,
+  value: unknown,
+  fallback: number,
+): number => {
+  if (value === undefined) return fallback;
+  if (typeof value !== "number") throw new Error(`${name} must be a number`);
+  return value;
+};
 
-export const config: ServiceConfig = {
-  port: Number(process.env.PORT ?? 3000),
-  connectionString: process.env.MONGO_CONNECTION_STRING,
-  dbName: process.env.MONGO_DB_NAME,
-  initialAdminApiKey: process.env.INITIAL_ADMIN_API_KEY,
-  trustProxy: Number(process.env.TRUST_PROXY ?? 0),
-  privacyControllerName: process.env.PRIVACY_CONTROLLER_NAME,
-  privacyContactUrl: process.env.PRIVACY_CONTACT_URL,
-  privacyLogRetention: process.env.PRIVACY_LOG_RETENTION,
-  privacyProcessorsAndTransfers: process.env.PRIVACY_PROCESSORS_AND_TRANSFERS,
-  kofiProfileUrl: process.env.KO_FI_PROFILE_URL,
-  kofiMonthlyGoal: process.env.KO_FI_MONTHLY_GOAL
-    ? Number(process.env.KO_FI_MONTHLY_GOAL)
-    : undefined,
-  kofiCurrency: process.env.KO_FI_CURRENCY ?? "USD",
-  kofiCurrencyDecimalPlaces: Number(
-    process.env.KO_FI_CURRENCY_DECIMAL_PLACES ?? 2,
-  ),
-  kofiWebhookToken: process.env.KO_FI_WEBHOOK_TOKEN,
-  projects,
-  projectResolver: (process.env.PROJECT_RESOLVER ??
-    "single") as ProjectResolverMode,
-  hostProjectMap: Object.freeze(
-    (() => {
-      const mapping = parseJson<unknown>("HOST_PROJECT_MAP", {});
-      if (
-        typeof mapping !== "object" ||
-        mapping === null ||
-        Array.isArray(mapping)
-      )
-        throw new Error("HOST_PROJECT_MAP must be a JSON object");
-      return mapping as Record<string, string>;
-    })(),
-  ),
-  platformHost: process.env.PLATFORM_HOST?.toLowerCase(),
-  mapFile: firstProject.mapFile,
-  mapDownloadUrl: firstProject.mapDownloadUrl,
-  versionFile: firstProject.versionFile,
-  versionDownloadUrl: firstProject.versionDownloadUrl,
+const resolveDataFile = (configDirectory: string, value: unknown): string => {
+  if (typeof value !== "string") return "";
+  return path.isAbsolute(value) ? value : path.resolve(configDirectory, value);
+};
+
+export const loadConfig = (
+  configFile = process.env.CONFIG_FILE ??
+    path.join(process.cwd(), "config.yaml"),
+): ServiceConfig => {
+  let parsed: unknown;
+  try {
+    parsed = parse(readFileSync(configFile, "utf8"));
+  } catch (error) {
+    throw new Error(`Unable to load YAML configuration from ${configFile}`, {
+      cause: error,
+    });
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+    throw new Error("The YAML configuration root must be an object");
+
+  const values = parsed as YamlConfig;
+  const resolver = values.projects?.resolver;
+  if (resolver !== undefined && resolver !== "single" && resolver !== "host")
+    throw new Error("projects.resolver must be single or host");
+  const definitions = values.projects?.definitions;
+  if (!Array.isArray(definitions))
+    throw new Error("projects.definitions must be an array");
+  const configDirectory = path.dirname(path.resolve(configFile));
+  const projects = definitions.map((rawProject): MapProject => {
+    if (
+      typeof rawProject !== "object" ||
+      rawProject === null ||
+      Array.isArray(rawProject)
+    )
+      throw new Error("Every projects.definitions entry must be an object");
+    const project = rawProject as YamlProject;
+    return Object.freeze({
+      id: optionalString("projects.definitions[].id", project.id) ?? "",
+      name: optionalString("projects.definitions[].name", project.name) ?? "",
+      mapFile: resolveDataFile(configDirectory, project.baseline?.mapFile),
+      versionFile: resolveDataFile(
+        configDirectory,
+        project.baseline?.versionFile,
+      ),
+      mapDownloadUrl:
+        optionalString(
+          "projects.definitions[].upstream.mapUrl",
+          project.upstream?.mapUrl,
+        ) ?? "",
+      versionDownloadUrl:
+        optionalString(
+          "projects.definitions[].upstream.versionUrl",
+          project.upstream?.versionUrl,
+        ) ?? "",
+    });
+  });
+  const hostMapping = values.projects?.hosts;
+  if (
+    hostMapping !== undefined &&
+    (typeof hostMapping !== "object" ||
+      hostMapping === null ||
+      Array.isArray(hostMapping))
+  )
+    throw new Error("projects.hosts must be a hostname-to-project object");
+  const hostProjectMap: Record<string, string> = {};
+  if (hostMapping !== undefined) {
+    for (const [host, projectId] of Object.entries(hostMapping)) {
+      if (typeof projectId !== "string")
+        throw new Error(`Project mapping for ${host} must be a project ID`);
+      hostProjectMap[host] = projectId;
+    }
+  }
+  const sponsorship = values.platform?.sponsorship;
+  const config: ServiceConfig = {
+    port: numberWithDefault("platform.port", values.platform?.port, 3000),
+    trustProxy: numberWithDefault(
+      "platform.trustProxy",
+      values.platform?.trustProxy,
+      0,
+    ),
+    connectionString: optionalString(
+      "platform.mongo.connectionString",
+      values.platform?.mongo?.connectionString,
+    ),
+    dbName: optionalString(
+      "platform.mongo.database",
+      values.platform?.mongo?.database,
+    ),
+    initialAdminApiKey: optionalString(
+      "platform.initialAdminApiKey",
+      values.platform?.initialAdminApiKey,
+    ),
+    privacyControllerName: optionalString(
+      "platform.privacy.controllerName",
+      values.platform?.privacy?.controllerName,
+    ),
+    privacyContactUrl: optionalString(
+      "platform.privacy.contactUrl",
+      values.platform?.privacy?.contactUrl,
+    ),
+    privacyLogRetention: optionalString(
+      "platform.privacy.logRetention",
+      values.platform?.privacy?.logRetention,
+    ),
+    privacyProcessorsAndTransfers: optionalString(
+      "platform.privacy.processorsAndTransfers",
+      values.platform?.privacy?.processorsAndTransfers,
+    ),
+    kofiProfileUrl: optionalString(
+      "platform.sponsorship.profileUrl",
+      sponsorship?.profileUrl,
+    ),
+    kofiMonthlyGoal:
+      sponsorship?.monthlyGoal === undefined
+        ? undefined
+        : numberWithDefault(
+            "platform.sponsorship.monthlyGoal",
+            sponsorship.monthlyGoal,
+            0,
+          ),
+    kofiCurrency:
+      optionalString("platform.sponsorship.currency", sponsorship?.currency) ??
+      "USD",
+    kofiCurrencyDecimalPlaces: numberWithDefault(
+      "platform.sponsorship.currencyDecimalPlaces",
+      sponsorship?.currencyDecimalPlaces,
+      2,
+    ),
+    kofiWebhookToken: optionalString(
+      "platform.sponsorship.webhookToken",
+      sponsorship?.webhookToken,
+    ),
+    projects: Object.freeze(projects),
+    projectResolver: resolver ?? "single",
+    hostProjectMap: Object.freeze({ ...hostProjectMap }),
+    platformHost: optionalString(
+      "projects.platformHost",
+      values.projects?.platformHost,
+    ),
+  };
+  validateConfig(config);
+  return config;
 };
 
 const validateDownloadUrl = (name: string, value: string): void => {
@@ -127,59 +245,42 @@ const validateDownloadUrl = (name: string, value: string): void => {
   } catch {
     throw new Error(`${name} must be a valid URL`);
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
+  if (url.protocol !== "http:" && url.protocol !== "https:")
     throw new Error(`${name} must use HTTP or HTTPS`);
-  }
 };
 
-export const validateConfig = (values: ServiceConfig = config): void => {
+export const validateConfig = (values: ServiceConfig): void => {
   if (!Number.isInteger(values.port) || values.port < 1 || values.port > 65535)
-    throw new Error("PORT must be an integer between 1 and 65535");
+    throw new Error("platform.port must be an integer between 1 and 65535");
   if (!Number.isInteger(values.trustProxy) || values.trustProxy < 0)
-    throw new Error("TRUST_PROXY must be a non-negative integer");
+    throw new Error("platform.trustProxy must be a non-negative integer");
   if (!values.connectionString)
-    throw new Error("MONGO_CONNECTION_STRING is required");
-  if (!values.dbName) throw new Error("MONGO_DB_NAME is required");
+    throw new Error("platform.mongo.connectionString is required");
+  if (!values.dbName) throw new Error("platform.mongo.database is required");
   if (!values.privacyControllerName)
-    throw new Error("PRIVACY_CONTROLLER_NAME is required");
+    throw new Error("platform.privacy.controllerName is required");
   if (!values.privacyContactUrl)
-    throw new Error("PRIVACY_CONTACT_URL is required");
+    throw new Error("platform.privacy.contactUrl is required");
   let privacyContactUrl: URL;
   try {
     privacyContactUrl = new URL(values.privacyContactUrl);
   } catch {
-    throw new Error("PRIVACY_CONTACT_URL must be a valid URL");
+    throw new Error("platform.privacy.contactUrl must be a valid URL");
   }
   if (!["https:", "mailto:"].includes(privacyContactUrl.protocol))
-    throw new Error("PRIVACY_CONTACT_URL must use HTTPS or mailto");
+    throw new Error("platform.privacy.contactUrl must use HTTPS or mailto");
   if (privacyContactUrl.protocol === "mailto:" && !privacyContactUrl.pathname)
-    throw new Error("PRIVACY_CONTACT_URL mailto address is required");
+    throw new Error("platform.privacy.contactUrl mailto address is required");
   if (!values.privacyLogRetention)
-    throw new Error("PRIVACY_LOG_RETENTION is required");
+    throw new Error("platform.privacy.logRetention is required");
   if (!values.privacyProcessorsAndTransfers)
-    throw new Error("PRIVACY_PROCESSORS_AND_TRANSFERS is required");
-
-  // Keep validating the legacy shorthand fields for callers constructing the
-  // backwards-compatible single-project ServiceConfig shape.
-  validateDownloadUrl("MAP_DOWNLOAD_URL", values.mapDownloadUrl);
-  validateDownloadUrl("VERSION_DOWNLOAD_URL", values.versionDownloadUrl);
+    throw new Error("platform.privacy.processorsAndTransfers is required");
 
   if (values.projects.length === 0)
-    throw new Error("At least one MAP_PROJECTS entry is required");
+    throw new Error("At least one projects.definitions entry is required");
   const ids = new Set<string>();
   const files = new Set<string>();
   for (const project of values.projects) {
-    if (
-      typeof project.id !== "string" ||
-      typeof project.name !== "string" ||
-      typeof project.mapFile !== "string" ||
-      typeof project.versionFile !== "string" ||
-      typeof project.mapDownloadUrl !== "string" ||
-      typeof project.versionDownloadUrl !== "string"
-    )
-      throw new Error(
-        "Every MAP_PROJECTS entry requires string id, name, mapFile, versionFile, mapDownloadUrl, and versionDownloadUrl fields",
-      );
     if (!/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(project.id))
       throw new Error(`Invalid project ID: ${project.id}`);
     if (ids.has(project.id))
@@ -188,46 +289,49 @@ export const validateConfig = (values: ServiceConfig = config): void => {
     if (!project.name.trim())
       throw new Error(`Project ${project.id} must have a name`);
     for (const file of [project.mapFile, project.versionFile]) {
-      const resolved = path.resolve(file);
-      if (files.has(resolved))
-        throw new Error(`Project baseline paths must be distinct: ${resolved}`);
-      files.add(resolved);
+      if (!file)
+        throw new Error(
+          `Project ${project.id} baseline file paths are required`,
+        );
+      if (files.has(file))
+        throw new Error(`Project baseline paths must be distinct: ${file}`);
+      files.add(file);
     }
     validateDownloadUrl(
-      `Project ${project.id} mapDownloadUrl`,
+      `Project ${project.id} upstream.mapUrl`,
       project.mapDownloadUrl,
     );
     validateDownloadUrl(
-      `Project ${project.id} versionDownloadUrl`,
+      `Project ${project.id} upstream.versionUrl`,
       project.versionDownloadUrl,
     );
   }
-  if (!(["single", "host"] as const).includes(values.projectResolver))
-    throw new Error("PROJECT_RESOLVER must be single or host");
   if (values.projectResolver === "single" && values.projects.length !== 1)
     throw new Error("The single project resolver requires exactly one project");
   if (values.projectResolver === "host") {
     if (!values.platformHost)
-      throw new Error("PLATFORM_HOST is required for the host resolver");
+      throw new Error(
+        "projects.platformHost is required for the host resolver",
+      );
     if (
       values.platformHost !== values.platformHost.toLowerCase() ||
       values.platformHost.includes(":")
     )
       throw new Error(
-        "PLATFORM_HOST must be a lowercase hostname without a port",
+        "projects.platformHost must be a lowercase hostname without a port",
       );
     if (Object.keys(values.hostProjectMap).length === 0)
-      throw new Error("HOST_PROJECT_MAP is required for the host resolver");
+      throw new Error("projects.hosts is required for the host resolver");
     for (const [host, projectId] of Object.entries(values.hostProjectMap)) {
       if (host !== host.toLowerCase() || host.includes(":"))
         throw new Error(
-          `HOST_PROJECT_MAP keys must be lowercase hostnames: ${host}`,
+          `projects.hosts keys must be lowercase hostnames: ${host}`,
         );
       if (!ids.has(projectId))
         throw new Error(`Host ${host} references unknown project ${projectId}`);
     }
-    if (values.platformHost && values.hostProjectMap[values.platformHost])
-      throw new Error("PLATFORM_HOST cannot also identify a project");
+    if (values.hostProjectMap[values.platformHost])
+      throw new Error("projects.platformHost cannot also identify a project");
   }
 
   if (values.kofiProfileUrl) {
@@ -235,25 +339,29 @@ export const validateConfig = (values: ServiceConfig = config): void => {
     try {
       profileUrl = new URL(values.kofiProfileUrl);
     } catch {
-      throw new Error("KO_FI_PROFILE_URL must be a valid URL");
+      throw new Error("platform.sponsorship.profileUrl must be a valid URL");
     }
     if (
       profileUrl.protocol !== "https:" ||
       !["ko-fi.com", "www.ko-fi.com"].includes(profileUrl.hostname)
     )
-      throw new Error("KO_FI_PROFILE_URL must be an HTTPS ko-fi.com URL");
+      throw new Error(
+        "platform.sponsorship.profileUrl must be an HTTPS ko-fi.com URL",
+      );
     if (
       values.kofiMonthlyGoal === undefined ||
       !Number.isFinite(values.kofiMonthlyGoal) ||
       values.kofiMonthlyGoal <= 0
     )
-      throw new Error("KO_FI_MONTHLY_GOAL must be a positive number");
+      throw new Error("platform.sponsorship.monthlyGoal must be positive");
     if (!values.kofiWebhookToken)
-      throw new Error("KO_FI_WEBHOOK_TOKEN is required with KO_FI_PROFILE_URL");
+      throw new Error(
+        "platform.sponsorship.webhookToken is required when sponsorship is enabled",
+      );
   }
   if (!/^[A-Z]{3}$/.test(values.kofiCurrency))
     throw new Error(
-      "KO_FI_CURRENCY must be a three-letter uppercase currency code",
+      "platform.sponsorship.currency must be a three-letter uppercase code",
     );
   if (
     !Number.isInteger(values.kofiCurrencyDecimalPlaces) ||
@@ -261,7 +369,7 @@ export const validateConfig = (values: ServiceConfig = config): void => {
     values.kofiCurrencyDecimalPlaces > 6
   )
     throw new Error(
-      "KO_FI_CURRENCY_DECIMAL_PLACES must be an integer between 0 and 6",
+      "platform.sponsorship.currencyDecimalPlaces must be an integer between 0 and 6",
     );
   if (values.kofiMonthlyGoal !== undefined) {
     const minorUnits = Math.round(
@@ -274,7 +382,9 @@ export const validateConfig = (values: ServiceConfig = config): void => {
         values.kofiMonthlyGoal
     )
       throw new Error(
-        "KO_FI_MONTHLY_GOAL must be a positive safe minor-unit amount",
+        "platform.sponsorship.monthlyGoal must be a positive safe minor-unit amount",
       );
   }
 };
+
+export const config = loadConfig();

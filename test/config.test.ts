@@ -1,7 +1,15 @@
 import { expect, test } from "@jest/globals";
-import { config, validateConfig } from "../src/config/values.js";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  config,
+  loadConfig,
+  type ServiceConfig,
+  validateConfig,
+} from "../src/config/values.js";
 
-const validConfig = {
+const validConfig: ServiceConfig = {
   ...config,
   connectionString: "mongodb://mongo:27017",
   dbName: "crowdmap",
@@ -12,22 +20,75 @@ const validConfig = {
     "Hosted in the EEA; no transfers outside the EEA.",
 };
 
+test("loads nested YAML and resolves relative baseline paths from its directory", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "crowdmap-config-test-"));
+  const configFile = join(directory, "service.yaml");
+  await writeFile(
+    configFile,
+    `platform:
+  mongo:
+    connectionString: mongodb://mongo:27017
+    database: crowdmap
+  privacy:
+    controllerName: Example controller
+    contactUrl: https://example.test/privacy
+    logRetention: 30 days
+    processorsAndTransfers: Test environment
+projects:
+  resolver: single
+  definitions:
+    - id: example
+      name: Example map
+      baseline:
+        mapFile: data/map
+        versionFile: data/version
+      upstream:
+        mapUrl: https://example.test/map
+        versionUrl: https://example.test/version
+`,
+  );
+
+  const loaded = loadConfig(configFile);
+  expect(loaded.projects[0]).toMatchObject({
+    id: "example",
+    mapFile: join(directory, "data/map"),
+    versionFile: join(directory, "data/version"),
+  });
+});
+
+test.each([
+  ["projects.resolver", "projects:\n  resolver: invalid\n  definitions: []\n"],
+  [
+    "platform.port",
+    "platform:\n  port: three-thousand\nprojects:\n  definitions: []\n",
+  ],
+  [
+    "projects.hosts",
+    "projects:\n  resolver: host\n  hosts: invalid\n  definitions: []\n",
+  ],
+])("rejects an invalid YAML value for %s", async (name, contents) => {
+  const directory = await mkdtemp(join(tmpdir(), "crowdmap-config-test-"));
+  const configFile = join(directory, "service.yaml");
+  await writeFile(configFile, contents);
+  expect(() => loadConfig(configFile)).toThrow(name);
+});
+
 test("rejects invalid ports and proxy trust values", () => {
   expect(() => {
     validateConfig({ ...validConfig, port: 0 });
-  }).toThrow("PORT");
+  }).toThrow("platform.port");
   expect(() => {
     validateConfig({ ...validConfig, trustProxy: Number.NaN });
-  }).toThrow("TRUST_PROXY");
+  }).toThrow("platform.trustProxy");
 });
 
 test("requires MongoDB configuration", () => {
   expect(() => {
     validateConfig({ ...validConfig, connectionString: undefined });
-  }).toThrow("MONGO_CONNECTION_STRING");
+  }).toThrow("platform.mongo.connectionString");
   expect(() => {
     validateConfig({ ...validConfig, dbName: undefined });
-  }).toThrow("MONGO_DB_NAME");
+  }).toThrow("platform.mongo.database");
 });
 
 test.each([
@@ -35,25 +96,33 @@ test.each([
   ["privacyContactUrl", undefined],
   ["privacyLogRetention", undefined],
   ["privacyProcessorsAndTransfers", undefined],
-])("requires %s", (key, value) => {
+] as const)("requires %s", (key, value) => {
   expect(() => {
     validateConfig({ ...validConfig, [key]: value });
-  }).toThrow("PRIVACY_");
+  }).toThrow("platform.privacy");
 });
 
 test.each([
-  ["MAP_DOWNLOAD_URL", { mapDownloadUrl: "not a URL" }],
-  ["VERSION_DOWNLOAD_URL", { versionDownloadUrl: "not a URL" }],
-])("identifies an invalid %s", (name, update) => {
+  ["mapUrl", { mapDownloadUrl: "not a URL" }],
+  ["versionUrl", { versionDownloadUrl: "not a URL" }],
+] as const)("identifies an invalid upstream %s", (name, update) => {
   expect(() => {
-    validateConfig({ ...validConfig, ...update });
-  }).toThrow(`${name} must be a valid URL`);
+    validateConfig({
+      ...validConfig,
+      projects: [{ ...validConfig.projects[0], ...update }],
+    });
+  }).toThrow(`upstream.${name} must be a valid URL`);
 });
 
 test("rejects non-HTTP download URLs with a targeted error", () => {
   expect(() => {
-    validateConfig({ ...validConfig, mapDownloadUrl: "file:///tmp/map" });
-  }).toThrow("MAP_DOWNLOAD_URL must use HTTP or HTTPS");
+    validateConfig({
+      ...validConfig,
+      projects: [
+        { ...validConfig.projects[0], mapDownloadUrl: "file:///tmp/map" },
+      ],
+    });
+  }).toThrow("upstream.mapUrl must use HTTP or HTTPS");
 });
 
 test.each(["mailto:", "mailto:?subject=privacy"])(
@@ -77,7 +146,7 @@ test("requires a complete valid Ko-fi configuration when sponsorship is enabled"
       ...validConfig,
       kofiProfileUrl: "https://ko-fi.com/crowdmap",
     });
-  }).toThrow("KO_FI_MONTHLY_GOAL");
+  }).toThrow("platform.sponsorship.monthlyGoal");
   expect(() => {
     validateConfig({
       ...validConfig,
@@ -85,7 +154,7 @@ test("requires a complete valid Ko-fi configuration when sponsorship is enabled"
       kofiMonthlyGoal: 20,
       kofiWebhookToken: "secret",
     });
-  }).toThrow("KO_FI_PROFILE_URL");
+  }).toThrow("platform.sponsorship.profileUrl");
   expect(() => {
     validateConfig({
       ...validConfig,

@@ -1,13 +1,11 @@
 import { Server } from "node:http";
 import { app } from "./app.js";
-import { config, validateConfig } from "./config/values.js";
+import { config } from "./config/values.js";
 import { iocContainer } from "./ioc/ioc.js";
 import { log } from "./observability.js";
 import { ChangeService } from "./services/changeService.js";
 import { MapService } from "./services/mapService.js";
 import { UserService } from "./services/userService.js";
-
-validateConfig();
 
 const userService = iocContainer.get<UserService>(UserService, {
   autobind: true,
@@ -19,7 +17,7 @@ const checkAdminUser = userService.getUser("admin").then(async (adminUser) => {
   if (adminUser) return;
   if (!config.initialAdminApiKey) {
     throw new Error(
-      "INITIAL_ADMIN_API_KEY is required when creating the first admin user",
+      "platform.initialAdminApiKey is required when creating the first admin user",
     );
   }
   const created = await userService.createUserIfMissing(

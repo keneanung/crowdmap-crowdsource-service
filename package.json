@@ -6,12 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "npm run build:review && concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\" \"npm run build:review -- --watch\"",
-    "build": "tsoa spec-and-routes && npm run fix:esm-imports && tsc && npm run build:review && cp -R website/ build/",
+    "build": "CONFIG_FILE=${CONFIG_FILE:-config.example.yaml} tsoa spec-and-routes && npm run fix:esm-imports && tsc && npm run build:review && cp -R website/ build/",
     "fix:esm-imports": "node scripts/fix-esm-imports.mjs",
     "build:review": "esbuild website/javascripts/review-map.ts --bundle --format=iife --target=es2020 --outfile=website/javascripts/review-map.js",
     "start": "node build/src/server.js",
     "audit:production": "npm audit --omit=dev",
-    "prelint": "tsoa spec-and-routes",
+    "prelint": "CONFIG_FILE=${CONFIG_FILE:-config.example.yaml} tsoa spec-and-routes",
     "lint": "eslint .",
     "format": "prettier --write src/ test/",
     "pretest": "npm run build",
@@ -25,7 +25,6 @@
     "@inversifyjs/binding-decorators": "^1.1.5",
     "@tsoa/runtime": "^6.6.0",
     "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.2",
     "inversify": "^7.11.0",
@@ -35,8 +34,8 @@
     "mudlet-map-renderer": "^2.6.1",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
-    "tsoa": "^6.6.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
@@ -61,6 +60,7 @@
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
+    "tsoa": "^6.6.0",
     "typescript": "^5.6.2"
   },
   "engines": {

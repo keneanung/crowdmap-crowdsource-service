@@ -1,0 +1,32 @@
+platform:
+  port: 3000
+  trustProxy: 0
+  mongo:
+    connectionString: mongodb://mongo:27017
+    database: crowdmap
+  # Required only while bootstrapping an empty user database. Treat it as a secret.
+  initialAdminApiKey: cm1_00000000-0000-0000-0000-000000000000.replace-with-a-random-secret
+  privacy:
+    controllerName: Example organisation
+    contactUrl: https://example.org/privacy-contact
+    logRetention: 30 days
+    processorsAndTransfers: Hosted by Example Host; update this for your deployment.
+  # Omit this entire section to disable sponsorships.
+  # sponsorship:
+  #   profileUrl: https://ko-fi.com/example
+  #   monthlyGoal: 20
+  #   currency: EUR
+  #   currencyDecimalPlaces: 2
+  #   webhookToken: replace-with-the-ko-fi-verification-token
+
+projects:
+  resolver: single
+  definitions:
+    - id: example
+      name: Example Map
+      baseline:
+        mapFile: /opt/data/example/map
+        versionFile: /opt/data/example/version
+      upstream:
+        mapUrl: https://maps.example.org/example/map
+        versionUrl: https://maps.example.org/example/version

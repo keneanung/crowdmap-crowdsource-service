@@ -24,52 +24,11 @@ services:
       - 3000:3000
     volumes:
       - map-data:/opt/data
+      # Copy config.example.yaml to config.yaml, customize it, and keep secrets
+      # readable only by the account running Docker.
+      - ./config.yaml:/opt/serve/config.yaml:ro
     # change this if you want to keep your version stable. This will pull a new service image on every start.
     #pull_policy: always
-    environment:
-      # The URL where to download the current map file as baseline from
-      - MAP_DOWNLOAD_URL=https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/map
-      # The URL where to download the version file of the baseline map from.
-      - VERSION_DOWNLOAD_URL=https://ire-mudlet-mapping.github.io/AchaeaCrowdmap/Map/version.txt
-      # The port the node service is listening on. If you change this value, be sure to modify the port mapping above as well.
-      - PORT=3000
-      # The file path where the map file is saved within the container. You should not need to set this.
-      - MAP_FILE=/opt/data/map
-      # The file path where the version file is saved within the container. You should not need to set this.
-      - VERSION_FILE=/opt/data/version
-      # Optional neutral identity for this simple single-project deployment.
-      - PROJECT_ID=${PROJECT_ID:-default}
-      - PROJECT_NAME=${PROJECT_NAME:-Crowdmap}
-      # Multi-project deployments replace the four baseline variables above with
-      # MAP_PROJECTS JSON and set PROJECT_RESOLVER=host, PLATFORM_HOST, and an
-      # explicit HOST_PROJECT_MAP. Keep every baseline below /opt/data so the
-      # volume and backup procedure include the complete recovery set.
-      # Local MongoDB connection string. Adjust credentials / auth if you secure the mongo service.
-      - MONGO_CONNECTION_STRING=mongodb://mongo:27017
-      # The MongoDB database to use.
-      - MONGO_DB_NAME=crowdmap
-      # Required only when the database does not contain an admin user yet. Keep this value secret and remove it after the first successful startup.
-      - INITIAL_ADMIN_API_KEY=${INITIAL_ADMIN_API_KEY:-}
-      # Which reverse proxy to trust to return the real IP address of the client. Set to 0 to trust no proxy. See https://expressjs.com/en/guide/behind-proxies.html for further documentation.
-      # This implementation uses the number option only.
-      # Use the /utility/ip endpoint to check if the real IP is returned correctly.
-      - TRUST_PROXY=0
-      # Required public privacy-notice details. Keep personal information out of
-      # the repository; set them in your deployment environment or .env file.
-      - PRIVACY_CONTROLLER_NAME=${PRIVACY_CONTROLLER_NAME:?Set the legal identity of this deployment's controller}
-      # Use a contact form URL or a dedicated privacy email address if you do not want to publish a personal address.
-      - PRIVACY_CONTACT_URL=${PRIVACY_CONTACT_URL:?Set an HTTPS or mailto privacy contact URL}
-      # State the actual retention period/criterion configured for your logging platform.
-      - PRIVACY_LOG_RETENTION=${PRIVACY_LOG_RETENTION:?State the request-log retention period}
-      # State your actual hosting/database/backup processors and any third-country transfers/safeguards.
-      - PRIVACY_PROCESSORS_AND_TRANSFERS=${PRIVACY_PROCESSORS_AND_TRANSFERS:?Describe processors and international transfers}
-      # Optional sponsorship page. Configure all five values together to enable it.
-      # The webhook token is the verification token configured in Ko-fi's webhook settings.
-      - KO_FI_PROFILE_URL=${KO_FI_PROFILE_URL:-}
-      - KO_FI_MONTHLY_GOAL=${KO_FI_MONTHLY_GOAL:-}
-      - KO_FI_CURRENCY=${KO_FI_CURRENCY:-USD}
-      - KO_FI_CURRENCY_DECIMAL_PLACES=${KO_FI_CURRENCY_DECIMAL_PLACES:-2}
-      - KO_FI_WEBHOOK_TOKEN=${KO_FI_WEBHOOK_TOKEN:-}
     healthcheck:
       test: "wget --no-verbose --tries=1 --spider http://localhost:3000/utility/healthcheck || exit 1"
       interval: 30s
