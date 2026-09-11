@@ -37,6 +37,13 @@ services:
       - MAP_FILE=/opt/data/map
       # The file path where the version file is saved within the container. You should not need to set this.
       - VERSION_FILE=/opt/data/version
+      # Optional neutral identity for this simple single-project deployment.
+      - PROJECT_ID=${PROJECT_ID:-default}
+      - PROJECT_NAME=${PROJECT_NAME:-Crowdmap}
+      # Multi-project deployments replace the four baseline variables above with
+      # MAP_PROJECTS JSON and set PROJECT_RESOLVER=host, PLATFORM_HOST, and an
+      # explicit HOST_PROJECT_MAP. Keep every baseline below /opt/data so the
+      # volume and backup procedure include the complete recovery set.
       # Local MongoDB connection string. Adjust credentials / auth if you secure the mongo service.
       - MONGO_CONNECTION_STRING=mongodb://mongo:27017
       # The MongoDB database to use.

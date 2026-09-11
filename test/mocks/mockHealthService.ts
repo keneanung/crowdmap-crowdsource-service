@@ -6,4 +6,7 @@ export class MockHealthService implements HealthService {
   public checkReadiness(): Promise<void> {
     return Promise.resolve();
   }
+  public getProjectStatuses(): Promise<[]> {
+    return Promise.resolve([]);
+  }
 }

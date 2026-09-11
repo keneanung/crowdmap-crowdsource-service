@@ -15,8 +15,11 @@ and metadata updates as well as normal and special-exit mutations.
 
 ## Hosting the service
 
-The service needs to be hosted separately for each different map. To make this easier, it is distributed in form of a
-configurable docker image. A sample docker compose file with all variables can be found within the repository.
+One process can host one or many independent map projects. MongoDB, users,
+privacy pages, sponsorship state, and process observability are platform-wide;
+baselines, pending changes, review state, health, and map administration are
+scoped to a configured `MapProject`. The same image can still be deployed once
+per map, but that is no longer required.
 
 ### Prepare dependencies
 
@@ -31,7 +34,38 @@ The service generates time-sortable UUIDv7 values (via the `uuid` library) for e
 - Maintain insertion-time ordering (sufficient for change ordering/version derivation)
 - Avoid the need for counters, triggers, or extra coordination mechanisms
 
-Only a single collection named `changes` is required; it is created automatically on first insert.
+Only a single collection named `changes` is required; it is created automatically
+on first insert. Every document carries a configured `projectId`, and all reads,
+writes, deletes, and unique indexes are compound-scoped by that value. Keeping a
+single collection makes index migration and coherent backups less error-prone;
+the project-bound repository prevents callers from issuing unscoped operations.
+
+#### Project configuration
+
+The existing `MAP_FILE`, `VERSION_FILE`, `MAP_DOWNLOAD_URL`, and
+`VERSION_DOWNLOAD_URL` variables remain the simple single-project setup. Its
+optional neutral identity is configured with `PROJECT_ID` (default `default`)
+and `PROJECT_NAME` (default `Crowdmap`); no DNS setup is necessary.
+
+For multiple projects, set `MAP_PROJECTS` to a JSON array and use the explicit
+host resolver. Each baseline path must be unique:
+
+```dotenv
+PROJECT_RESOLVER=host
+PLATFORM_HOST=maps.example.org
+HOST_PROJECT_MAP={"north.maps.example.org":"north","south.maps.example.org":"south"}
+MAP_PROJECTS=[{"id":"north","name":"Northern Map","mapFile":"/opt/data/north/map","versionFile":"/opt/data/north/version","mapDownloadUrl":"https://maps.example.net/north/map","versionDownloadUrl":"https://maps.example.net/north/version"},{"id":"south","name":"Southern Map","mapFile":"/opt/data/south/map","versionFile":"/opt/data/south/version","mapDownloadUrl":"https://maps.example.net/south/map","versionDownloadUrl":"https://maps.example.net/south/version"}]
+```
+
+Only exact lowercase hostnames in `HOST_PROJECT_MAP` resolve to projects;
+arbitrary `Host` values are rejected. `PLATFORM_HOST` serves the shared landing,
+privacy, and funding experience. Project hosts keep the existing relative
+`/map` and `/change` API URLs and use the explorer as their landing page.
+Express resolves `X-Forwarded-Host` only through the configured `TRUST_PROXY`, so
+configure that value narrowly for the actual reverse-proxy hop count.
+
+Do not add a production project called `test`. Run tests as a separate deployment
+of the same image with its own Mongo database, volume, host mappings, and secrets.
 
 #### Local MongoDB (Docker Compose)
 
@@ -131,7 +165,10 @@ automatic conflict decisions.
 
 After publishing a new upstream map/version pair, mark only reports already
 represented by that pair and apply the baseline update with a `map_admin` API
-key. The key remains in page memory and is not stored in browser storage. The
+key assigned to that project. Project assignments are stored in
+`mapAdminProjects`; `site_admin` remains platform-wide and may administer every
+project. A legacy `map_admin` is migrated to the sole configured project during
+a single-project startup. The key remains in page memory and is not stored in browser storage. The
 server verifies the displayed baseline version, validates the downloaded pair,
 and compares every pending report with the old and downloaded maps before
 replacing the baseline. Reports already satisfied by the downloaded map are
@@ -142,7 +179,7 @@ upstream update is unrelated to pending reports.
 
 ### Back up and restore
 
-The MongoDB data and the baseline `map`/`version` files form one recovery unit.
+The MongoDB data and every configured project baseline `map`/`version` pair form one recovery unit.
 Restoring only one side can reapply changes that were already incorporated into
 the baseline. The included Compose setup persists them in the `mongo-data` and
 `map-data` volumes.
@@ -154,26 +191,24 @@ backup_dir="backup-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$backup_dir"
 docker compose stop app
 docker compose exec -T mongo mongodump --db crowdmap --archive --gzip > "$backup_dir/mongo.archive.gz"
-docker compose cp app:/opt/data/map "$backup_dir/map"
-docker compose cp app:/opt/data/version "$backup_dir/version"
+docker compose cp app:/opt/data "$backup_dir/data"
 docker compose start app
 ```
 
-Verify that all three files exist and retain them according to your recovery
+Verify that the Mongo archive and every configured baseline pair exist and retain them according to your recovery
 policy. Automate this process and test restores regularly. Managed MongoDB users
-should use a provider snapshot while the app is stopped, and archive the two
-baseline files from the same maintenance window.
+should use a provider snapshot while the app is stopped, and archive the complete
+baseline data directory from the same maintenance window.
 
 To restore into an existing Compose deployment, first back up its current state.
-Then stop the app and restore all three artifacts before starting it again:
+Then stop the app and restore the complete recovery set before starting it again:
 
 ```shell
 backup_dir="backup-YYYYMMDDTHHMMSSZ"
 docker compose stop app
 docker compose exec -T mongo mongorestore --drop --archive --gzip < "$backup_dir/mongo.archive.gz"
-docker compose cp "$backup_dir/map" app:/opt/data/map
-docker compose cp "$backup_dir/version" app:/opt/data/version
-docker compose run --rm --no-deps --user root app chown node:node /opt/data/map /opt/data/version
+docker compose cp "$backup_dir/data/." app:/opt/data
+docker compose run --rm --no-deps --user root app chown -R node:node /opt/data
 docker compose start app
 docker compose exec -T mongo mongosh crowdmap --quiet --eval 'db.runCommand({ ping: 1 }).ok'
 curl --fail http://localhost:3000/utility/healthcheck
@@ -181,6 +216,20 @@ curl --fail http://localhost:3000/utility/healthcheck
 
 Do not start the app after a partial restore. If any restore command fails, leave
 it stopped, correct the failure, and restore the complete recovery unit again.
+
+#### Safe migration from older releases
+
+At startup, legacy `changes` without `projectId` and legacy `map_admin` users
+without project assignments are migrated only when exactly one project is
+configured. If more than one project makes assignment ambiguous, startup fails
+with instructions to run the image once in single-project mode, verify the
+assignment, and only then enable multi-project configuration. No legacy records
+are deleted. Old global unique indexes are replaced after document migration
+with project-compound indexes.
+
+The container health check covers required platform dependencies such as MongoDB.
+`GET /utility/status` additionally reports every configured project as `ok` or
+`unavailable`; one broken baseline does not make healthy project hosts unavailable.
 
 ## Contributing
 

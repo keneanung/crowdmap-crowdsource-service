@@ -1,41 +1,22 @@
-import * as fs from "fs";
 import { Server } from "node:http";
 import { app } from "./app.js";
 import { config, validateConfig } from "./config/values.js";
-import { downloadMapFile, downloadMapVersion } from "./fileDownloads.js";
 import { iocContainer } from "./ioc/ioc.js";
 import { log } from "./observability.js";
+import { ChangeService } from "./services/changeService.js";
+import { MapService } from "./services/mapService.js";
 import { UserService } from "./services/userService.js";
 
 validateConfig();
 
-let mapDownloadPromise;
-if (!fs.existsSync(config.mapFile)) {
-  mapDownloadPromise = downloadMapFile().catch((err: unknown) => {
-    log("error", "map_download_failed", { error: err });
-    process.exit(1);
-  });
-} else {
-  mapDownloadPromise = Promise.resolve();
-}
-
-let mapVersionDownloadPromise;
-if (!fs.existsSync(config.versionFile)) {
-  mapVersionDownloadPromise = downloadMapVersion().catch((err: unknown) => {
-    log("error", "map_version_download_failed", { error: err });
-    process.exit(1);
-  });
-} else {
-  mapVersionDownloadPromise = Promise.resolve();
-}
-
 const userService = iocContainer.get<UserService>(UserService, {
   autobind: true,
 });
+const changeService = iocContainer.get<ChangeService>(ChangeService);
+const mapService = iocContainer.get<MapService>(MapService);
+
 const checkAdminUser = userService.getUser("admin").then(async (adminUser) => {
-  if (adminUser) {
-    return;
-  }
+  if (adminUser) return;
   if (!config.initialAdminApiKey) {
     throw new Error(
       "INITIAL_ADMIN_API_KEY is required when creating the first admin user",
@@ -45,19 +26,30 @@ const checkAdminUser = userService.getUser("admin").then(async (adminUser) => {
     "admin",
     ["site_admin", "map_admin"],
     config.initialAdminApiKey,
+    config.projects.map(({ id }) => id),
   );
-  if (created) {
-    log("info", "initial_admin_created");
-  }
+  if (created) log("info", "initial_admin_created");
 });
+
+const initializeProjects = async (): Promise<void> => {
+  const results = await Promise.allSettled(
+    config.projects.map((project) => mapService.initializeProject(project)),
+  );
+  results.forEach((result, index) => {
+    const project = config.projects[index];
+    if (result.status === "rejected")
+      log("error", "project_initialization_failed", {
+        projectId: project.id,
+        error: result.reason,
+      });
+    else log("info", "project_initialized", { projectId: project.id });
+  });
+};
 
 let server: Server | undefined;
 let shuttingDown = false;
-
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
-  if (shuttingDown) {
-    return;
-  }
+  if (shuttingDown) return;
   shuttingDown = true;
   log("info", "shutdown_started", { signal });
   const forcedExit = setTimeout(() => {
@@ -65,19 +57,14 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
     process.exit(1);
   }, 10_000);
   forcedExit.unref();
-
   try {
-    if (server) {
+    if (server)
       await new Promise<void>((resolve, reject) => {
         server?.close((error) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve();
-          }
+          if (error) reject(error);
+          else resolve();
         });
       });
-    }
     await iocContainer.unbindAll();
     clearTimeout(forcedExit);
   } catch (error) {
@@ -87,9 +74,9 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
 };
 
 Promise.all([
-  mapDownloadPromise,
-  mapVersionDownloadPromise,
+  changeService.initialize(),
   checkAdminUser,
+  initializeProjects(),
 ]).then(
   () => {
     server = app.listen(config.port, () => {
@@ -102,8 +89,8 @@ Promise.all([
       void shutdown("SIGINT");
     });
   },
-  (err: unknown) => {
-    log("error", "server_startup_failed", { error: err });
+  (error: unknown) => {
+    log("error", "server_startup_failed", { error });
     process.exit(1);
   },
 );

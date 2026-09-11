@@ -13,7 +13,11 @@ export abstract class UserDbService {
   abstract getUsersWithoutApiKeyId(): Promise<User[]>;
   abstract getUsers(): Promise<User[]>;
   abstract deleteUser(name: string): Promise<boolean>;
-  abstract updateRoles(name: string, roles: User["roles"]): Promise<boolean>;
+  abstract updateRoles(
+    name: string,
+    roles: User["roles"],
+    mapAdminProjects?: string[],
+  ): Promise<boolean>;
   abstract updateApiKey(
     user: User,
     newApiKey: string,
@@ -21,7 +25,7 @@ export abstract class UserDbService {
   ): Promise<void>;
 }
 
-@provide(UserDbService)
+@provide(UserDbService, (binding) => binding.inSingletonScope())
 export class MongoUserDbService implements UserDbService {
   private indexesReady?: Promise<string[]>;
 
@@ -31,15 +35,32 @@ export class MongoUserDbService implements UserDbService {
     await this.mongo.connect();
     const db = this.mongo.db(config.dbName);
     const collection = db.collection<User>("users");
-    this.indexesReady ??= collection.createIndexes([
-      { key: { name: 1 }, unique: true, name: "unique_user_name" },
-      {
-        key: { api_key_id: 1 },
-        unique: true,
-        sparse: true,
-        name: "unique_api_key_id",
-      },
-    ]);
+    this.indexesReady ??= (async () => {
+      const legacyMapAdmins = await collection.countDocuments({
+        roles: "map_admin",
+        mapAdminProjects: { $exists: false },
+      });
+      if (legacyMapAdmins > 0) {
+        if (config.projects.length !== 1) {
+          throw new Error(
+            `${legacyMapAdmins.toString()} legacy map_admin users have no project assignment. Configure exactly one project, start once to migrate them, then enable multi-project mode.`,
+          );
+        }
+        await collection.updateMany(
+          { roles: "map_admin", mapAdminProjects: { $exists: false } },
+          { $set: { mapAdminProjects: [config.projects[0]?.id] } },
+        );
+      }
+      return await collection.createIndexes([
+        { key: { name: 1 }, unique: true, name: "unique_user_name" },
+        {
+          key: { api_key_id: 1 },
+          unique: true,
+          sparse: true,
+          name: "unique_api_key_id",
+        },
+      ]);
+    })();
     await this.indexesReady;
     return collection;
   }
@@ -89,11 +110,18 @@ export class MongoUserDbService implements UserDbService {
   public async updateRoles(
     name: string,
     roles: User["roles"],
+    mapAdminProjects?: string[],
   ): Promise<boolean> {
     const collection = await this.getCollection();
     return (
-      (await collection.updateOne({ name }, { $set: { roles } }))
-        .matchedCount === 1
+      (
+        await collection.updateOne(
+          { name },
+          mapAdminProjects === undefined
+            ? { $set: { roles } }
+            : { $set: { roles, mapAdminProjects } },
+        )
+      ).matchedCount === 1
     );
   }
 

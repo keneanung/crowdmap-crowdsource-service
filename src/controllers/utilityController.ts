@@ -26,6 +26,23 @@ export class UtilityController extends Controller {
     return { status: "ok" };
   }
 
+  @Get("status")
+  public async status(): Promise<{
+    status: "ok";
+    projects: {
+      id: string;
+      name: string;
+      status: "ok" | "unavailable";
+      error?: string;
+    }[];
+  }> {
+    await this.healthService.checkReadiness();
+    return {
+      status: "ok",
+      projects: await this.healthService.getProjectStatuses(),
+    };
+  }
+
   @Get("ip")
   public getIp(@Request() request: express.Request) {
     return request.ip;

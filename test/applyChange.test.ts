@@ -4,10 +4,10 @@ import { app } from "../src/app.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
 import { MudletMapReader } from "mudlet-map-binary-reader";
-jest.setTimeout(15_000);
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { config } from "../src/config/values.js";
 import { fetchMock } from "./setup/mockFetch.js";
+jest.setTimeout(15_000);
 
 beforeEach(() => {
   setupChangeServiceMock();
@@ -210,7 +210,9 @@ test("applyChange returns transient flags for pending changes whose target chang
     reporter: "Test Reporter",
   });
 
-  const upstreamMap = MudletMapReader.readBuffer(await readFile(config.mapFile));
+  const upstreamMap = MudletMapReader.readBuffer(
+    await readFile(config.mapFile),
+  );
   upstreamMap.rooms[1].name = "Different upstream name";
   const upstreamMapFile = `${config.mapFile}.upstream`;
   await writeFile(upstreamMapFile, MudletMapReader.writeBuffer(upstreamMap));

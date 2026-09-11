@@ -73,7 +73,10 @@ test("accepts a complete service configuration", () => {
 
 test("requires a complete valid Ko-fi configuration when sponsorship is enabled", () => {
   expect(() => {
-    validateConfig({ ...validConfig, kofiProfileUrl: "https://ko-fi.com/crowdmap" });
+    validateConfig({
+      ...validConfig,
+      kofiProfileUrl: "https://ko-fi.com/crowdmap",
+    });
   }).toThrow("KO_FI_MONTHLY_GOAL");
   expect(() => {
     validateConfig({

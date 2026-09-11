@@ -16,6 +16,7 @@ import { ValidateError } from "tsoa";
 import { RegisterRoutes } from "../generated/routes.js";
 import swaggerJson from "../generated/swagger.json" with { type: "json" };
 import { config } from "./config/values.js";
+import { iocContainer } from "./ioc/ioc.js";
 import {
   AuthorizationError,
   ConflictError,
@@ -23,6 +24,10 @@ import {
   ServiceUnavailableError,
 } from "./models/api/error.js";
 import { getRequestId, log, requestObservability } from "./observability.js";
+import {
+  ProjectContextResolver,
+  type ProjectRequest,
+} from "./projects/projectContext.js";
 
 export const app = express();
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
@@ -92,6 +97,80 @@ app.use(
     standardHeaders: true,
   }),
 );
+app.use((request: ProjectRequest, _response, next) => {
+  try {
+    if (request.path.startsWith("/utility/")) {
+      request.platformRequest = true;
+      next();
+      return;
+    }
+    const resolution = iocContainer
+      .get<ProjectContextResolver>(ProjectContextResolver)
+      .resolve(request);
+    request.projectContext = resolution.context;
+    request.platformRequest = resolution.platform;
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+app.get("/project-context.json", (request: ProjectRequest, response) => {
+  response.json({
+    project: request.projectContext?.project
+      ? {
+          id: request.projectContext.project.id,
+          name: request.projectContext.project.name,
+        }
+      : undefined,
+    projects: request.platformRequest
+      ? config.projects.map(({ id, name }) => ({
+          id,
+          name,
+          host: Object.entries(config.hostProjectMap).find(
+            ([, value]) => value === id,
+          )?.[0],
+        }))
+      : undefined,
+    sponsorshipEnabled: Boolean(config.kofiProfileUrl),
+  });
+});
+app.get("/", (request: ProjectRequest, response, next) => {
+  if (!request.platformRequest) {
+    next();
+    return;
+  }
+  const links = config.projects
+    .map((project) => {
+      const host = Object.entries(config.hostProjectMap).find(
+        ([, id]) => id === project.id,
+      )?.[0];
+      return host
+        ? `<li><a href="//${escapeHtml(host)}/">${escapeHtml(project.name)}</a></li>`
+        : "";
+    })
+    .join("");
+  response
+    .type("html")
+    .send(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Crowdmap projects</title><link rel="stylesheet" href="/stylesheets/site-navigation.css"></head><body><nav class="site-navigation"><a class="site-navigation__brand" href="/">Crowdmap</a><ul><li><a href="/privacy.html">Privacy</a></li>${config.kofiProfileUrl ? '<li><a href="/sponsor.html">Sponsor</a></li>' : ""}</ul></nav><main><h1>Map projects</h1><p>Select a map project to open its explorer.</p><ul>${links}</ul></main></body></html>`,
+    );
+});
+app.get("/index.html", (request: ProjectRequest, response, next) => {
+  if (!request.platformRequest) {
+    next();
+    return;
+  }
+  response.redirect(302, "/");
+});
+app.get("/review.html", (request: ProjectRequest, response, next) => {
+  if (!request.platformRequest) {
+    next();
+    return;
+  }
+  response
+    .status(404)
+    .json({ message: "A project host is required for map review" });
+});
 app.get("/privacy.html", async (_request, response, next) => {
   try {
     response.type("html").send(await getRenderedPrivacyPage());
@@ -99,13 +178,16 @@ app.get("/privacy.html", async (_request, response, next) => {
     next(error);
   }
 });
-app.use("/sponsorship", (_req: ExRequest, res: ExResponse, next: NextFunction) => {
-  if (!config.kofiProfileUrl) {
-    res.status(404).json({ message: "Not Found" });
-    return;
-  }
-  next();
-});
+app.use(
+  "/sponsorship",
+  (_req: ExRequest, res: ExResponse, next: NextFunction) => {
+    if (!config.kofiProfileUrl) {
+      res.status(404).json({ message: "Not Found" });
+      return;
+    }
+    next();
+  },
+);
 app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
   return res.send(swaggerUi.generateHTML(swaggerJson));
 });

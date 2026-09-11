@@ -1,9 +1,12 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
-import { randomUUID } from "node:crypto";
 import { MongoClient, MongoServerError } from "mongodb";
+import { randomUUID } from "node:crypto";
 import { config } from "../config/values.js";
-import type { KofiPayment, SponsorshipProgress } from "../models/business/sponsorship.js";
+import type {
+  KofiPayment,
+  SponsorshipProgress,
+} from "../models/business/sponsorship.js";
 
 interface StoredPayment extends KofiPayment {
   remainingAmount?: number;
@@ -34,11 +37,13 @@ const nextMonth = (month: string): string => {
   return monthFor(next);
 };
 
-const monthStart = (month: string): Date => new Date(`${month}-01T00:00:00.000Z`);
+const monthStart = (month: string): Date =>
+  new Date(`${month}-01T00:00:00.000Z`);
 
 const toMinorUnits = (amount: number): number => {
   const value = Math.round(amount * 10 ** config.kofiCurrencyDecimalPlaces);
-  if (!Number.isSafeInteger(value)) throw new Error("Ko-fi payment amount is too large");
+  if (!Number.isSafeInteger(value))
+    throw new Error("Ko-fi payment amount is too large");
   return value;
 };
 
@@ -61,15 +66,25 @@ export class SponsorshipService {
     const database = this.mongo.db(config.dbName);
     const payments = database.collection<StoredPayment>("kofi_payments");
     const state = database.collection<SponsorshipState>("sponsorship_state");
-    const consumedEvents = database.collection<ConsumedEvent>("kofi_consumed_events");
+    const consumedEvents = database.collection<ConsumedEvent>(
+      "kofi_consumed_events",
+    );
     this.indexesReady ??= Promise.all([
       payments.createIndexes([
         { key: { eventId: 1 }, unique: true, name: "unique_kofi_event" },
         { key: { currency: 1, receivedAt: 1 }, name: "sponsorship_credits" },
       ]),
       consumedEvents.createIndexes([
-        { key: { eventId: 1 }, unique: true, name: "unique_consumed_kofi_event" },
-        { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "expired_consumed_kofi_events" },
+        {
+          key: { eventId: 1 },
+          unique: true,
+          name: "unique_consumed_kofi_event",
+        },
+        {
+          key: { expiresAt: 1 },
+          expireAfterSeconds: 0,
+          name: "expired_consumed_kofi_events",
+        },
       ]),
     ]).then(() => undefined);
     await this.indexesReady;
@@ -95,7 +110,8 @@ export class SponsorshipService {
           { upsert: true },
         );
       } catch (error) {
-        if (!(error instanceof MongoServerError) || error.code !== 11000) throw error;
+        if (!(error instanceof MongoServerError) || error.code !== 11000)
+          throw error;
       }
     }
 
@@ -110,14 +126,22 @@ export class SponsorshipService {
             { lockExpiresAt: { $lte: new Date() } },
           ],
         },
-        { $set: { lockId, lockExpiresAt: new Date(Date.now() + SETTLEMENT_LOCK_MS) } },
+        {
+          $set: {
+            lockId,
+            lockExpiresAt: new Date(Date.now() + SETTLEMENT_LOCK_MS),
+          },
+        },
       );
       acquired = result.matchedCount === 1;
-      if (!acquired) await new Promise<void>((resolve) => setTimeout(resolve, 25));
+      if (!acquired)
+        await new Promise<void>((resolve) => setTimeout(resolve, 25));
     }
 
     try {
-      let activeMonth = (await state.findOne({ _id: "settlement" }))?.activeMonth ?? currentMonth;
+      let activeMonth =
+        (await state.findOne({ _id: "settlement" }))?.activeMonth ??
+        currentMonth;
       while (activeMonth < currentMonth) {
         let amountToUse = toMinorUnits(config.kofiMonthlyGoal ?? 0);
         const cutoff = monthStart(nextMonth(activeMonth));
@@ -127,19 +151,29 @@ export class SponsorshipService {
           .toArray();
         for (const credit of credits) {
           if (credit.settledMonth === activeMonth) {
-            amountToUse = Math.max(0, amountToUse - toMinorUnits(credit.settledAmount ?? 0));
+            amountToUse = Math.max(
+              0,
+              amountToUse - toMinorUnits(credit.settledAmount ?? 0),
+            );
             continue;
           }
           if (amountToUse === 0) break;
-          const remainingAmount = toMinorUnits(credit.remainingAmount ?? credit.amount);
+          const remainingAmount = toMinorUnits(
+            credit.remainingAmount ?? credit.amount,
+          );
           const usedAmount = Math.min(remainingAmount, amountToUse);
           const afterSettlement = remainingAmount - usedAmount;
           amountToUse -= usedAmount;
           const renewed = await state.updateOne(
             { _id: "settlement", lockId },
-            { $set: { lockExpiresAt: new Date(Date.now() + SETTLEMENT_LOCK_MS) } },
+            {
+              $set: {
+                lockExpiresAt: new Date(Date.now() + SETTLEMENT_LOCK_MS),
+              },
+            },
           );
-          if (renewed.matchedCount !== 1) throw new Error("Sponsorship settlement lease was lost");
+          if (renewed.matchedCount !== 1)
+            throw new Error("Sponsorship settlement lease was lost");
           await payments.updateOne(
             { eventId: credit.eventId },
             {
@@ -153,7 +187,14 @@ export class SponsorshipService {
           if (afterSettlement === 0) {
             await consumedEvents.updateOne(
               { eventId: credit.eventId },
-              { $set: { eventId: credit.eventId, expiresAt: new Date(now.getTime() + DEDUPLICATION_RETENTION_MS) } },
+              {
+                $set: {
+                  eventId: credit.eventId,
+                  expiresAt: new Date(
+                    now.getTime() + DEDUPLICATION_RETENTION_MS,
+                  ),
+                },
+              },
               { upsert: true },
             );
           }
@@ -164,8 +205,12 @@ export class SponsorshipService {
           { _id: "settlement", lockId, activeMonth: settledMonth },
           { $set: { activeMonth } },
         );
-        if (updated.matchedCount !== 1) throw new Error("Sponsorship settlement state changed unexpectedly");
-        await payments.deleteMany({ remainingAmount: 0, settledMonth: { $lt: activeMonth } });
+        if (updated.matchedCount !== 1)
+          throw new Error("Sponsorship settlement state changed unexpectedly");
+        await payments.deleteMany({
+          remainingAmount: 0,
+          settledMonth: { $lt: activeMonth },
+        });
       }
     } finally {
       await state.updateOne(
@@ -191,7 +236,9 @@ export class SponsorshipService {
     }
   }
 
-  public async getProgress(now = new Date()): Promise<SponsorshipProgress | undefined> {
+  public async getProgress(
+    now = new Date(),
+  ): Promise<SponsorshipProgress | undefined> {
     if (!config.kofiProfileUrl || config.kofiMonthlyGoal === undefined) {
       return undefined;
     }
@@ -201,10 +248,13 @@ export class SponsorshipService {
     const credits = await payments
       .find({ currency: config.kofiCurrency })
       .toArray();
-    const raised = fromMinorUnits(credits.reduce(
-      (total, credit) => total + toMinorUnits(credit.remainingAmount ?? credit.amount),
-      0,
-    ));
+    const raised = fromMinorUnits(
+      credits.reduce(
+        (total, credit) =>
+          total + toMinorUnits(credit.remainingAmount ?? credit.amount),
+        0,
+      ),
+    );
     return {
       currency: config.kofiCurrency,
       goal: config.kofiMonthlyGoal,

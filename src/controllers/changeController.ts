@@ -1,5 +1,4 @@
 import { provide } from "@inversifyjs/binding-decorators";
-import * as express from "express";
 import { inject } from "inversify";
 import {
   Body,
@@ -54,8 +53,13 @@ import {
   UnlockSpecialExit,
 } from "../models/business/change.js";
 import type { User } from "../models/business/user.js";
+import {
+  type ProjectRequest,
+  requireProjectContext,
+} from "../projects/projectContext.js";
 import { ChangeService } from "../services/changeService.js";
 import { MapService } from "../services/mapService.js";
+import { canAdministerProject } from "../services/userService.js";
 
 function assertUnreachable(x: Change): never {
   throw new Error(`Didn't expect to get here ${x.type}`);
@@ -81,6 +85,7 @@ export class ChangeController extends Controller {
    */
   @Get("/")
   public async getChanges(
+    @Request() request: ProjectRequest,
     @Query() timesSeen = 0,
     @Query() include: string[] = [],
     @Query() exclude: string[] = [],
@@ -102,6 +107,7 @@ export class ChangeController extends Controller {
       timesSeen,
       include,
       exclude,
+      requireProjectContext(request).project,
     );
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
@@ -351,7 +357,10 @@ export class ChangeController extends Controller {
   @SuccessResponse("201", "Created")
   @Response<ValidateErrorJSON>(422, "Validation Failed")
   @Post("/")
-  public async addChange(@Body() change: ChangeSubmission): Promise<void> {
+  public async addChange(
+    @Request() request: ProjectRequest,
+    @Body() change: ChangeSubmission,
+  ): Promise<void> {
     this.setStatus(201);
     const businessChange = (() => {
       switch (change.type) {
@@ -503,7 +512,9 @@ export class ChangeController extends Controller {
         }
       }
     })();
-    await this.changeService.addChange(businessChange);
+    await this.changeService
+      .forProject(requireProjectContext(request).project.id)
+      .addChange(businessChange);
   }
 
   /** Downloads and stages the configured upstream map for review without changing the local baseline. */
@@ -515,13 +526,14 @@ export class ChangeController extends Controller {
     "The map version provided does not match the current map version",
   )
   public async reviewUpstream(
-    @Request() request: express.Request & { user: User },
+    @Request() request: ProjectRequest & { user: User },
     @Query() version: string,
   ) {
-    if (!request.user.roles.includes("map_admin")) {
+    const project = requireProjectContext(request).project;
+    if (!canAdministerProject(request.user, project.id)) {
       throw new AuthorizationError("Access Denied");
     }
-    return await this.mapService.stageUpstreamReview(version);
+    return await this.mapService.stageUpstreamReview(version, project);
   }
 
   /**
@@ -537,15 +549,17 @@ export class ChangeController extends Controller {
     "The map version provided does not match the current map version",
   )
   public async applyChanges(
-    @Request() request: express.Request & { user: User },
+    @Request() request: ProjectRequest & { user: User },
     @Body() application: ApplicationSubmission,
   ): Promise<ReconciliationResponse> {
-    if (!request.user.roles.includes("map_admin")) {
+    const project = requireProjectContext(request).project;
+    if (!canAdministerProject(request.user, project.id)) {
       throw new AuthorizationError("Access Denied");
     }
     return await this.mapService.applyBaselineUpdate(
       application.version,
       application.obsoleteChanges,
+      project,
     );
   }
 }

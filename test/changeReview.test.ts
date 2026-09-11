@@ -187,12 +187,7 @@ describe("baseline change reconciliation", () => {
       resolvedMap: mapWithoutArea(),
     },
     {
-      change: new SetRoomWeight(
-        10,
-        ["reporter"],
-        2,
-        "set-room-weight-change",
-      ),
+      change: new SetRoomWeight(10, ["reporter"], 2, "set-room-weight-change"),
       conflictNewMap: mapWithRoomWeight(3),
       conflictOldMap: mapWithRoomWeight(1),
       name: "set-room-weight",
@@ -225,26 +220,23 @@ describe("baseline change reconciliation", () => {
       oldMap: mapWithRoomHash("old-hash"),
       resolvedMap: mapWithRoomHash("reported-hash"),
     },
-  ])("$name reconciliation", ({
-    change,
-    conflictNewMap,
-    conflictOldMap,
-    oldMap,
-    resolvedMap,
-  }) => {
-    test("recognizes the desired upstream state as resolved", () => {
-      expect(reconcileChange(change, oldMap, resolvedMap)).toEqual({
-        changeId: change.changeId,
-        status: "resolved",
+  ])(
+    "$name reconciliation",
+    ({ change, conflictNewMap, conflictOldMap, oldMap, resolvedMap }) => {
+      test("recognizes the desired upstream state as resolved", () => {
+        expect(reconcileChange(change, oldMap, resolvedMap)).toEqual({
+          changeId: change.changeId,
+          status: "resolved",
+        });
       });
-    });
 
-    test("flags a different upstream state as a conflict", () => {
-      expect(
-        reconcileChange(change, conflictOldMap, conflictNewMap).status,
-      ).toBe("upstream-conflict");
-    });
-  });
+      test("flags a different upstream state as a conflict", () => {
+        expect(
+          reconcileChange(change, conflictOldMap, conflictNewMap).status,
+        ).toBe("upstream-conflict");
+      });
+    },
+  );
 
   test("does not rename an area to another area's name", () => {
     const map = mapWithArea("Original name");

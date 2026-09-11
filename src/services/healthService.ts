@@ -6,6 +6,9 @@ import { MapService } from "./mapService.js";
 
 export abstract class HealthService {
   abstract checkReadiness(): Promise<void>;
+  abstract getProjectStatuses(): Promise<
+    { id: string; name: string; status: "ok" | "unavailable"; error?: string }[]
+  >;
 }
 
 @provide(HealthService)
@@ -17,9 +20,12 @@ export class ServiceHealthService implements HealthService {
 
   public async checkReadiness(): Promise<void> {
     await this.mongo.connect();
-    await Promise.all([
-      this.mongo.db(config.dbName).command({ ping: 1 }),
-      this.mapService.validateBaseline(),
-    ]);
+    await Promise.all([this.mongo.db(config.dbName).command({ ping: 1 })]);
+  }
+
+  public async getProjectStatuses() {
+    return await Promise.all(
+      config.projects.map((project) => this.mapService.projectStatus(project)),
+    );
   }
 }

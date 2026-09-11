@@ -46,12 +46,18 @@ export class MockUserDbService implements UserDbService {
     this.users.splice(userIndex, 1);
     return Promise.resolve(true);
   }
-  updateRoles(name: string, roles: User["roles"]): Promise<boolean> {
+  updateRoles(
+    name: string,
+    roles: User["roles"],
+    mapAdminProjects?: string[],
+  ): Promise<boolean> {
     const user = this.users.find((candidate) => candidate.name === name);
     if (!user) {
       return Promise.resolve(false);
     }
     user.roles = roles;
+    if (mapAdminProjects !== undefined)
+      user.mapAdminProjects = mapAdminProjects;
     return Promise.resolve(true);
   }
   updateApiKey(user: User, newApiKey: string, apiKeyId: string): Promise<void> {
