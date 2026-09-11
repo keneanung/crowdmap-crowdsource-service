@@ -89,11 +89,12 @@ landing, privacy, and funding experience. Project hosts keep the existing relati
 Express resolves `X-Forwarded-Host` only through `platform.trustProxy`, so set
 that value narrowly to the actual reverse-proxy hop count.
 
-Relative baseline paths are resolved from the directory containing the YAML
-file, and all paths are normalized before uniqueness checks. Compose supplies
-the file as a Docker secret from the host-side `config.yaml`. Outside Compose,
-the service defaults to `config.yaml` in the working directory; set only the
-bootstrap variable `CONFIG_FILE` to use another location.
+Baseline paths must be absolute and are normalized before uniqueness checks.
+This keeps writable map data independent from the potentially read-only location
+of the YAML file. Compose supplies the file as a Docker secret from the host-side
+`config.yaml`. Outside Compose, the service defaults to `config.yaml` in the
+working directory; set only the bootstrap variable `CONFIG_FILE` to use another
+location.
 
 Do not add a production project called `test`. Run tests as a separate deployment
 of the same image with its own Mongo database, volume, host mappings, and secrets.
@@ -234,9 +235,10 @@ For a small Compose deployment, stop the app while taking a consistent backup:
 
 ```shell
 backup_dir="backup-$(date -u +%Y%m%dT%H%M%SZ)"
+database_name="crowdmap" # Must exactly match platform.mongo.database in config.yaml.
 mkdir -p "$backup_dir"
 docker compose stop app
-docker compose exec -T mongo mongodump --db crowdmap --archive --gzip > "$backup_dir/mongo.archive.gz"
+docker compose exec -T mongo mongodump --db "$database_name" --archive --gzip > "$backup_dir/mongo.archive.gz"
 docker compose cp app:/opt/data "$backup_dir/data"
 cp config.yaml "$backup_dir/config.yaml"
 chmod 600 "$backup_dir/config.yaml"
@@ -253,15 +255,16 @@ Then stop the app and restore the complete recovery set before starting it again
 
 ```shell
 backup_dir="backup-YYYYMMDDTHHMMSSZ"
+database_name="crowdmap" # Must exactly match the backed-up platform.mongo.database.
 docker compose stop app
 cp "$backup_dir/config.yaml" config.yaml
 chgrp 1000 config.yaml
 chmod 640 config.yaml
-docker compose exec -T mongo mongorestore --drop --archive --gzip < "$backup_dir/mongo.archive.gz"
+docker compose exec -T mongo mongorestore --drop --archive --gzip --nsInclude "$database_name.*" < "$backup_dir/mongo.archive.gz"
 docker compose cp "$backup_dir/data/." app:/opt/data
 docker compose run --rm --no-deps --user root app chown -R node:node /opt/data
 docker compose start app
-docker compose exec -T mongo mongosh crowdmap --quiet --eval 'db.runCommand({ ping: 1 }).ok'
+docker compose exec -T mongo mongosh "$database_name" --quiet --eval 'db.runCommand({ ping: 1 }).ok'
 curl --fail http://localhost:3000/utility/healthcheck
 ```
 

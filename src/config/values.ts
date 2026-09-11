@@ -94,9 +94,9 @@ const numberWithDefault = (
   return value;
 };
 
-const resolveDataFile = (configDirectory: string, value: unknown): string => {
+const normalizeDataFile = (value: unknown): string => {
   if (typeof value !== "string") return "";
-  return path.resolve(configDirectory, value);
+  return path.normalize(value);
 };
 
 const defaultConfigFile = (): string => {
@@ -127,7 +127,6 @@ export const loadConfig = (
   const definitions = values.projects?.definitions;
   if (!Array.isArray(definitions))
     throw new Error("projects.definitions must be an array");
-  const configDirectory = path.dirname(path.resolve(configFile));
   const projects = definitions.map((rawProject): MapProject => {
     if (
       typeof rawProject !== "object" ||
@@ -139,11 +138,8 @@ export const loadConfig = (
     return Object.freeze({
       id: optionalString("projects.definitions[].id", project.id) ?? "",
       name: optionalString("projects.definitions[].name", project.name) ?? "",
-      mapFile: resolveDataFile(configDirectory, project.baseline?.mapFile),
-      versionFile: resolveDataFile(
-        configDirectory,
-        project.baseline?.versionFile,
-      ),
+      mapFile: normalizeDataFile(project.baseline?.mapFile),
+      versionFile: normalizeDataFile(project.baseline?.versionFile),
       mapDownloadUrl:
         optionalString(
           "projects.definitions[].upstream.mapUrl",
@@ -299,6 +295,10 @@ export const validateConfig = (values: ServiceConfig): void => {
         throw new Error(
           `Project ${project.id} baseline file paths are required`,
         );
+      if (!path.isAbsolute(file))
+        throw new Error(
+          `Project ${project.id} baseline file paths must be absolute: ${file}`,
+        );
       if (files.has(file))
         throw new Error(`Project baseline paths must be distinct: ${file}`);
       files.add(file);
@@ -335,6 +335,11 @@ export const validateConfig = (values: ServiceConfig): void => {
         );
       if (!ids.has(projectId))
         throw new Error(`Host ${host} references unknown project ${projectId}`);
+    }
+    const hostedProjectIds = new Set(Object.values(values.hostProjectMap));
+    for (const projectId of ids) {
+      if (!hostedProjectIds.has(projectId))
+        throw new Error(`Project ${projectId} has no projects.hosts mapping`);
     }
     if (values.hostProjectMap[values.platformHost])
       throw new Error("projects.platformHost cannot also identify a project");

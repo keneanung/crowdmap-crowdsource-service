@@ -20,7 +20,7 @@ const validConfig: ServiceConfig = {
     "Hosted in the EEA; no transfers outside the EEA.",
 };
 
-test("loads nested YAML and normalizes baseline paths", async () => {
+test("loads nested YAML and normalizes absolute baseline paths", async () => {
   const directory = await mkdtemp(join(tmpdir(), "crowdmap-config-test-"));
   const configFile = join(directory, "service.yaml");
   await writeFile(
@@ -41,7 +41,7 @@ projects:
       name: Example map
       baseline:
         mapFile: ${directory}/data/../data/map
-        versionFile: data/version
+        versionFile: ${directory}/data/../data/version
       upstream:
         mapUrl: https://example.test/map
         versionUrl: https://example.test/version
@@ -54,6 +54,33 @@ projects:
     mapFile: join(directory, "data/map"),
     versionFile: join(directory, "data/version"),
   });
+});
+
+test("rejects relative baseline paths", () => {
+  expect(() => {
+    validateConfig({
+      ...validConfig,
+      projects: [{ ...validConfig.projects[0], mapFile: "data/map" }],
+    });
+  }).toThrow("baseline file paths must be absolute");
+});
+
+test("requires every project to have a host mapping in host mode", () => {
+  const secondProject = {
+    ...validConfig.projects[0],
+    id: "second",
+    mapFile: "/opt/data/second/map",
+    versionFile: "/opt/data/second/version",
+  };
+  expect(() => {
+    validateConfig({
+      ...validConfig,
+      projectResolver: "host",
+      platformHost: "maps.example.test",
+      projects: [...validConfig.projects, secondProject],
+      hostProjectMap: { "first.example.test": validConfig.projects[0].id },
+    });
+  }).toThrow("Project second has no projects.hosts mapping");
 });
 
 test.each([
