@@ -13,6 +13,10 @@ export interface ServiceConfig {
   dbName?: string;
   initialAdminApiKey?: string;
   trustProxy: number;
+  privacyControllerName?: string;
+  privacyContactUrl?: string;
+  privacyLogRetention?: string;
+  privacyProcessorsAndTransfers?: string;
 }
 
 export const config: ServiceConfig = {
@@ -29,6 +33,10 @@ export const config: ServiceConfig = {
   dbName: process.env.MONGO_DB_NAME,
   initialAdminApiKey: process.env.INITIAL_ADMIN_API_KEY,
   trustProxy: Number(process.env.TRUST_PROXY ?? 0),
+  privacyControllerName: process.env.PRIVACY_CONTROLLER_NAME,
+  privacyContactUrl: process.env.PRIVACY_CONTACT_URL,
+  privacyLogRetention: process.env.PRIVACY_LOG_RETENTION,
+  privacyProcessorsAndTransfers: process.env.PRIVACY_PROCESSORS_AND_TRANSFERS,
 };
 
 export const validateConfig = (values: ServiceConfig = config): void => {
@@ -47,6 +55,33 @@ export const validateConfig = (values: ServiceConfig = config): void => {
   }
   if (!values.dbName) {
     throw new Error("MONGO_DB_NAME is required");
+  }
+  if (!values.privacyControllerName) {
+    throw new Error("PRIVACY_CONTROLLER_NAME is required");
+  }
+  if (!values.privacyContactUrl) {
+    throw new Error("PRIVACY_CONTACT_URL is required");
+  }
+  let privacyContactUrl: URL;
+  try {
+    privacyContactUrl = new URL(values.privacyContactUrl);
+  } catch {
+    throw new Error("PRIVACY_CONTACT_URL must be a valid URL");
+  }
+  if (
+    privacyContactUrl.protocol !== "https:" &&
+    privacyContactUrl.protocol !== "mailto:"
+  ) {
+    throw new Error("PRIVACY_CONTACT_URL must use HTTPS or mailto");
+  }
+  if (privacyContactUrl.protocol === "mailto:" && !privacyContactUrl.pathname) {
+    throw new Error("PRIVACY_CONTACT_URL mailto address is required");
+  }
+  if (!values.privacyLogRetention) {
+    throw new Error("PRIVACY_LOG_RETENTION is required");
+  }
+  if (!values.privacyProcessorsAndTransfers) {
+    throw new Error("PRIVACY_PROCESSORS_AND_TRANSFERS is required");
   }
   for (const [name, value] of [
     ["MAP_DOWNLOAD_URL", values.mapDownloadUrl],

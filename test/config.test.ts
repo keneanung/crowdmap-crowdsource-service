@@ -5,6 +5,11 @@ const validConfig = {
   ...config,
   connectionString: "mongodb://mongo:27017",
   dbName: "crowdmap",
+  privacyControllerName: "Example controller",
+  privacyContactUrl: "https://example.test/privacy",
+  privacyLogRetention: "30 days",
+  privacyProcessorsAndTransfers:
+    "Hosted in the EEA; no transfers outside the EEA.",
 };
 
 test("rejects invalid ports and proxy trust values", () => {
@@ -26,6 +31,17 @@ test("requires MongoDB configuration", () => {
 });
 
 test.each([
+  ["privacyControllerName", undefined],
+  ["privacyContactUrl", undefined],
+  ["privacyLogRetention", undefined],
+  ["privacyProcessorsAndTransfers", undefined],
+])("requires %s", (key, value) => {
+  expect(() => {
+    validateConfig({ ...validConfig, [key]: value });
+  }).toThrow("PRIVACY_");
+});
+
+test.each([
   ["MAP_DOWNLOAD_URL", { mapDownloadUrl: "not a URL" }],
   ["VERSION_DOWNLOAD_URL", { versionDownloadUrl: "not a URL" }],
 ])("identifies an invalid %s", (name, update) => {
@@ -39,6 +55,15 @@ test("rejects non-HTTP download URLs with a targeted error", () => {
     validateConfig({ ...validConfig, mapDownloadUrl: "file:///tmp/map" });
   }).toThrow("MAP_DOWNLOAD_URL must use HTTP or HTTPS");
 });
+
+test.each(["mailto:", "mailto:?subject=privacy"])(
+  "rejects an empty mailto privacy contact URL: %s",
+  (privacyContactUrl) => {
+    expect(() => {
+      validateConfig({ ...validConfig, privacyContactUrl });
+    }).toThrow("mailto address");
+  },
+);
 
 test("accepts a complete service configuration", () => {
   expect(() => {

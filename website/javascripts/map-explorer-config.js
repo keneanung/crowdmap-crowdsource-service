@@ -1,38 +1,17 @@
 (function () {
   "use strict";
 
-  var settingKey = "crowdmap-explorer";
-  var legacySettingKey = "settings";
-
   function validThreshold(value) {
     return Number.isInteger(value) && value >= 0 ? value : null;
   }
 
-  function storedThreshold() {
-    try {
-      var current = JSON.parse(localStorage.getItem(settingKey) || "{}");
-      var threshold = validThreshold(current.timesSeen);
-      if (threshold !== null) return threshold;
-
-      var legacy = JSON.parse(localStorage.getItem(legacySettingKey) || "{}");
-      threshold = validThreshold(legacy.timesSeen);
-      if (threshold !== null) return threshold;
-    } catch (_error) {
-      // A malformed saved preference should never prevent the map from loading.
-    }
-    return 0;
+  function thresholdFromUrl() {
+    var value = new URLSearchParams(window.location.search).get("timesSeen");
+    if (value === null) return 0;
+    return validThreshold(Number(value)) ?? 0;
   }
 
-  function saveThreshold(timesSeen) {
-    try {
-      localStorage.setItem(settingKey, JSON.stringify({ timesSeen: timesSeen }));
-      return true;
-    } catch (_error) {
-      return false;
-    }
-  }
-
-  var timesSeen = storedThreshold();
+  var timesSeen = thresholdFromUrl();
   window.MAP_CONFIG = {
     languages: [{ code: "en", flag: "gb" }],
     mapUrl: "map?format=binary&timesSeen=" + encodeURIComponent(String(timesSeen)),
@@ -50,11 +29,9 @@
       input.value = String(timesSeen);
       return;
     }
-    if (!saveThreshold(next)) {
-      input.value = String(timesSeen);
-      return;
-    }
-    window.location.reload();
+    var url = new URL(window.location.href);
+    url.searchParams.set("timesSeen", String(next));
+    window.location.assign(url);
   }
 
   input.addEventListener("change", updateThreshold);

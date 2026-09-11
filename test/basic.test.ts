@@ -73,6 +73,17 @@ test("GET /review.html returns the change review UI", async () => {
     });
 });
 
+test("GET /privacy.html renders the privacy notice", async () => {
+  await request(app)
+    .get("/privacy.html")
+    .expect(200)
+    .expect("Content-Type", "text/html; charset=utf-8")
+    .expect((res) => {
+      expect(res.text).toContain("Privacy Policy");
+      expect(res.text).not.toContain("{{privacy-");
+    });
+});
+
 test("GET / returns the current map explorer with a configurable report threshold", async () => {
   await request(app)
     .get("/")
@@ -93,45 +104,31 @@ test("GET /javascripts/map-explorer-config.js configures the binary map source",
     .expect("Content-Type", /javascript/u)
     .expect((res) => {
       expect(res.text).toContain("map?format=binary&timesSeen=");
-      expect(res.text).toContain("crowdmap-explorer");
+      expect(res.text).toContain("URLSearchParams");
     });
 });
 
-test("the explorer config persists a zero report threshold", async () => {
+test("the explorer config reads the report threshold from the URL without browser storage", async () => {
   const source = await readFile(
     new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
     "utf8",
   );
-  const values = new Map<string, string>();
-  let reloads = 0;
-  let onChange: (() => void) | undefined;
-  const input = {
-    value: "",
-    addEventListener(event: string, listener: () => void) {
-      if (event === "change") onChange = listener;
-    },
-  };
-  const window = {
-    location: { reload: () => reloads++ },
+  const window: {
+    MAP_CONFIG?: { mapUrl: string };
+    location: { search: string };
+  } = {
+    location: { search: "?timesSeen=3" },
   };
 
   runInNewContext(source, {
     JSON,
     Number,
-    document: { querySelector: () => input },
+    document: { querySelector: () => null },
     encodeURIComponent,
-    localStorage: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-    },
+    URLSearchParams,
     window,
   });
-
-  input.value = "0";
-  onChange?.();
-
-  expect(values.get("crowdmap-explorer")).toBe('{"timesSeen":0}');
-  expect(reloads).toBe(1);
+  expect(window.MAP_CONFIG?.mapUrl).toBe("map?format=binary&timesSeen=3");
 });
 
 test("the explorer config still initializes without a threshold control", async () => {
@@ -139,7 +136,12 @@ test("the explorer config still initializes without a threshold control", async 
     new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
     "utf8",
   );
-  const window: { MAP_CONFIG?: { mapUrl: string } } = {};
+  const window: {
+    MAP_CONFIG?: { mapUrl: string };
+    location: { search: string };
+  } = {
+    location: { search: "" },
+  };
 
   expect(() => {
     runInNewContext(source, {
@@ -147,19 +149,19 @@ test("the explorer config still initializes without a threshold control", async 
       Number,
       document: { querySelector: () => null },
       encodeURIComponent,
-      localStorage: { getItem: () => null },
+      URLSearchParams,
       window,
     });
   }).not.toThrow();
   expect(window.MAP_CONFIG?.mapUrl).toBe("map?format=binary&timesSeen=0");
 });
 
-test("the explorer config handles failed threshold persistence", async () => {
+test("the explorer config keeps an invalid threshold out of the URL", async () => {
   const source = await readFile(
     new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
     "utf8",
   );
-  let reloads = 0;
+  let assigned: URL | undefined;
   let onChange: (() => void) | undefined;
   const input = {
     value: "",
@@ -173,67 +175,36 @@ test("the explorer config handles failed threshold persistence", async () => {
     Number,
     document: { querySelector: () => input },
     encodeURIComponent,
-    localStorage: {
-      getItem: () => null,
-      setItem: () => {
-        throw new Error("storage unavailable");
+    URL,
+    URLSearchParams,
+    window: {
+      location: {
+        search: "",
+        href: "https://example.test/",
+        assign: (url: URL) => (assigned = url),
       },
     },
-    window: { location: { reload: () => reloads++ } },
   });
 
-  input.value = "3";
+  input.value = "-1";
   expect(() => onChange?.()).not.toThrow();
   expect(input.value).toBe("0");
-  expect(reloads).toBe(0);
+  expect(assigned).toBeUndefined();
 });
 
-test("the explorer config rejects an empty threshold", async () => {
+test("the explorer config prevents threshold form submission and updates the URL", async () => {
   const source = await readFile(
     new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
     "utf8",
   );
-  const values = new Map<string, string>([["crowdmap-explorer", '{"timesSeen":3}']]);
-  let reloads = 0;
-  let onChange: (() => void) | undefined;
-  const input = {
-    value: "",
-    addEventListener(event: string, listener: () => void) {
-      if (event === "change") onChange = listener;
-    },
-  };
-
-  runInNewContext(source, {
-    JSON,
-    Number,
-    document: { querySelector: () => input },
-    encodeURIComponent,
-    localStorage: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-    },
-    window: { location: { reload: () => reloads++ } },
-  });
-
-  input.value = "";
-  onChange?.();
-
-  expect(input.value).toBe("3");
-  expect(values.get("crowdmap-explorer")).toBe('{"timesSeen":3}');
-  expect(reloads).toBe(0);
-});
-
-test("the explorer config prevents threshold form submission and saves its value", async () => {
-  const source = await readFile(
-    new URL("../website/javascripts/map-explorer-config.js", import.meta.url),
-    "utf8",
-  );
-  const values = new Map<string, string>();
+  let assigned: URL | undefined;
   let onSubmit: ((event: { preventDefault: () => void }) => void) | undefined;
-  let reloads = 0;
   let prevented = false;
   const form = {
-    addEventListener(event: string, listener: (event: { preventDefault: () => void }) => void) {
+    addEventListener(
+      event: string,
+      listener: (event: { preventDefault: () => void }) => void,
+    ) {
       if (event === "submit") onSubmit = listener;
     },
   };
@@ -248,19 +219,22 @@ test("the explorer config prevents threshold form submission and saves its value
     Number,
     document: { querySelector: () => input },
     encodeURIComponent,
-    localStorage: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
+    URL,
+    URLSearchParams,
+    window: {
+      location: {
+        search: "",
+        href: "https://example.test/",
+        assign: (url: URL) => (assigned = url),
+      },
     },
-    window: { location: { reload: () => reloads++ } },
   });
 
   input.value = "3";
   onSubmit?.({ preventDefault: () => (prevented = true) });
 
   expect(prevented).toBe(true);
-  expect(values.get("crowdmap-explorer")).toBe('{"timesSeen":3}');
-  expect(reloads).toBe(1);
+  expect(assigned?.searchParams.get("timesSeen")).toBe("3");
 });
 
 test("GET /javascripts/map-explorer/index.min.js serves the packaged explorer", async () => {

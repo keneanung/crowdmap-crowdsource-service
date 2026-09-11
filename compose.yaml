@@ -47,6 +47,15 @@ services:
       # This implementation uses the number option only.
       # Use the /utility/ip endpoint to check if the real IP is returned correctly.
       - TRUST_PROXY=0
+      # Required public privacy-notice details. Keep personal information out of
+      # the repository; set them in your deployment environment or .env file.
+      - PRIVACY_CONTROLLER_NAME=${PRIVACY_CONTROLLER_NAME:?Set the legal identity of this deployment's controller}
+      # Use a contact form URL or a dedicated privacy email address if you do not want to publish a personal address.
+      - PRIVACY_CONTACT_URL=${PRIVACY_CONTACT_URL:?Set an HTTPS or mailto privacy contact URL}
+      # State the actual retention period/criterion configured for your logging platform.
+      - PRIVACY_LOG_RETENTION=${PRIVACY_LOG_RETENTION:?State the request-log retention period}
+      # State your actual hosting/database/backup processors and any third-country transfers/safeguards.
+      - PRIVACY_PROCESSORS_AND_TRANSFERS=${PRIVACY_PROCESSORS_AND_TRANSFERS:?Describe processors and international transfers}
     healthcheck:
       test: "wget --no-verbose --tries=1 --spider http://localhost:3000/utility/healthcheck || exit 1"
       interval: 30s

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy · Crowdmap</title>
+    <link href="stylesheets/site-navigation.css" rel="stylesheet" />
+    <link href="stylesheets/privacy.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="site-navigation" aria-label="Primary navigation">
+      <a class="site-navigation__brand" href="index.html">Crowdmap</a>
+      <ul class="site-navigation__links">
+        <li><a href="index.html">Explorer</a></li>
+        <li><a href="review.html">Review</a></li>
+        <li><a href="privacy.html" aria-current="page">Privacy Policy</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <p class="eyebrow">Crowdmap service</p>
+      <h1>Privacy Policy</h1>
+      <p class="lede">
+        This notice explains how this independently operated Crowdmap deployment
+        processes personal data. It applies to this deployment only, not to the
+        open-source project or other installations.
+      </p>
+      <p class="updated">Last updated: 10 September 2026</p>
+
+      <section class="policy-section">
+        <h2>Controller and contact</h2>
+        <p>
+          The controller responsible for this deployment is
+          {{privacy-controller-name}}.
+          For privacy requests, contact
+          <a href="{{privacy-contact-url}}">{{privacy-contact-label}}</a>.
+        </p>
+      </section>
+
+      <section class="policy-section">
+        <h2>Data processed and purposes</h2>
+        <p>
+          When you submit a map report, the service stores the reporter value
+          you provide and the submitted map-change data: for example room and
+          area identifiers, names, coordinates, exits, commands, and user-data
+          fields. Use a pseudonym and do not include personal data in a report.
+        </p>
+        <p>
+          The reporter value is used to distinguish independent confirmations
+          of the same map change; it is not published as part of a downloaded
+          map. Changing to a new pseudonym does not rename or remove earlier
+          reports.
+        </p>
+        <p>
+          To run and protect the service, request logs contain your IP address,
+          request ID, request method and path, response status, and processing
+          duration. Administrators may also process report details when
+          reviewing, resolving, or incorporating changes.
+        </p>
+        <p>
+          This processing is based on the controller’s legitimate interests
+          under Article 6(1)(f) GDPR: operating a reliable community map,
+          assessing reports, and preventing abuse and security incidents. Map
+          reporting is voluntary, but a reporter value is required to submit a
+          report. The service does not use data for advertising, tracking, or
+          automated decisions about people.
+        </p>
+      </section>
+
+      <section class="policy-section">
+        <h2>Retention</h2>
+        <p>
+          Pending reports are retained until an authorised administrator removes
+          them or they are incorporated into the baseline map. The application
+          does not automatically delete other pending reports. Request logs are
+          retained for {{privacy-log-retention}}.
+        </p>
+      </section>
+
+      <section class="policy-section">
+        <h2>Recipients and international transfers</h2>
+        <p>
+          Authorised map administrators can access report details. The operator
+          and providers acting on its instructions may process data where needed
+          to host, store, back up, maintain, or secure this deployment.
+          {{privacy-processors-and-transfers}}
+        </p>
+      </section>
+
+      <section class="policy-section">
+        <h2>Browser storage and cookies</h2>
+        <p>
+          This service does not set its own tracking or advertising cookies and
+          does not persist explorer preferences in browser storage. The selected
+          map-report threshold is kept only in the page URL. The review page
+          keeps an administrator API key only in page memory while it is open.
+        </p>
+      </section>
+
+      <section class="policy-section">
+        <h2>Your rights</h2>
+        <p>
+          Subject to the GDPR and other applicable law, you can request access,
+          rectification, erasure, restriction of processing, or a copy of your
+          data, and you may object to processing based on legitimate interests.
+          You can also lodge a complaint with the data-protection supervisory
+          authority responsible for your habitual residence, place of work, or
+          the place of the alleged infringement. To help locate a report, include
+          its reporter pseudonym and any relevant report details in your request.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
