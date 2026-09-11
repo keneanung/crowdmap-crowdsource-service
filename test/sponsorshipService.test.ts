@@ -35,6 +35,11 @@ test("carries unused sponsorship credit into following months and deletes consum
   let activeMonth: string | undefined;
   const paymentCollection = {
     createIndexes: async () => [],
+    deleteMany: async ({ remainingAmount }: { remainingAmount: number }) => {
+      for (let index = payments.length - 1; index >= 0; index -= 1) {
+        if (payments[index]?.remainingAmount === remainingAmount) payments.splice(index, 1);
+      }
+    },
     deleteOne: async ({ eventId }: { eventId: string }) => {
       const index = payments.findIndex((payment) => payment.eventId === eventId);
       if (index >= 0) payments.splice(index, 1);
