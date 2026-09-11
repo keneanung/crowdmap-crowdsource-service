@@ -61,6 +61,7 @@ services:
       - KO_FI_PROFILE_URL=
       - KO_FI_MONTHLY_GOAL=
       - KO_FI_CURRENCY=USD
+      - KO_FI_CURRENCY_DECIMAL_PLACES=2
       - KO_FI_WEBHOOK_TOKEN=
     healthcheck:
       test: "wget --no-verbose --tries=1 --spider http://localhost:3000/utility/healthcheck || exit 1"
