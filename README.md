@@ -87,8 +87,11 @@ file or providing a `.env`).
 
 ### Optional Ko-fi sponsorships
 
-Set `KO_FI_PROFILE_URL`, `KO_FI_MONTHLY_GOAL`, `KO_FI_CURRENCY`, and
-`KO_FI_WEBHOOK_TOKEN` together to enable `/sponsor.html`. The profile URL must
+Set `KO_FI_PROFILE_URL`, `KO_FI_MONTHLY_GOAL`, `KO_FI_CURRENCY`,
+`KO_FI_CURRENCY_DECIMAL_PLACES`, and `KO_FI_WEBHOOK_TOKEN` together to enable
+`/sponsor.html`. `KO_FI_CURRENCY_DECIMAL_PLACES` is the number of minor-unit
+digits for the configured currency (default `2` for USD/EUR; set `0` for JPY).
+The profile URL must
 be an HTTPS `ko-fi.com` URL; the goal is a positive number in the configured
 three-letter currency. When no profile is configured, the Sponsor navigation
 entry, sponsorship API, and sponsorship page are unavailable.
