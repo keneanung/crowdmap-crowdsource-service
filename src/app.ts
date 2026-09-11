@@ -139,7 +139,12 @@ app.get("/", (request: ProjectRequest, response, next) => {
     next();
     return;
   }
-  const externalPort = new URL(`http://${request.host}`).port;
+  const portMatch = /:(\d+)$/u.exec(request.host);
+  const portNumber = portMatch ? Number(portMatch[1]) : undefined;
+  const externalPort =
+    portNumber !== undefined && portNumber >= 1 && portNumber <= 65_535
+      ? portMatch?.[1]
+      : undefined;
   const links = config.projects
     .map((project) => {
       const host = Object.entries(config.hostProjectMap).find(

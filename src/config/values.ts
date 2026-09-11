@@ -47,6 +47,14 @@ interface YamlProject {
   };
 }
 
+interface YamlSponsorship {
+  profileUrl?: unknown;
+  monthlyGoal?: unknown;
+  currency?: unknown;
+  currencyDecimalPlaces?: unknown;
+  webhookToken?: unknown;
+}
+
 interface YamlConfig {
   platform?: {
     port?: unknown;
@@ -62,13 +70,7 @@ interface YamlConfig {
       logRetention?: unknown;
       processorsAndTransfers?: unknown;
     };
-    sponsorship?: {
-      profileUrl?: unknown;
-      monthlyGoal?: unknown;
-      currency?: unknown;
-      currencyDecimalPlaces?: unknown;
-      webhookToken?: unknown;
-    };
+    sponsorship?: unknown;
   };
   projects?: {
     resolver?: unknown;
@@ -168,7 +170,15 @@ export const loadConfig = (
       hostProjectMap[host] = projectId;
     }
   }
-  const sponsorship = values.platform?.sponsorship;
+  const sponsorshipValue = values.platform?.sponsorship;
+  if (
+    sponsorshipValue !== undefined &&
+    (typeof sponsorshipValue !== "object" ||
+      sponsorshipValue === null ||
+      Array.isArray(sponsorshipValue))
+  )
+    throw new Error("platform.sponsorship must be an object");
+  const sponsorship = sponsorshipValue as YamlSponsorship | undefined;
   const config: ServiceConfig = {
     port: numberWithDefault("platform.port", values.platform?.port, 3000),
     trustProxy: numberWithDefault(

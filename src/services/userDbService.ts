@@ -1,6 +1,6 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
-import { MongoClient, MongoServerError } from "mongodb";
+import { Filter, MongoClient, MongoServerError } from "mongodb";
 import { config } from "../config/values.js";
 import { ConflictError } from "../models/api/error.js";
 import { User } from "../models/business/user.js";
@@ -36,10 +36,14 @@ export class MongoUserDbService implements UserDbService {
     const db = this.mongo.db(config.dbName);
     const collection = db.collection<User>("users");
     this.indexesReady ??= (async () => {
-      const legacyMapAdmins = await collection.countDocuments({
+      const unassignedLegacyMapAdmins: Filter<User> = {
         roles: "map_admin",
         mapAdminProjects: { $exists: false },
-      });
+        $nor: [{ roles: "site_admin" }],
+      };
+      const legacyMapAdmins = await collection.countDocuments(
+        unassignedLegacyMapAdmins,
+      );
       if (legacyMapAdmins > 0) {
         if (config.projects.length !== 1) {
           throw new Error(
@@ -47,7 +51,7 @@ export class MongoUserDbService implements UserDbService {
           );
         }
         await collection.updateMany(
-          { roles: "map_admin", mapAdminProjects: { $exists: false } },
+          unassignedLegacyMapAdmins,
           { $set: { mapAdminProjects: [config.projects[0]?.id] } },
         );
       }

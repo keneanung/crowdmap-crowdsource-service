@@ -107,6 +107,10 @@ test.each([
     "projects.hosts",
     "projects:\n  resolver: host\n  hosts: invalid\n  definitions: []\n",
   ],
+  [
+    "platform.sponsorship",
+    "platform:\n  sponsorship: disabled\nprojects:\n  definitions: []\n",
+  ],
 ])("rejects an invalid YAML value for %s", async (name, contents) => {
   const directory = await mkdtemp(join(tmpdir(), "crowdmap-config-test-"));
   const configFile = join(directory, "service.yaml");

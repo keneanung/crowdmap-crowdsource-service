@@ -143,3 +143,27 @@ test("ambiguous legacy map-admin assignments fail safely", async () => {
     config.projects = originalProjects;
   }
 });
+
+test("legacy site admins are excluded from project-assignment migration", async () => {
+  const countDocuments = jest.fn<(filter: unknown) => Promise<number>>(
+    async () => Promise.resolve(0),
+  );
+  const collection = {
+    countDocuments,
+    updateMany: jest.fn(),
+    createIndexes: jest.fn(() => Promise.resolve([])),
+    find: jest.fn(() => ({ toArray: () => Promise.resolve([]) })),
+  };
+  const mongo = {
+    connect: jest.fn(() => Promise.resolve()),
+    db: jest.fn(() => ({ collection: jest.fn(() => collection) })),
+  } as unknown as MongoClient;
+
+  await expect(new MongoUserDbService(mongo).getUsers()).resolves.toEqual([]);
+  expect(countDocuments).toHaveBeenCalledWith({
+    roles: "map_admin",
+    mapAdminProjects: { $exists: false },
+    $nor: [{ roles: "site_admin" }],
+  });
+  expect(collection.updateMany).not.toHaveBeenCalled();
+});
