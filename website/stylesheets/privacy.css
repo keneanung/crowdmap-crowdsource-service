@@ -62,7 +62,7 @@ h2 { font-size: 1.35rem; margin: 0; }
 }
 
 .policy-section p:last-child, .policy-section ul:last-child { margin-bottom: 0; }
-li + li { margin-top: 0.55rem; }
+.policy-section li + li { margin-top: 0.55rem; }
 
 @media (max-width: 560px) {
   main { padding-top: 2.5rem; }

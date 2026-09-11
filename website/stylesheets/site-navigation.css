@@ -12,8 +12,11 @@
   background: var(--site-nav-background);
   border-bottom: 1px solid var(--site-nav-border);
   display: flex;
+  font-family: "Open Sans", system-ui, sans-serif;
+  font-size: 0.9rem;
   gap: 1.5rem;
   justify-content: space-between;
+  line-height: 1.5;
   padding: 0.75rem max(1rem, calc((100% - 1600px) / 2 + 34px));
   position: relative;
   z-index: 1200;
@@ -30,6 +33,7 @@
 }
 
 .site-navigation__links {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
@@ -43,6 +47,7 @@
   color: var(--site-nav-muted);
   display: block;
   font-size: 0.9rem;
+  line-height: 1.5;
   padding: 0.45rem 0.65rem;
   text-decoration: none;
 }
