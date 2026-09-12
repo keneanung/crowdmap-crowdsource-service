@@ -8,26 +8,44 @@ import {
 import { ChangeService } from "../../src/services/changeService.js";
 
 @injectable()
-export class MockChangeService implements ChangeService {
-  private changes: DbChange[] = [];
-  public addChange(change: Change): Promise<void> {
+export class MockChangeService extends ChangeService {
+  private readonly changes = new Map<string, DbChange[]>();
+  private scoped(projectId = "default"): DbChange[] {
+    let changes = this.changes.get(projectId);
+    if (!changes) {
+      changes = [];
+      this.changes.set(projectId, changes);
+    }
+    return changes;
+  }
+  public addChange(change: Change, projectId?: string): Promise<void> {
     const dbChange = changeBusinessToDb(change);
-    this.changes.push(dbChange);
+    this.scoped(projectId).push(dbChange);
     return Promise.resolve();
   }
-  public getChanges(_timesSeen: number): Promise<Change[]> {
-    return Promise.resolve(this.changes.map(changeDbToBusiness));
+  public getChanges(
+    _timesSeen: number,
+    _include?: string[],
+    _exclude?: string[],
+    projectId?: string,
+  ): Promise<Change[]> {
+    return Promise.resolve(this.scoped(projectId).map(changeDbToBusiness));
   }
-  public applyChanges(apply: string[]): Promise<void> {
-    this.changes = this.changes.filter(
+  public applyChanges(apply: string[], projectId?: string): Promise<void> {
+    const kept = this.scoped(projectId).filter(
       (change) => !apply.includes(change.changeId),
     );
+    this.changes.set(projectId ?? "default", kept);
     return Promise.resolve();
   }
-  public reconcileChanges(resolved: string[]): Promise<void> {
-    this.changes = this.changes.filter(
+  public reconcileChanges(
+    resolved: string[],
+    projectId?: string,
+  ): Promise<void> {
+    const kept = this.scoped(projectId).filter(
       (change) => !resolved.includes(change.changeId),
     );
+    this.changes.set(projectId ?? "default", kept);
     return Promise.resolve();
   }
 }

@@ -1,11 +1,23 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-import type * as express from "express";
 import { provide } from "@inversifyjs/binding-decorators";
+import {
+  Controller,
+  Get,
+  Post,
+  Request,
+  Response,
+  Route,
+  SuccessResponse,
+  Tags,
+} from "@tsoa/runtime";
+import type * as express from "express";
 import { inject } from "inversify";
-import { Controller, Get, Post, Request, Response, Route, SuccessResponse, Tags } from "tsoa";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { config } from "../config/values.js";
 import { NotFoundError } from "../models/api/error.js";
-import type { KofiPayment, SponsorshipProgress } from "../models/business/sponsorship.js";
+import type {
+  KofiPayment,
+  SponsorshipProgress,
+} from "../models/business/sponsorship.js";
 import { SponsorshipService } from "../services/sponsorshipService.js";
 
 interface KofiPayload {
@@ -33,22 +45,34 @@ const parsePayment = (raw: unknown): KofiPayment | undefined => {
   } catch {
     return undefined;
   }
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return undefined;
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload))
+    return undefined;
   const kofiPayload = payload as KofiPayload;
   if (!verifiedToken(kofiPayload.verification_token)) return undefined;
-  if (kofiPayload.type !== "Donation" && kofiPayload.type !== "Subscription") return undefined;
-  if (typeof kofiPayload.amount !== "string" && typeof kofiPayload.amount !== "number") return undefined;
+  if (kofiPayload.type !== "Donation" && kofiPayload.type !== "Subscription")
+    return undefined;
+  if (
+    typeof kofiPayload.amount !== "string" &&
+    typeof kofiPayload.amount !== "number"
+  )
+    return undefined;
   const amount = Number(kofiPayload.amount);
-  const minorAmount = Math.round(amount * 10 ** config.kofiCurrencyDecimalPlaces);
+  const minorAmount = Math.round(
+    amount * 10 ** config.kofiCurrencyDecimalPlaces,
+  );
   if (
     !Number.isFinite(amount) ||
     !Number.isSafeInteger(minorAmount) ||
     minorAmount <= 0 ||
     kofiPayload.currency !== config.kofiCurrency
-  ) return undefined;
+  )
+    return undefined;
   const sourceId = kofiPayload.kofi_transaction_id ?? kofiPayload.message_id;
   if (typeof sourceId !== "string" || sourceId.length === 0) return undefined;
-  const receivedAt = typeof kofiPayload.timestamp === "string" ? new Date(kofiPayload.timestamp) : new Date();
+  const receivedAt =
+    typeof kofiPayload.timestamp === "string"
+      ? new Date(kofiPayload.timestamp)
+      : new Date();
   if (Number.isNaN(receivedAt.getTime())) return undefined;
   return {
     amount,
@@ -63,7 +87,10 @@ const parsePayment = (raw: unknown): KofiPayment | undefined => {
 @Tags("Sponsorship")
 @provide(SponsorshipController)
 export class SponsorshipController extends Controller {
-  constructor(@inject(SponsorshipService) private readonly sponsorship: SponsorshipService) {
+  constructor(
+    @inject(SponsorshipService)
+    private readonly sponsorship: SponsorshipService,
+  ) {
     super();
   }
 
@@ -77,8 +104,11 @@ export class SponsorshipController extends Controller {
 
   @Post("webhook/kofi")
   @SuccessResponse("200", "Ko-fi payment accepted")
-  public async receiveKofiWebhook(@Request() request: express.Request): Promise<void> {
-    if (!this.sponsorship.isEnabled()) throw new NotFoundError("Sponsorship is disabled");
+  public async receiveKofiWebhook(
+    @Request() request: express.Request,
+  ): Promise<void> {
+    if (!this.sponsorship.isEnabled())
+      throw new NotFoundError("Sponsorship is disabled");
     const body: unknown = request.body;
     const rawData =
       typeof body === "object" && body !== null && "data" in body

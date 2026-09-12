@@ -1,0 +1,33 @@
+platform:
+  port: 3000
+  trustProxy: 0
+  mongo:
+    connectionString: mongodb://mongo:27017
+    database: crowdmap
+  # Before bootstrapping an empty user database, add initialAdminApiKey with a
+  # freshly generated cm1_<UUID>.<random-secret> credential. Never use an
+  # example or committed value. Remove the setting after creating named admins.
+  privacy:
+    controllerName: Example organisation
+    contactUrl: https://example.org/privacy-contact
+    logRetention: 30 days
+    processorsAndTransfers: Hosted by Example Host; update this for your deployment.
+  # Omit this entire section to disable sponsorships.
+  # sponsorship:
+  #   profileUrl: https://ko-fi.com/example
+  #   monthlyGoal: 20
+  #   currency: EUR
+  #   currencyDecimalPlaces: 2
+  #   webhookToken: replace-with-the-ko-fi-verification-token
+
+projects:
+  resolver: single
+  definitions:
+    - id: example
+      name: Example Map
+      baseline:
+        mapFile: /opt/data/example/map
+        versionFile: /opt/data/example/version
+      upstream:
+        mapUrl: https://maps.example.org/example/map
+        versionUrl: https://maps.example.org/example/version

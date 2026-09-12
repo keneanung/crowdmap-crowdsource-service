@@ -38,10 +38,7 @@ const room = (
   roomNumber: number,
 ): MudletRoom | undefined => lookup(map.rooms, roomNumber);
 
-const roomHash = (
-  map: Mudlet.MudletMap,
-  roomNumber: number,
-): string | null => {
+const roomHash = (map: Mudlet.MudletMap, roomNumber: number): string | null => {
   if (!room(map, roomNumber)) return null;
   return (
     Object.entries(map.mpRoomDbHashToRoomId).find(
@@ -57,9 +54,7 @@ export const changeTargetState = (
   switch (change.type) {
     case "create-room":
     case "delete-room":
-      return Boolean(
-        room(map, (change as CreateRoom | DeleteRoom).roomNumber),
-      );
+      return Boolean(room(map, (change as CreateRoom | DeleteRoom).roomNumber));
     case "create-area": {
       const typed = change as CreateArea;
       return {

@@ -4,10 +4,10 @@ import { app } from "../src/app.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
 import { MudletMapReader } from "mudlet-map-binary-reader";
-jest.setTimeout(15_000);
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { config } from "../src/config/values.js";
 import { fetchMock } from "./setup/mockFetch.js";
+jest.setTimeout(15_000);
 
 beforeEach(() => {
   setupChangeServiceMock();
@@ -210,9 +210,11 @@ test("applyChange returns transient flags for pending changes whose target chang
     reporter: "Test Reporter",
   });
 
-  const upstreamMap = MudletMapReader.readBuffer(await readFile(config.mapFile));
+  const upstreamMap = MudletMapReader.readBuffer(
+    await readFile(config.projects[0].mapFile),
+  );
   upstreamMap.rooms[1].name = "Different upstream name";
-  const upstreamMapFile = `${config.mapFile}.upstream`;
+  const upstreamMapFile = `${config.projects[0].mapFile}.upstream`;
   await writeFile(upstreamMapFile, MudletMapReader.writeBuffer(upstreamMap));
   fetchMock.mockResolvedValueOnce(
     new Response(await readFile(upstreamMapFile), { status: 200 }),
@@ -271,7 +273,9 @@ test("applyChange should download new map version files", async () => {
     })
     .expect(200);
 
-  expect(await readFile(config.versionFile, "utf8")).not.toEqual("466");
+  expect(await readFile(config.projects[0].versionFile, "utf8")).not.toEqual(
+    "466",
+  );
 });
 
 test("applyChange should download new map files", async () => {
@@ -292,7 +296,9 @@ test("applyChange should download new map files", async () => {
     .expect(200);
 
   // lets take this as an indication that we tried to download a new map file (because we modified it)
-  expect((await readFile(config.mapFile)).length).toBeGreaterThan(0);
+  expect((await readFile(config.projects[0].mapFile)).length).toBeGreaterThan(
+    0,
+  );
 });
 
 test("applyChange keeps changes when a baseline download fails", async () => {
@@ -319,5 +325,7 @@ test("applyChange keeps changes when a baseline download fails", async () => {
     .expect((res) => {
       expect(res.body).toHaveLength(1);
     });
-  expect((await readFile(config.versionFile, "utf8")).trim()).toEqual("466");
+  expect(
+    (await readFile(config.projects[0].versionFile, "utf8")).trim(),
+  ).toEqual("466");
 });

@@ -3,15 +3,25 @@ import { randomUUID } from "node:crypto";
 import * as path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "stream";
-import { config } from "./config/values.js";
+import { config, type MapProject } from "./config/values.js";
 
 const DOWNLOAD_TIMEOUT_MS = 30_000;
 
 export const downloadMapVersion = async (
-  destination: string = config.versionFile,
+  projectOrDestination?: MapProject | string,
+  explicitDestination?: string,
 ) => {
+  const project =
+    typeof projectOrDestination === "object"
+      ? projectOrDestination
+      : config.projects[0];
+  const destination =
+    explicitDestination ??
+    (typeof projectOrDestination === "string"
+      ? projectOrDestination
+      : project.versionFile);
   try {
-    await downloadFile(config.versionDownloadUrl, destination);
+    await downloadFile(project.versionDownloadUrl, destination);
   } catch (err) {
     throw Error("Failed to download version file", {
       cause: err,
@@ -19,9 +29,21 @@ export const downloadMapVersion = async (
   }
 };
 
-export const downloadMapFile = async (destination: string = config.mapFile) => {
+export const downloadMapFile = async (
+  projectOrDestination?: MapProject | string,
+  explicitDestination?: string,
+) => {
+  const project =
+    typeof projectOrDestination === "object"
+      ? projectOrDestination
+      : config.projects[0];
+  const destination =
+    explicitDestination ??
+    (typeof projectOrDestination === "string"
+      ? projectOrDestination
+      : project.mapFile);
   try {
-    await downloadFile(config.mapDownloadUrl, destination);
+    await downloadFile(project.mapDownloadUrl, destination);
   } catch (err) {
     throw Error("Failed to download map file", {
       cause: err,

@@ -37,16 +37,22 @@ test("carries unused sponsorship credit into following months and deletes consum
     createIndexes: async () => [],
     deleteMany: async ({ remainingAmount }: { remainingAmount: number }) => {
       for (let index = payments.length - 1; index >= 0; index -= 1) {
-        if (payments[index]?.remainingAmount === remainingAmount) payments.splice(index, 1);
+        if (payments[index]?.remainingAmount === remainingAmount)
+          payments.splice(index, 1);
       }
     },
     deleteOne: async ({ eventId }: { eventId: string }) => {
-      const index = payments.findIndex((payment) => payment.eventId === eventId);
+      const index = payments.findIndex(
+        (payment) => payment.eventId === eventId,
+      );
       if (index >= 0) payments.splice(index, 1);
     },
     find: () => ({
       sort: () => ({
-        toArray: async () => [...payments].sort((a, b) => a.receivedAt.getTime() - b.receivedAt.getTime()),
+        toArray: async () =>
+          [...payments].sort(
+            (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
+          ),
       }),
       toArray: async () => [...payments],
     }),
@@ -57,7 +63,9 @@ test("carries unused sponsorship credit into following months and deletes consum
       { eventId }: { eventId: string },
       { $set }: { $set: Partial<Payment> },
     ) => {
-      const payment = payments.find((candidate) => candidate.eventId === eventId);
+      const payment = payments.find(
+        (candidate) => candidate.eventId === eventId,
+      );
       if (payment) Object.assign(payment, $set);
     },
   };
@@ -68,15 +76,22 @@ test("carries unused sponsorship credit into following months and deletes consum
         if (name === "kofi_payments") return paymentCollection;
         if (name === "sponsorship_state") {
           return {
-            findOne: async () => (activeMonth ? { _id: "settlement" as const, activeMonth } : null),
+            findOne: async () =>
+              activeMonth ? { _id: "settlement" as const, activeMonth } : null,
             insertOne: async (state: { activeMonth: string }) => {
               activeMonth = state.activeMonth;
             },
             updateOne: async (
               _filter: unknown,
-              update: { $set?: { activeMonth: string }; $setOnInsert?: { activeMonth: string } },
+              update: {
+                $set?: { activeMonth: string };
+                $setOnInsert?: { activeMonth: string };
+              },
             ) => {
-              activeMonth = update.$set?.activeMonth ?? update.$setOnInsert?.activeMonth ?? activeMonth;
+              activeMonth =
+                update.$set?.activeMonth ??
+                update.$setOnInsert?.activeMonth ??
+                activeMonth;
               return { matchedCount: 1 };
             },
           };
@@ -110,18 +125,27 @@ test("carries unused sponsorship credit into following months and deletes consum
     receivedAt: new Date("2026-09-02T12:00:00Z"),
   });
 
-  await expect(service.getProgress(new Date("2026-09-30T12:00:00Z"))).resolves.toMatchObject({
+  await expect(
+    service.getProgress(new Date("2026-09-30T12:00:00Z")),
+  ).resolves.toMatchObject({
     month: "2026-09",
     raised: 35,
   });
-  await expect(service.getProgress(new Date("2026-10-01T12:00:00Z"))).resolves.toMatchObject({
+  await expect(
+    service.getProgress(new Date("2026-10-01T12:00:00Z")),
+  ).resolves.toMatchObject({
     month: "2026-10",
     raised: 15,
   });
-  await expect(service.getProgress(new Date("2026-11-01T12:00:00Z"))).resolves.toMatchObject({
+  await expect(
+    service.getProgress(new Date("2026-11-01T12:00:00Z")),
+  ).resolves.toMatchObject({
     month: "2026-11",
     raised: 0,
   });
   expect(payments).toEqual([]);
-  expect(consumedEvents.map((event) => event.eventId)).toEqual(["first", "second"]);
+  expect(consumedEvents.map((event) => event.eventId)).toEqual([
+    "first",
+    "second",
+  ]);
 });

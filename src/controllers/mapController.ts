@@ -1,18 +1,23 @@
 import { provide } from "@inversifyjs/binding-decorators";
-import * as fs from "fs";
-import { inject } from "inversify";
-import { dirname } from "path";
-import { Readable } from "stream";
 import {
   Controller,
   Get,
   Produces,
   Query,
+  Request,
   Route,
   Tags,
   ValidateError,
-} from "tsoa";
+} from "@tsoa/runtime";
+import * as fs from "fs";
+import { inject } from "inversify";
+import { dirname } from "path";
+import { Readable } from "stream";
 import { log } from "../observability.js";
+import {
+  type ProjectRequest,
+  requireProjectContext,
+} from "../projects/projectContext.js";
 import { MapService } from "../services/mapService.js";
 
 @Route("map")
@@ -38,6 +43,7 @@ export class MapController extends Controller {
   @Get("/")
   @Produces("application/octet-stream")
   public async getMap(
+    @Request() request: ProjectRequest,
     @Query() timesSeen: number,
     @Query() format: "binary" | "json",
     @Query() include: string[] = [],
@@ -58,7 +64,10 @@ export class MapController extends Controller {
       );
     }
     const staged = reviewId
-      ? this.mapService.getStagedUpstreamReview(reviewId)
+      ? this.mapService.getStagedUpstreamReview(
+          reviewId,
+          requireProjectContext(request).project,
+        )
       : undefined;
     const snapshot = await this.mapService.getChangedMapFile(
       timesSeen,
@@ -67,6 +76,7 @@ export class MapController extends Controller {
       exclude,
       staged?.mapFile,
       staged?.upstreamVersion,
+      requireProjectContext(request).project,
     );
 
     this.setHeader(
@@ -94,8 +104,14 @@ export class MapController extends Controller {
    * @returns The current map version number as it would be produced by the vetted changes. The version number is constructed of 3 parts, deliminated by `.`: map base version, the ID of the last change applied, and the number of changes.
    */
   @Get("/version")
-  public async getVersion(@Query() timesSeen: number): Promise<string> {
-    return await this.mapService.getVersion(timesSeen);
+  public async getVersion(
+    @Request() request: ProjectRequest,
+    @Query() timesSeen: number,
+  ): Promise<string> {
+    return await this.mapService.getVersion(
+      timesSeen,
+      requireProjectContext(request).project,
+    );
   }
 
   /**
@@ -108,6 +124,7 @@ export class MapController extends Controller {
   @Get("/renderer")
   @Produces("text/javascript")
   public async getRendererMap(
+    @Request() request: ProjectRequest,
     @Query() timesSeen: number,
     @Query() include: string[] = [],
     @Query() exclude: string[] = [],
@@ -129,6 +146,7 @@ export class MapController extends Controller {
       timesSeen,
       include,
       exclude,
+      requireProjectContext(request).project,
     );
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);

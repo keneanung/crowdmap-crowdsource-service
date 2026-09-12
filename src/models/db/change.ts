@@ -29,6 +29,7 @@ import {
 
 export interface ChangeBase {
   _id?: ObjectId;
+  projectId?: string;
   type: ChangeType;
   reporters: string[];
   numberOfReporters: number;

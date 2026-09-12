@@ -1,11 +1,19 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import * as crypto from "crypto";
 import { inject } from "inversify";
+import { config } from "../config/values.js";
+import { ConflictError } from "../models/api/error.js";
 import { Role, User } from "../models/business/user.js";
 import { UserDbService } from "./userDbService.js";
 
 const API_KEY_ID_PATTERN =
   /^cm1_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const canAdministerProject = (user: User, projectId: string): boolean =>
+  user.roles.includes("site_admin") ||
+  (user.roles.includes("map_admin") &&
+    (user.mapAdminProjects?.includes(projectId) === true ||
+      (user.mapAdminProjects === undefined && config.projects.length === 1)));
 
 @provide(UserService)
 export class UserService {
@@ -14,9 +22,14 @@ export class UserService {
     private readonly userDbService: UserDbService,
   ) {}
 
-  public async addUser(user: string, api_key: string, roles: Role[]) {
+  public async addUser(
+    user: string,
+    api_key: string,
+    roles: Role[],
+    mapAdminProjects?: string[],
+  ) {
     await this.userDbService.addUser(
-      await this.buildUser(user, api_key, roles),
+      await this.buildUser(user, api_key, roles, mapAdminProjects),
     );
   }
 
@@ -24,7 +37,9 @@ export class UserService {
     user: string,
     api_key: string,
     roles: Role[],
+    mapAdminProjects?: string[],
   ): Promise<User> {
+    this.validateMapAdminProjects(roles, mapAdminProjects);
     const parsedApiKey = this.parseApiKey(api_key);
     if (!parsedApiKey) {
       throw new Error("API key must use the cm1_<key-id>.<secret> format");
@@ -37,6 +52,7 @@ export class UserService {
       salt,
       hashed_api_key: derivedKey.toString("hex"),
       api_key_id: parsedApiKey.id,
+      ...(mapAdminProjects ? { mapAdminProjects: [...mapAdminProjects] } : {}),
     };
   }
 
@@ -117,8 +133,13 @@ export class UserService {
     return this.userDbService.deleteUser(name);
   }
 
-  public updateRoles(name: string, roles: Role[]): Promise<boolean> {
-    return this.userDbService.updateRoles(name, roles);
+  public updateRoles(
+    name: string,
+    roles: Role[],
+    mapAdminProjects?: string[],
+  ): Promise<boolean> {
+    this.validateMapAdminProjects(roles, mapAdminProjects);
+    return this.userDbService.updateRoles(name, roles, mapAdminProjects);
   }
 
   public generateApiKey() {
@@ -127,9 +148,13 @@ export class UserService {
     return `${id}.${secret}`;
   }
 
-  public async createUser(name: string, roles: Role[]) {
+  public async createUser(
+    name: string,
+    roles: Role[],
+    mapAdminProjects?: string[],
+  ) {
     const api_key = this.generateApiKey();
-    await this.addUser(name, api_key, roles);
+    await this.addUser(name, api_key, roles, mapAdminProjects);
     return api_key;
   }
 
@@ -137,9 +162,10 @@ export class UserService {
     name: string,
     roles: Role[],
     apiKey: string,
+    mapAdminProjects?: string[],
   ): Promise<boolean> {
     return this.userDbService.addUserIfMissing(
-      await this.buildUser(name, apiKey, roles),
+      await this.buildUser(name, apiKey, roles, mapAdminProjects),
     );
   }
 
@@ -154,5 +180,25 @@ export class UserService {
     ).toString("hex");
     await this.userDbService.updateApiKey(user, hashedApiKey, parsedApiKey.id);
     return newApiKey;
+  }
+
+  private validateMapAdminProjects(
+    roles: Role[],
+    projectIds?: string[],
+  ): void {
+    if (
+      roles.includes("map_admin") &&
+      config.projects.length > 1 &&
+      projectIds === undefined
+    )
+      throw new ConflictError(
+        "mapAdminProjects is required for map administrators in multi-project mode",
+      );
+    if (!projectIds) return;
+    const configured = new Set(config.projects.map((project) => project.id));
+    const unknown = projectIds.find((id) => !configured.has(id));
+    if (unknown) throw new ConflictError(`Unknown map project: ${unknown}`);
+    if (new Set(projectIds).size !== projectIds.length)
+      throw new ConflictError("mapAdminProjects must not contain duplicates");
   }
 }

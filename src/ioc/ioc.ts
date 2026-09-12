@@ -1,8 +1,8 @@
 import { buildProviderModule } from "@inversifyjs/binding-decorators";
+import { Controller } from "@tsoa/runtime";
 import { Container, decorate, injectable } from "inversify";
 import { MongoClient } from "mongodb";
 import "reflect-metadata";
-import { Controller } from "tsoa";
 import { config } from "../config/values.js";
 
 // Create a new container tsoa can use

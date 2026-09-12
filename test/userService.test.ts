@@ -1,4 +1,5 @@
 import { expect, jest, test } from "@jest/globals";
+import { config } from "../src/config/values.js";
 import { UserService } from "../src/services/userService.js";
 import { MockUserDbService } from "./mocks/mockUserDbService.js";
 
@@ -39,4 +40,26 @@ test("new users require a compound API key", async () => {
   await expect(
     userService.addUser("invalid-key-user", "user-chosen-password", []),
   ).rejects.toThrow("API key must use the cm1_<key-id>.<secret> format");
+});
+
+test("multi-project map administrators require an explicit assignment", async () => {
+  const originalProjects = config.projects;
+  config.projects = [
+    originalProjects[0],
+    { ...originalProjects[0], id: "second" },
+  ];
+  try {
+    const userService = new UserService(new MockUserDbService());
+    await expect(
+      userService.createUser("unassigned-admin", ["map_admin"]),
+    ).rejects.toThrow("mapAdminProjects is required");
+    expect(() =>
+      userService.updateRoles("unassigned-admin", ["map_admin"]),
+    ).toThrow("mapAdminProjects is required");
+    await expect(
+      userService.createUser("revoked-admin", ["map_admin"], []),
+    ).resolves.toMatch(/^cm1_/u);
+  } finally {
+    config.projects = originalProjects;
+  }
 });

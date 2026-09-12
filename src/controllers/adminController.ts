@@ -1,6 +1,4 @@
 import { provide } from "@inversifyjs/binding-decorators";
-import * as express from "express";
-import { inject } from "inversify";
 import {
   Body,
   Controller,
@@ -15,7 +13,9 @@ import {
   Security,
   SuccessResponse,
   Tags,
-} from "tsoa";
+} from "@tsoa/runtime";
+import * as express from "express";
+import { inject } from "inversify";
 import {
   AuthorizationError,
   ConflictError,
@@ -51,6 +51,9 @@ export class AdminController extends Controller {
       return {
         name: user.name,
         roles: user.roles,
+        ...(user.mapAdminProjects
+          ? { mapAdminProjects: user.mapAdminProjects }
+          : {}),
       };
     });
   }
@@ -70,7 +73,11 @@ export class AdminController extends Controller {
     if (users.find((user) => user.name === body.name)) {
       throw new ConflictError("User already exists");
     }
-    const apiKey = await this.userService.createUser(body.name, body.roles);
+    const apiKey = await this.userService.createUser(
+      body.name,
+      body.roles,
+      body.mapAdminProjects,
+    );
     return apiKey;
   }
 
@@ -81,6 +88,9 @@ export class AdminController extends Controller {
     return {
       name: request.user.name,
       roles: request.user.roles,
+      ...(request.user.mapAdminProjects
+        ? { mapAdminProjects: request.user.mapAdminProjects }
+        : {}),
     };
   }
 
@@ -117,7 +127,13 @@ export class AdminController extends Controller {
     ) {
       throw new AuthorizationError("Access Denied");
     }
-    if (!(await this.userService.updateRoles(user, body.roles))) {
+    if (
+      !(await this.userService.updateRoles(
+        user,
+        body.roles,
+        body.mapAdminProjects,
+      ))
+    ) {
       throw new NotFoundError("User not found");
     }
   }

@@ -113,14 +113,16 @@ test("Ko-fi webhook accepts only verified supported URL-encoded payments", async
     kofiCurrency: "USD",
     kofiWebhookToken: "secret",
   });
-  iocContainer.rebindSync<SponsorshipService>(SponsorshipService).toConstantValue({
-    isEnabled: () => true,
-    getProgress: () => Promise.resolve(undefined),
-    recordPayment: (payment) => {
-      received.push(payment);
-      return Promise.resolve();
-    },
-  } as SponsorshipService);
+  iocContainer
+    .rebindSync<SponsorshipService>(SponsorshipService)
+    .toConstantValue({
+      isEnabled: () => true,
+      getProgress: () => Promise.resolve(undefined),
+      recordPayment: (payment) => {
+        received.push(payment);
+        return Promise.resolve();
+      },
+    } as SponsorshipService);
   const event = {
     verification_token: "secret",
     kofi_transaction_id: "payment-1",
@@ -129,10 +131,26 @@ test("Ko-fi webhook accepts only verified supported URL-encoded payments", async
     amount: "2.50",
     currency: "USD",
   };
-  await request(app).post("/sponsorship/webhook/kofi").type("form").send({ data: JSON.stringify(event) }).expect(200);
-  await request(app).post("/sponsorship/webhook/kofi").type("form").send({ data: JSON.stringify({ ...event, verification_token: "wrong" }) }).expect(200);
-  await request(app).post("/sponsorship/webhook/kofi").type("form").send({ data: "not json" }).expect(200);
-  await request(app).post("/sponsorship/webhook/kofi").type("form").send({ data: JSON.stringify({ ...event, type: "Shop Order" }) }).expect(200);
+  await request(app)
+    .post("/sponsorship/webhook/kofi")
+    .type("form")
+    .send({ data: JSON.stringify(event) })
+    .expect(200);
+  await request(app)
+    .post("/sponsorship/webhook/kofi")
+    .type("form")
+    .send({ data: JSON.stringify({ ...event, verification_token: "wrong" }) })
+    .expect(200);
+  await request(app)
+    .post("/sponsorship/webhook/kofi")
+    .type("form")
+    .send({ data: "not json" })
+    .expect(200);
+  await request(app)
+    .post("/sponsorship/webhook/kofi")
+    .type("form")
+    .send({ data: JSON.stringify({ ...event, type: "Shop Order" }) })
+    .expect(200);
   expect(received).toHaveLength(1);
 });
 
