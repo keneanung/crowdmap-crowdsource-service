@@ -87,7 +87,8 @@ arbitrary `Host` values are rejected. `projects.platformHost` serves the shared
 landing, privacy, and funding experience. Project hosts keep the existing relative
 `/map` and `/change` API URLs and use the explorer as their landing page.
 Express resolves `X-Forwarded-Host` only through `platform.trustProxy`, so set
-that value narrowly to the actual reverse-proxy hop count.
+that value narrowly to the actual reverse-proxy hop count. The optional Traefik
+deployment described below is one hop, so use `platform.trustProxy: 1` for it.
 
 Baseline paths must be absolute and are normalized before uniqueness checks.
 This keeps writable map data independent from the potentially read-only location
@@ -99,7 +100,7 @@ location.
 Do not add a production project called `test`. Run tests as a separate deployment
 of the same image with its own Mongo database, volume, host mappings, and secrets.
 
-#### Local MongoDB (Docker Compose)
+#### Docker Compose
 
 The provided `compose.yaml` includes a `mongo` service. By default it runs without authentication bound to an internal
 Docker network. For production you should enable authentication, restrict network access, or use a managed provider.
@@ -144,7 +145,45 @@ and transfer safeguard (for example an adequacy decision or SCCs) in
 
 The initial key is not written to application logs. It contains a public lookup ID before the `.` and a secret after it, but the complete value is one credential and must be kept secret. Store it in a password manager, use it to create individual administrator accounts, and then remove `platform.initialAdminApiKey` from `config.yaml`. Existing installations that already have an `admin` user do not use this value.
 
-The app will become healthy once both the app and MongoDB healthchecks pass. Access the service on port 3000 by default.
+The app will become healthy once both the app and MongoDB healthchecks pass. By
+default it is accessible only from the deployment host at
+`http://localhost:3000`.
+
+#### Public HTTPS deployment with Traefik
+
+`compose.yaml` has an optional `proxy` profile that starts Traefik and a
+one-shot `yq` configuration renderer. It is intended for the host-based project
+configuration shown above. The renderer derives Traefik's complete hostname
+rule from `projects.platformHost` and `projects.hosts`, so hostnames are defined
+only in `config.yaml`.
+
+Before starting the profile:
+
+- Configure every hostname in `projects.platformHost` and `projects.hosts` to
+  resolve to this server's public IPv4 and/or IPv6 address.
+- Set `platform.trustProxy: 1` in `config.yaml`.
+- Ensure TCP ports 80 and 443 can reach the server; Traefik uses port 80 for
+  the Let's Encrypt HTTP challenge and redirects normal HTTP traffic to HTTPS.
+
+Then start the deployment with:
+
+```shell
+docker compose --profile proxy up -d
+```
+
+Traefik obtains and persists Let's Encrypt certificates in the `traefik-acme`
+Docker volume. The app is not publicly published; its loopback-only port is
+available for server-local diagnostics.
+
+After changing `config.yaml`, recreate both consumers of it. Traefik watches
+the rendered configuration and reloads it automatically:
+
+```shell
+docker compose --profile proxy up -d --force-recreate app proxy-config
+```
+
+Use `docker compose config` (or `docker compose --profile proxy config`) to
+inspect the fully resolved Compose configuration before deployment.
 
 Application logs are newline-delimited JSON. Every HTTP response includes an
 `X-Request-ID`, and the matching request log entry contains that ID, status, and

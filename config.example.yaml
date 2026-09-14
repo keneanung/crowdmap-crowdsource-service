@@ -1,5 +1,6 @@
 platform:
   port: 3000
+  # Set to 1 when using the optional Traefik proxy profile in compose.yaml.
   trustProxy: 0
   mongo:
     connectionString: mongodb://mongo:27017
