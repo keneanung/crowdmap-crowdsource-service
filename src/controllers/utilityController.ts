@@ -55,8 +55,9 @@ export class UtilityController extends Controller {
 
   @Get("metrics")
   @Produces("text/plain")
-  public getMetrics(): string {
+  public async getMetrics(): Promise<string> {
     this.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
-    return renderMetrics();
+    const projects = await this.healthService.getProjectStatuses();
+    return renderMetrics(projects.map((project) => project.status));
   }
 }

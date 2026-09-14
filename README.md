@@ -187,8 +187,11 @@ inspect the fully resolved Compose configuration before deployment.
 
 Application logs are newline-delimited JSON. Every HTTP response includes an
 `X-Request-ID`, and the matching request log entry contains that ID, status, and
-duration. Prometheus-compatible process and HTTP counters are available at
-`/utility/metrics`; request paths are deliberately not used as metric labels.
+duration. Prometheus-compatible metrics are available at `/utility/metrics`,
+including bounded HTTP method/status counters and durations; process memory,
+high-water RSS, CPU, and event-loop health; map-worker lifecycle and duration;
+MongoDB driver connection-pool activity; and project availability. Request paths
+are deliberately not used as metric labels.
 
 If you prefer using an external/managed MongoDB instance, remove or comment out the `mongo` service in the compose file and
 update `platform.mongo.connectionString` and `platform.mongo.database` in the

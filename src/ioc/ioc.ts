@@ -4,6 +4,13 @@ import { Container, decorate, injectable } from "inversify";
 import { MongoClient } from "mongodb";
 import "reflect-metadata";
 import { config } from "../config/values.js";
+import {
+  mongoConnectionCheckedIn,
+  mongoConnectionCheckedOut,
+  mongoConnectionCheckoutFailed,
+  mongoConnectionClosed,
+  mongoConnectionCreated,
+} from "../observability.js";
 
 // Create a new container tsoa can use
 const iocContainer = new Container();
@@ -16,7 +23,17 @@ const scope = iocContainer
     if (!config.connectionString) {
       throw new Error("Missing connection string");
     }
-    return new MongoClient(config.connectionString);
+    const mongo = new MongoClient(config.connectionString);
+    mongo.on("connectionCreated", mongoConnectionCreated);
+    mongo.on("connectionClosed", mongoConnectionClosed);
+    mongo.on("connectionCheckedOut", (event) => {
+      mongoConnectionCheckedOut(event.durationMS);
+    });
+    mongo.on("connectionCheckedIn", mongoConnectionCheckedIn);
+    mongo.on("connectionCheckOutFailed", (event) => {
+      mongoConnectionCheckoutFailed(event.durationMS);
+    });
+    return mongo;
   })
   .inSingletonScope();
 scope.onDeactivation(async (mongo) => {
