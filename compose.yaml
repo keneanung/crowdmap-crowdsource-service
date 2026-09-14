@@ -7,7 +7,11 @@ services:
     # MongoDB is intentionally not exposed outside the Compose network. Add a
     # secured port mapping explicitly if administrative access is required.
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1",
+        ]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -21,7 +25,9 @@ services:
       mongo:
         condition: service_healthy
     ports:
-      - 3000:3000
+      # Keep direct access available for local development and diagnostics, but
+      # do not expose it to the network when Traefik is enabled.
+      - 127.0.0.1:3000:3000
     volumes:
       - map-data:/opt/data
     secrets:
@@ -36,9 +42,80 @@ services:
       retries: 5
       start_period: 5s
 
+  proxy-config:
+    # Render Traefik's host rule from the same deployment configuration the app
+    # reads. This service is only needed for a public, host-based deployment.
+    image: mikefarah/yq:4.53.6
+    profiles: [proxy]
+    restart: "no"
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        test "$$(yq -r '.projects.resolver' /run/secrets/config.yaml)" = host
+        rule="$$(
+          yq -r '
+            [.projects.platformHost, (.projects.hosts | keys | .[])]
+            | map("Host(`" + . + "`)")
+            | join(" || ")
+          ' /run/secrets/config.yaml
+        )"
+        temporary_config="$$(mktemp /dynamic/crowdmap.yaml.XXXXXX)"
+        RULE="$$rule" yq -n '
+          {
+            "http": {
+              "routers": {
+                "crowdmap": {
+                  "rule": strenv(RULE),
+                  "entryPoints": ["websecure"],
+                  "service": "crowdmap",
+                  "tls": {"certResolver": "letsencrypt"}
+                }
+              },
+              "services": {
+                "crowdmap": {
+                  "loadBalancer": {"servers": [{"url": "http://app:3000"}]}
+                }
+              }
+            }
+          }
+        ' > "$$temporary_config"
+        mv "$$temporary_config" /dynamic/crowdmap.yaml
+    secrets:
+      - source: service-config
+        target: config.yaml
+    volumes:
+      - traefik-dynamic:/dynamic
+
+  traefik:
+    image: traefik:v3.6
+    profiles: [proxy]
+    restart: unless-stopped
+    depends_on:
+      proxy-config:
+        condition: service_completed_successfully
+    ports:
+      - 80:80
+      - 443:443
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+    volumes:
+      - traefik-dynamic:/etc/traefik/dynamic:ro
+      - traefik-acme:/acme
+
 volumes:
   mongo-data:
   map-data:
+  traefik-acme:
+  traefik-dynamic:
 
 secrets:
   service-config:
