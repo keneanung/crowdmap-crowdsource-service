@@ -26,7 +26,7 @@ import {
 import {
   getRequestId,
   log,
-  renderMetrics,
+  renderProjectMetrics,
   requestObservability,
 } from "./observability.js";
 import {
@@ -209,10 +209,9 @@ app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
 app.get("/utility/metrics", async (_request, response, next) => {
   try {
     const healthService = iocContainer.get<HealthService>(HealthService);
-    const projects = await healthService.getProjectStatuses();
     response
       .type("text/plain; version=0.0.4; charset=utf-8")
-      .send(renderMetrics(projects.map((project) => project.status)));
+      .send(await renderProjectMetrics(healthService));
   } catch (error) {
     next(error);
   }

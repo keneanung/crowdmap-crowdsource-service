@@ -20,6 +20,10 @@ interface WorkerMetrics {
   started: number;
 }
 
+interface ProjectStatusProvider {
+  getProjectStatuses(): Promise<{ status: ProjectStatus }[]>;
+}
+
 let activeRequests = 0;
 let completedRequests = 0;
 let serverErrors = 0;
@@ -341,4 +345,11 @@ export const renderMetrics = (
     ...projectMetricLines,
     "",
   ].join("\n");
+};
+
+export const renderProjectMetrics = async (
+  healthService: ProjectStatusProvider,
+): Promise<string> => {
+  const projects = await healthService.getProjectStatuses();
+  return renderMetrics(projects.map((project) => project.status));
 };
