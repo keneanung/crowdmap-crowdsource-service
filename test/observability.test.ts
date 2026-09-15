@@ -64,6 +64,15 @@ test("metrics expose map worker and MongoDB driver pool measurements", () => {
   expect(metrics).toContain("crowdmap_mongo_connection_checkouts_total 1");
 });
 
+test("invalid MongoDB checkout durations are omitted from the summary", () => {
+  mongoConnectionCheckedOut(Number.NaN);
+  mongoConnectionCheckedIn();
+
+  const metrics = renderMetrics();
+  expect(metrics).not.toContain("NaN");
+  expect(metrics).not.toContain("Infinity");
+});
+
 test("aborted requests do not create a response metric", () => {
   const response = Object.assign(new EventEmitter(), {
     locals: {},

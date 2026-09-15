@@ -36,6 +36,7 @@ let mongoConnectionsCheckedOut = 0;
 let mongoConnectionCheckouts = 0;
 let mongoConnectionCheckoutFailures = 0;
 let mongoConnectionCheckoutDurationSeconds = 0;
+let mongoConnectionCheckoutDurations = 0;
 const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
 eventLoopDelay.enable();
 
@@ -209,7 +210,7 @@ export const mongoConnectionClosed = (): void => {
 export const mongoConnectionCheckedOut = (durationMs: number): void => {
   mongoConnectionsCheckedOut += 1;
   mongoConnectionCheckouts += 1;
-  mongoConnectionCheckoutDurationSeconds += durationMs / 1000;
+  recordMongoConnectionCheckoutDuration(durationMs);
 };
 
 export const mongoConnectionCheckedIn = (): void => {
@@ -218,7 +219,13 @@ export const mongoConnectionCheckedIn = (): void => {
 
 export const mongoConnectionCheckoutFailed = (durationMs: number): void => {
   mongoConnectionCheckoutFailures += 1;
+  recordMongoConnectionCheckoutDuration(durationMs);
+};
+
+const recordMongoConnectionCheckoutDuration = (durationMs: number): void => {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return;
   mongoConnectionCheckoutDurationSeconds += durationMs / 1000;
+  mongoConnectionCheckoutDurations += 1;
 };
 
 export const renderMetrics = (
@@ -339,7 +346,7 @@ export const renderMetrics = (
     "# HELP crowdmap_mongo_connection_checkout_duration_seconds Cumulative MongoDB driver connection checkout duration.",
     "# TYPE crowdmap_mongo_connection_checkout_duration_seconds summary",
     `crowdmap_mongo_connection_checkout_duration_seconds_sum ${mongoConnectionCheckoutDurationSeconds.toString()}`,
-    `crowdmap_mongo_connection_checkout_duration_seconds_count ${(mongoConnectionCheckouts + mongoConnectionCheckoutFailures).toString()}`,
+    `crowdmap_mongo_connection_checkout_duration_seconds_count ${mongoConnectionCheckoutDurations.toString()}`,
     "# HELP crowdmap_projects Configured projects by availability status.",
     "# TYPE crowdmap_projects gauge",
     ...projectMetricLines,
