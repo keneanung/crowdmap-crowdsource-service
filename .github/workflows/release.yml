@@ -4,13 +4,19 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vMAJOR.MINOR.PATCH tag to publish or retry
+        required: true
+        type: string
 
 permissions:
   contents: write
   packages: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -19,6 +25,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ inputs.tag || github.ref }}
     - name: Use Node.js
       uses: actions/setup-node@v7
       with:
@@ -27,12 +35,12 @@ jobs:
         cache-dependency-path: package-lock.json
     - name: Validate release version
       run: |
-        tag="$GITHUB_REF_NAME"
+        tag="${{ inputs.tag || github.ref_name }}"
         if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "Release tags must use the vMAJOR.MINOR.PATCH format."
           exit 1
         fi
-        test "v$(node -p \"require('./package.json').version\")" = "$tag"
+        test "v$(node -p "require('./package.json').version")" = "$tag"
     - run: npm ci
     - run: npm run audit:production
     - run: npm run lint
@@ -45,6 +53,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ inputs.tag || github.ref }}
     - uses: docker/setup-buildx-action@v4.3.0
     - uses: docker/login-action@v4
       with:
@@ -55,13 +65,14 @@ jobs:
       with:
         push: true
         tags: |
-          ghcr.io/keneanung/crowdmap-crowdsource-service:${{ github.ref_name }}
+          ghcr.io/keneanung/crowdmap-crowdsource-service:${{ inputs.tag || github.ref_name }}
           ghcr.io/keneanung/crowdmap-crowdsource-service:latest
         target: prod
     - name: Create GitHub release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+        tag="${{ inputs.tag || github.ref_name }}"
+        if ! gh release view "$tag" >/dev/null 2>&1; then
+          gh release create "$tag" --verify-tag --generate-notes
         fi
