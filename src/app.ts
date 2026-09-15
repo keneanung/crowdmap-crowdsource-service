@@ -23,11 +23,17 @@ import {
   NotFoundError,
   ServiceUnavailableError,
 } from "./models/api/error.js";
-import { getRequestId, log, requestObservability } from "./observability.js";
+import {
+  getRequestId,
+  log,
+  renderProjectMetrics,
+  requestObservability,
+} from "./observability.js";
 import {
   ProjectContextResolver,
   type ProjectRequest,
 } from "./projects/projectContext.js";
+import { HealthService } from "./services/healthService.js";
 
 export const app = express();
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
@@ -196,6 +202,19 @@ app.use(
 );
 app.use("/docs", swaggerUi.serve, (_req: ExRequest, res: ExResponse) => {
   return res.send(swaggerUi.generateHTML(swaggerJson));
+});
+
+// TSOA serializes string return values as JSON. Register this response directly
+// so Prometheus receives the text exposition format documented by the endpoint.
+app.get("/utility/metrics", async (_request, response, next) => {
+  try {
+    const healthService = iocContainer.get<HealthService>(HealthService);
+    response
+      .type("text/plain; version=0.0.4; charset=utf-8")
+      .send(await renderProjectMetrics(healthService));
+  } catch (error) {
+    next(error);
+  }
 });
 
 RegisterRoutes(app);

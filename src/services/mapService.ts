@@ -21,6 +21,11 @@ import {
   MapWorkerResponse,
 } from "../models/business/mapWorker.js";
 import {
+  mapWorkerCompleted,
+  mapWorkerFailed,
+  mapWorkerStarted,
+} from "../observability.js";
+import {
   ChangeService,
   type ProjectChangeRepository,
 } from "./changeService.js";
@@ -410,16 +415,36 @@ export class MapService {
         : undefined,
       workerData: request,
     });
+    const start = process.hrtime.bigint();
+    mapWorkerStarted(request.operation);
     return new Promise((resolve, reject) => {
-      worker.once("message", (response: MapWorkerResponse) => {
+      let settled = false;
+      const complete = (response: MapWorkerResponse): void => {
+        if (settled) return;
+        settled = true;
+        mapWorkerCompleted(
+          request.operation,
+          Number(process.hrtime.bigint() - start) / 1e9,
+        );
         resolve(response);
+      };
+      const fail = (error: Error): void => {
+        if (settled) return;
+        settled = true;
+        mapWorkerFailed(request.operation);
+        reject(error);
+      };
+      worker.once("message", (response: MapWorkerResponse) => {
+        complete(response);
       });
-      worker.once("error", reject);
+      worker.once("error", fail);
       worker.once("exit", (code) => {
         if (code !== 0) {
-          reject(
+          fail(
             new Error(`Map worker stopped with exit code ${code.toString()}`),
           );
+        } else {
+          fail(new Error("Map worker stopped without returning a response"));
         }
       });
     });

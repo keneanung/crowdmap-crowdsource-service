@@ -3,7 +3,7 @@ import { Controller, Get, Produces, Request, Route, Tags } from "@tsoa/runtime";
 import * as express from "express";
 import { inject } from "inversify";
 import { ServiceUnavailableError } from "../models/api/error.js";
-import { renderMetrics } from "../observability.js";
+import { renderProjectMetrics } from "../observability.js";
 import { HealthService } from "../services/healthService.js";
 
 @Route("utility")
@@ -55,8 +55,8 @@ export class UtilityController extends Controller {
 
   @Get("metrics")
   @Produces("text/plain")
-  public getMetrics(): string {
+  public async getMetrics(): Promise<string> {
     this.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
-    return renderMetrics();
+    return renderProjectMetrics(this.healthService);
   }
 }
