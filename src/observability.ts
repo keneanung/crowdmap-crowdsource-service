@@ -204,10 +204,8 @@ export const renderMetrics = (
   const resourceUsage = process.resourceUsage();
   const cpuUsage = process.cpuUsage();
   const eventLoopUtilization = performance.eventLoopUtilization();
-  const maxRssBytes =
-    process.platform === "darwin"
-      ? resourceUsage.maxRSS
-      : resourceUsage.maxRSS * 1024;
+  // Node.js reports maxRSS in kibibytes on every supported platform.
+  const maxRssBytes = resourceUsage.maxRSS * 1024;
   const requestMetricLines = [...requestMetrics.entries()].flatMap(
     ([key, metrics]) => {
       const labels = renderLabels(requestLabels(key));
