@@ -149,6 +149,24 @@ The app will become healthy once both the app and MongoDB healthchecks pass. By
 default it is accessible only from the deployment host at
 `http://localhost:3000`.
 
+### Publish a release
+
+Normal pushes to `main` run the test and container-build checks but do not
+publish an image. To publish a release, update `package.json` to the intended
+stable version, merge it into `main`, then create and push a matching annotated
+tag:
+
+```shell
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+```
+
+The release workflow verifies that the tag uses the `vMAJOR.MINOR.PATCH`
+format and exactly matches `package.json`. It then reruns the release checks,
+publishes both `ghcr.io/keneanung/crowdmap-crowdsource-service:v1.0.0` and
+`:latest`, and creates a GitHub Release with generated notes. The immutable
+version tag is the preferred deployment reference.
+
 #### Public HTTPS deployment with Traefik
 
 `compose.yaml` has an optional `proxy` profile that starts Traefik and a
