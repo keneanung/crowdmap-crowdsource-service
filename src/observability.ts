@@ -111,20 +111,28 @@ export const requestObservability: RequestHandler = (
 ): void => {
   const requestId = randomUUID();
   const start = process.hrtime.bigint();
-  let recorded = false;
+  let active = true;
+  let finished = false;
   activeRequests += 1;
   response.locals.requestId = requestId;
   response.setHeader("X-Request-ID", requestId);
 
-  const recordCompletion = (): void => {
-    if (recorded) {
+  const durationSeconds = (): number =>
+    Number(process.hrtime.bigint() - start) / 1e9;
+  const releaseRequest = (): void => {
+    if (!active) {
       return;
     }
-    recorded = true;
+    active = false;
     activeRequests -= 1;
-    const durationSeconds = Number(process.hrtime.bigint() - start) / 1e9;
+  };
+  const recordCompletion = (): void => {
+    if (finished) return;
+    finished = true;
+    releaseRequest();
+    const duration = durationSeconds();
     completedRequests += 1;
-    requestDurationSeconds += durationSeconds;
+    requestDurationSeconds += duration;
     if (response.statusCode >= 500) serverErrors += 1;
     const key = requestKey(request.method, response.statusCode);
     const metrics = requestMetrics.get(key) ?? {
@@ -132,20 +140,32 @@ export const requestObservability: RequestHandler = (
       durationSeconds: 0,
     };
     metrics.completed += 1;
-    metrics.durationSeconds += durationSeconds;
+    metrics.durationSeconds += duration;
     requestMetrics.set(key, metrics);
     log("info", "http_request_completed", {
       requestId,
       method: request.method,
       path: requestPath(request),
       statusCode: response.statusCode,
-      durationMs: Math.round(durationSeconds * 1000),
+      durationMs: Math.round(duration * 1000),
+      remoteAddress: request.ip,
+    });
+  };
+
+  const recordAborted = (): void => {
+    releaseRequest();
+    if (finished) return;
+    log("warn", "http_request_aborted", {
+      requestId,
+      method: request.method,
+      path: requestPath(request),
+      durationMs: Math.round(durationSeconds() * 1000),
       remoteAddress: request.ip,
     });
   };
 
   response.once("finish", recordCompletion);
-  response.once("close", recordCompletion);
+  response.once("close", recordAborted);
   next();
 };
 
