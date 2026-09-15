@@ -114,7 +114,7 @@ test("Ko-fi webhook accepts only verified supported URL-encoded payments", async
     kofiWebhookToken: "secret",
   });
   iocContainer
-    .rebindSync<SponsorshipService>(SponsorshipService)
+    .rebind<SponsorshipService>(SponsorshipService)
     .toConstantValue({
       isEnabled: () => true,
       getProgress: () => Promise.resolve(undefined),

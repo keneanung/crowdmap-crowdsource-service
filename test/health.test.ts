@@ -19,7 +19,7 @@ test("readiness endpoint reports success", async () => {
 });
 
 test("status reports readiness failures as unavailable", async () => {
-  iocContainer.rebindSync<HealthService>(HealthService).toConstantValue({
+  iocContainer.rebind<HealthService>(HealthService).toConstantValue({
     checkReadiness: jest.fn(() =>
       Promise.reject(new Error("Mongo unavailable")),
     ),

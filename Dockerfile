@@ -1,4 +1,4 @@
-FROM node:24.16.0-alpine3.22 AS build
+FROM node:26.3.0-alpine3.22 AS build
 
 RUN mkdir -p /source/src
 WORKDIR /source
@@ -13,7 +13,7 @@ COPY scripts/ /source/scripts/
 COPY test/ /source/test/
 RUN npm run build
 
-FROM node:24.16.0-alpine3.22 AS prod-content
+FROM node:26.3.0-alpine3.22 AS prod-content
 
 RUN mkdir -p /source/src
 WORKDIR /source
@@ -21,7 +21,7 @@ WORKDIR /source
 COPY package.json package-lock.json /source/
 RUN npm ci --omit=dev
 
-FROM node:24.16.0-alpine3.22 AS prod
+FROM node:26.3.0-alpine3.22 AS prod
 
 RUN mkdir -p /opt/serve /opt/data
 RUN chown node:node /opt/serve /opt/data

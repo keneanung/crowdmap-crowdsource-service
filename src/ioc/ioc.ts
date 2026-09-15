@@ -49,7 +49,7 @@ scope.onDeactivation(async (mongo) => {
 });
 
 // make inversify aware of inversify-binding-decorators
-iocContainer.loadSync(buildProviderModule());
+iocContainer.load(buildProviderModule());
 
 // export according to convention
 export { iocContainer };

@@ -83,7 +83,7 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
           else resolve();
         });
       });
-    await iocContainer.unbindAll();
+    await iocContainer.unbindAllAsync();
     clearTimeout(forcedExit);
   } catch (error) {
     log("error", "graceful_shutdown_failed", { error });
