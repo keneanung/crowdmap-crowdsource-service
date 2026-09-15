@@ -48,9 +48,9 @@ test("metrics expose map worker and MongoDB driver pool measurements", () => {
   mapWorkerStarted("validate");
   mapWorkerCompleted("validate", 0.25);
   mongoConnectionCreated();
-  mongoConnectionCheckedOut(10);
-  mongoConnectionCheckedIn();
-  mongoConnectionClosed();
+  mongoConnectionCheckedOut("localhost:27017", 1, 10);
+  mongoConnectionCheckedIn("localhost:27017", 1);
+  mongoConnectionClosed("localhost:27017", 1);
 
   const metrics = renderMetrics();
   expect(metrics).toContain("crowdmap_map_workers_active 0");
@@ -65,12 +65,20 @@ test("metrics expose map worker and MongoDB driver pool measurements", () => {
 });
 
 test("invalid MongoDB checkout durations are omitted from the summary", () => {
-  mongoConnectionCheckedOut(Number.NaN);
-  mongoConnectionCheckedIn();
+  mongoConnectionCheckedOut("localhost:27017", 2, Number.NaN);
+  mongoConnectionCheckedIn("localhost:27017", 2);
 
   const metrics = renderMetrics();
   expect(metrics).not.toContain("NaN");
   expect(metrics).not.toContain("Infinity");
+});
+
+test("closing a checked-out MongoDB connection releases the pool gauge", () => {
+  mongoConnectionCreated();
+  mongoConnectionCheckedOut("localhost:27017", 3, 1);
+  mongoConnectionClosed("localhost:27017", 3);
+
+  expect(renderMetrics()).toContain("crowdmap_mongo_connections_checked_out 0");
 });
 
 test("aborted requests do not create a response metric", () => {

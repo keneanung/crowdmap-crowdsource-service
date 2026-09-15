@@ -25,11 +25,19 @@ const scope = iocContainer
     }
     const mongo = new MongoClient(config.connectionString);
     mongo.on("connectionCreated", mongoConnectionCreated);
-    mongo.on("connectionClosed", mongoConnectionClosed);
-    mongo.on("connectionCheckedOut", (event) => {
-      mongoConnectionCheckedOut(event.durationMS);
+    mongo.on("connectionClosed", (event) => {
+      mongoConnectionClosed(event.address, event.connectionId);
     });
-    mongo.on("connectionCheckedIn", mongoConnectionCheckedIn);
+    mongo.on("connectionCheckedOut", (event) => {
+      mongoConnectionCheckedOut(
+        event.address,
+        event.connectionId,
+        event.durationMS,
+      );
+    });
+    mongo.on("connectionCheckedIn", (event) => {
+      mongoConnectionCheckedIn(event.address, event.connectionId);
+    });
     mongo.on("connectionCheckOutFailed", (event) => {
       mongoConnectionCheckoutFailed(event.durationMS);
     });

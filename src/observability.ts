@@ -7,6 +7,7 @@ type LogFields = Record<string, unknown>;
 type ProjectStatus = "ok" | "unavailable";
 type WorkerOperation =
   "binary" | "json" | "reconcile" | "renderer" | "validate";
+type MongoConnectionId = number | "<monitor>";
 
 interface RequestMetrics {
   completed: number;
@@ -32,7 +33,7 @@ const requestMetrics = new Map<string, RequestMetrics>();
 let activeWorkers = 0;
 const workerMetrics = new Map<WorkerOperation, WorkerMetrics>();
 let mongoConnections = 0;
-let mongoConnectionsCheckedOut = 0;
+const mongoConnectionsCheckedOut = new Set<string>();
 let mongoConnectionCheckouts = 0;
 let mongoConnectionCheckoutFailures = 0;
 let mongoConnectionCheckoutDurationSeconds = 0;
@@ -204,18 +205,29 @@ export const mongoConnectionCreated = (): void => {
   mongoConnections += 1;
 };
 
-export const mongoConnectionClosed = (): void => {
+export const mongoConnectionClosed = (
+  address: string,
+  connectionId: MongoConnectionId,
+): void => {
   mongoConnections = Math.max(0, mongoConnections - 1);
+  mongoConnectionsCheckedOut.delete(mongoConnectionKey(address, connectionId));
 };
 
-export const mongoConnectionCheckedOut = (durationMs: number): void => {
-  mongoConnectionsCheckedOut += 1;
+export const mongoConnectionCheckedOut = (
+  address: string,
+  connectionId: MongoConnectionId,
+  durationMs: number,
+): void => {
+  mongoConnectionsCheckedOut.add(mongoConnectionKey(address, connectionId));
   mongoConnectionCheckouts += 1;
   recordMongoConnectionCheckoutDuration(durationMs);
 };
 
-export const mongoConnectionCheckedIn = (): void => {
-  mongoConnectionsCheckedOut = Math.max(0, mongoConnectionsCheckedOut - 1);
+export const mongoConnectionCheckedIn = (
+  address: string,
+  connectionId: MongoConnectionId,
+): void => {
+  mongoConnectionsCheckedOut.delete(mongoConnectionKey(address, connectionId));
 };
 
 export const mongoConnectionCheckoutFailed = (durationMs: number): void => {
@@ -228,6 +240,11 @@ const recordMongoConnectionCheckoutDuration = (durationMs: number): void => {
   mongoConnectionCheckoutDurationSeconds += durationMs / 1000;
   mongoConnectionCheckoutDurations += 1;
 };
+
+const mongoConnectionKey = (
+  address: string,
+  connectionId: MongoConnectionId,
+): string => `${address}\u0000${connectionId.toString()}`;
 
 export const renderMetrics = (
   projectStatuses: ProjectStatus[] = [],
@@ -337,7 +354,7 @@ export const renderMetrics = (
     `crowdmap_mongo_connections ${mongoConnections.toString()}`,
     "# HELP crowdmap_mongo_connections_checked_out Current MongoDB connections checked out from the driver pool.",
     "# TYPE crowdmap_mongo_connections_checked_out gauge",
-    `crowdmap_mongo_connections_checked_out ${mongoConnectionsCheckedOut.toString()}`,
+    `crowdmap_mongo_connections_checked_out ${mongoConnectionsCheckedOut.size.toString()}`,
     "# HELP crowdmap_mongo_connection_checkouts_total MongoDB driver connection checkouts.",
     "# TYPE crowdmap_mongo_connection_checkouts_total counter",
     `crowdmap_mongo_connection_checkouts_total ${mongoConnectionCheckouts.toString()}`,
