@@ -9,22 +9,22 @@ import { MockUserDbService } from "../mocks/mockUserDbService.js";
 
 export const setupChangeServiceMock = (): void => {
   iocContainer
-    .rebindSync<ChangeService>(ChangeService)
+    .rebind<ChangeService>(ChangeService)
     .toConstantValue(new MockChangeService());
   // MapService is a singleton and captures the change service passed to its
   // constructor. Recreate it with each fresh repository double so test cases
   // cannot share changes or per-project runtime state.
-  iocContainer.rebindSync<MapService>(MapService).toSelf().inSingletonScope();
+  iocContainer.rebind<MapService>(MapService).toSelf().inSingletonScope();
 };
 
 export const setupUserDbServiceMock = (): void => {
   iocContainer
-    .rebindSync<UserDbService>(UserDbService)
+    .rebind<UserDbService>(UserDbService)
     .toConstantValue(new MockUserDbService());
 };
 
 export const setupHealthServiceMock = (): void => {
   iocContainer
-    .rebindSync<HealthService>(HealthService)
+    .rebind<HealthService>(HealthService)
     .toConstantValue(new MockHealthService());
 };

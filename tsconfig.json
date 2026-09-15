@@ -4,6 +4,7 @@
     "incremental": true,
     "target": "ES2023",
     "module": "NodeNext",
+    "rootDir": ".",
     "outDir": "build",
     "lib": ["ES2023"],
     "sourceMap": true,
@@ -28,6 +29,7 @@
     /* Module Resolution Options */
     "moduleResolution": "NodeNext",
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "esModuleInterop": true,
 
     /* Experimental Options */
