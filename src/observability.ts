@@ -158,8 +158,9 @@ export const requestObservability: RequestHandler = (
   };
 
   const recordAborted = (): void => {
-    releaseRequest();
     if (finished) return;
+    finished = true;
+    releaseRequest();
     log("warn", "http_request_aborted", {
       requestId,
       method: request.method,

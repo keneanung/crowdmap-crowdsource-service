@@ -95,6 +95,7 @@ test("aborted requests do not create a response metric", () => {
   requestObservability(abortedRequest, response, () => undefined);
   expect(renderMetrics()).toContain("crowdmap_http_requests_active 1");
   response.emit("close");
+  response.emit("finish");
 
   const after = renderMetrics();
   expect(after).toContain("crowdmap_http_requests_active 0");
