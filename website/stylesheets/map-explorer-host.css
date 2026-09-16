@@ -34,9 +34,9 @@ body {
   display: flex;
   font-size: 0.8rem;
   gap: 0.5rem;
+  left: 1rem;
   padding: 0.4rem 0.55rem;
   position: fixed;
-  right: 1rem;
   z-index: 1100;
 }
 
