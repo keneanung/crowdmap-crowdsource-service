@@ -82,6 +82,37 @@ test("legacy index migration tolerates a concurrent index drop", async () => {
   expect(createIndexes).toHaveBeenCalledTimes(1);
 });
 
+test("creates indexes when the changes collection does not yet exist", async () => {
+  const createIndexes = jest.fn(async () => Promise.resolve([]));
+  const indexExists = jest.fn(async () =>
+    Promise.reject(
+      new MongoServerError({
+        code: 26,
+        codeName: "NamespaceNotFound",
+        errmsg: "ns does not exist: crowdmap.changes",
+      }),
+    ),
+  );
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        countDocuments: jest.fn(async () => Promise.resolve(0)),
+        indexExists,
+        createIndexes,
+        find: jest.fn(() => ({
+          sort: () => ({ toArray: () => Promise.resolve([]) }),
+        })),
+      })),
+    })),
+  } as unknown as MongoClient;
+
+  await expect(new MongoChangeService(mongo).initialize()).resolves.toBeUndefined();
+
+  expect(indexExists).toHaveBeenCalledTimes(1);
+  expect(createIndexes).toHaveBeenCalledTimes(1);
+});
+
 test("baseline reconciliation deletes only resolved changes", async () => {
   const deleteMany = jest.fn<(filter: unknown) => Promise<void>>(async () =>
     Promise.resolve(),
