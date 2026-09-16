@@ -158,13 +158,13 @@ app.get("/", (request: ProjectRequest, response, next) => {
       )?.[0];
       if (!host) return "";
       const authority = externalPort ? `${host}:${externalPort}` : host;
-      return `<li><a href="//${escapeHtml(authority)}/">${escapeHtml(project.name)}</a></li>`;
+      return `<li class="project-selector__item"><a class="project-selector__link" href="//${escapeHtml(authority)}/"><span class="project-selector__name">${escapeHtml(project.name)}</span><span class="project-selector__action" aria-hidden="true">Open explorer <span>→</span></span></a></li>`;
     })
     .join("");
   response
     .type("html")
     .send(
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Crowdmap projects</title><link rel="stylesheet" href="/stylesheets/site-navigation.css"></head><body><nav class="site-navigation"><a class="site-navigation__brand" href="/">Crowdmap</a><ul class="site-navigation__links"><li><a href="/privacy.html">Privacy</a></li>${config.kofiProfileUrl ? '<li><a href="/sponsor.html">Sponsor</a></li>' : ""}</ul></nav><main><h1>Map projects</h1><p>Select a map project to open its explorer.</p><ul>${links}</ul></main></body></html>`,
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Crowdmap projects</title><link rel="stylesheet" href="/stylesheets/site-navigation.css"><link rel="stylesheet" href="/stylesheets/project-selector.css"></head><body><nav class="site-navigation" aria-label="Primary navigation"><a class="site-navigation__brand" href="/">Crowdmap</a><ul class="site-navigation__links"><li><a href="/privacy.html">Privacy</a></li>${config.kofiProfileUrl ? '<li><a href="/sponsor.html">Sponsor</a></li>' : ""}</ul></nav><main class="project-selector"><p class="project-selector__eyebrow">Crowdmap service</p><h1>Map projects</h1><p class="project-selector__lede">Select a map project to open its explorer.</p><ul class="project-selector__list">${links}</ul></main></body></html>`,
     );
 });
 app.get("/index.html", (request: ProjectRequest, response, next) => {
