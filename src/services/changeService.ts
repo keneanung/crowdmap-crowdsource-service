@@ -98,7 +98,19 @@ export class MongoChangeService extends ChangeService {
       "unique_change_id",
       "vetted_changes",
     ]) {
-      if (await collection.indexExists(name)) {
+      let indexExists: boolean;
+      try {
+        indexExists = await collection.indexExists(name);
+      } catch (error) {
+        // listIndexes fails before createIndexes has created a fresh collection.
+        if (
+          error instanceof MongoServerError &&
+          (error.code === 26 || error.codeName === "NamespaceNotFound")
+        )
+          break;
+        throw error;
+      }
+      if (indexExists) {
         try {
           await collection.dropIndex(name);
         } catch (error) {
