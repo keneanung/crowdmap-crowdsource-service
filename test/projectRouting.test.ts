@@ -79,6 +79,8 @@ test("unknown hosts are rejected and the platform host renders a selector", asyn
       expect(response.text).toContain("ALPHA map");
       expect(response.text).toContain('href="//alpha.example.test:3000/"');
       expect(response.text).toContain('class="site-navigation__links"');
+      expect(response.text).toContain("stylesheets/project-selector.css");
+      expect(response.text).toContain('class="project-selector__list"');
     });
   await request(app)
     .get("/")
