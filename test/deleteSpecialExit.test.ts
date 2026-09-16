@@ -4,10 +4,41 @@
 import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
 import { app } from "../src/app.js";
+import { DeleteSpecialExit } from "../src/models/business/change.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
 beforeEach(() => {
   setupChangeServiceMock();
+});
+
+test("removes metadata associated with a deleted special exit", () => {
+  const map = {
+    rooms: {
+      1: {
+        mSpecialExits: { "worm warp": 1337 },
+        exitWeights: { "worm warp": 10 },
+        doors: { "worm warp": 3 },
+        customLines: { "worm warp": [] },
+        customLinesArrow: { "worm warp": true },
+        customLinesColor: { "worm warp": {} },
+        customLinesStyle: { "worm warp": 1 },
+        mSpecialExitLocks: ["worm warp"],
+      },
+    },
+  } as unknown as Mudlet.MudletMap;
+
+  new DeleteSpecialExit(1, ["Test Reporter"], "worm warp").apply(map);
+
+  expect(map.rooms[1]).toMatchObject({
+    mSpecialExits: {},
+    exitWeights: {},
+    doors: {},
+    customLines: {},
+    customLinesArrow: {},
+    customLinesColor: {},
+    customLinesStyle: {},
+    mSpecialExitLocks: [],
+  });
 });
 
 test("Should accept and return special exit deletion", async () => {

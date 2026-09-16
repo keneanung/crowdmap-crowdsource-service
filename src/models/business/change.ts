@@ -418,10 +418,20 @@ export class DeleteSpecialExit extends RoomChangeBase<DeleteSpecialExit> {
       // if the room does not exist for some reason, make this a no-op
       return;
     }
-    if (Object.hasOwn(room.mSpecialExits, this.exitCommand)) {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete room.mSpecialExits[this.exitCommand];
+    for (const exitData of [
+      room.mSpecialExits,
+      room.exitWeights,
+      room.doors,
+      room.customLines,
+      room.customLinesArrow,
+      room.customLinesColor,
+      room.customLinesStyle,
+    ]) {
+      Reflect.deleteProperty(exitData, this.exitCommand);
     }
+    room.mSpecialExitLocks = room.mSpecialExitLocks.filter(
+      (exitCommand) => exitCommand !== this.exitCommand,
+    );
   }
   public getIdentifyingParts() {
     return {
