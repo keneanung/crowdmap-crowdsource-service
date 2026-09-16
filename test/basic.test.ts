@@ -82,6 +82,21 @@ test("GET /review.html returns the change review UI", async () => {
     });
 });
 
+test("GET /help.html explains Crowdmap and mapping-client configuration", async () => {
+  await request(app)
+    .get("/help.html")
+    .expect(200)
+    .expect("Content-Type", "text/html; charset=utf-8")
+    .expect((res) => {
+      expect(res.text).toContain("A shared map, built from small reports");
+      expect(res.text).toContain("GET /map?format=binary");
+      expect(res.text).toContain("POST /change");
+      expect(res.text).toContain("mconfig crowdmap on");
+      expect(res.text).toContain("Planned IRE Mapping Script setup");
+      expect(res.text).toContain("mconfig crowdmapurl");
+    });
+});
+
 test("GET /privacy.html renders the privacy notice", async () => {
   await request(app)
     .get("/privacy.html")

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How Crowdmap works</title>
+    <link href="stylesheets/site-navigation.css" rel="stylesheet" />
+    <link href="stylesheets/privacy.css" rel="stylesheet" />
+    <link href="stylesheets/help.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="site-navigation" aria-label="Primary navigation">
+      <a class="site-navigation__brand" href="index.html">Crowdmap</a>
+      <ul class="site-navigation__links">
+        <li data-project-navigation><a href="index.html">Explorer</a></li>
+        <li data-project-navigation><a href="review.html">Review</a></li>
+        <li><a href="help.html" aria-current="page">How it works</a></li>
+        <li data-sponsorship-navigation hidden><a href="sponsor.html">Sponsor</a></li>
+        <li><a href="privacy.html">Privacy Policy</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <p class="eyebrow">Crowdmap service</p>
+      <h1>A shared map, built from small reports</h1>
+      <p class="lede">
+        Crowdmap lets players improve a Mudlet map without needing to use Git or
+        prepare a pull request. A compatible mapping client reports one observed
+        change at a time; the service combines matching reports into a map that
+        everyone can download.
+      </p>
+
+      <section class="policy-section" aria-labelledby="flow-heading">
+        <h2 id="flow-heading">How a report becomes part of the map</h2>
+        <ol class="steps">
+          <li><strong>Start with a baseline.</strong> Each map project has a published Mudlet map.</li>
+          <li><strong>Report what you observe.</strong> A mapping client can submit a new room or area, a changed name, exit, coordinate, weight, environment, or room-data value.</li>
+          <li><strong>Confirm independently.</strong> Identical reports are grouped. The service counts distinct reporter values, not repeated submissions from one reporter.</li>
+          <li><strong>Choose your confidence level.</strong> The Explorer’s “Changes reported by” control selects how many independent reports a change needs before it is included in the map you view.</li>
+          <li><strong>Maintain the baseline.</strong> A map administrator reviews pending reports when an upstream map update is available and decides which compatible reports carry forward.</li>
+        </ol>
+      </section>
+
+      <section class="policy-section" aria-labelledby="players-heading">
+        <h2 id="players-heading">What players can do</h2>
+        <ul>
+          <li>Explore the current shared map and raise the confirmation threshold when you want a more conservative view.</li>
+          <li>Use a compatible mapping client to download a versioned Mudlet map.</li>
+          <li>Contribute observations from your own play. Use a stable pseudonym as your reporter value and do not put personal data in a report.</li>
+          <li>Keep using the published map while administrators review changes; reports are not automatically written into the baseline file.</li>
+        </ul>
+      </section>
+
+      <section class="policy-section" aria-labelledby="client-heading">
+        <h2 id="client-heading">Connect a mapping script</h2>
+        <p>
+          A mapping script needs the project’s HTTPS address, a stable reporter
+          pseudonym, and a confirmation threshold. Configure it against the
+          project host, not the platform’s project-picker host. For example, if
+          the explorer is at <code>https://achaea.maps.example.org/</code>, use
+          that same origin for the following endpoints.
+        </p>
+        <dl class="endpoint-list">
+          <div>
+            <dt>Download a map</dt>
+            <dd><code>GET /map?format=binary&amp;timesSeen=2</code></dd>
+          </div>
+          <div>
+            <dt>Check its version</dt>
+            <dd><code>GET /map/version?timesSeen=2</code></dd>
+          </div>
+          <div>
+            <dt>Submit an observation</dt>
+            <dd><code>POST /change</code> with a JSON change object including <code>type</code> and <code>reporter</code></dd>
+          </div>
+        </dl>
+        <p>
+          Use the same non-negative integer for <code>timesSeen</code> when
+          checking the version and downloading the map. <code>0</code> includes
+          every pending report; a higher value includes only reports confirmed
+          by that many distinct people. The response to a map download also
+          includes an <code>X-Map-Version</code> header.
+        </p>
+        <p>
+          The stock IRE Mapping Script’s <code>mconfig crowdmap on</code>
+          setting selects its built-in crowdmap sources; it does not currently
+          provide a Crowdmap-service URL setting. Point a service-compatible
+          script or adapter at the endpoints above. The interactive API
+          reference documents the accepted change shapes.
+        </p>
+        <p><a href="docs/">Open the API reference</a></p>
+      </section>
+
+      <section class="policy-section preview" aria-labelledby="script-preview-heading">
+        <p class="preview-label">Preview documentation</p>
+        <h2 id="script-preview-heading">Planned IRE Mapping Script setup</h2>
+        <p>
+          This is the proposed configuration interface for the Crowdmap-service
+          integration. It is published early so map operators and script users
+          can prepare their settings. These commands are <strong>not available
+          in the released IRE Mapping Script yet</strong>; their names and
+          behaviour may change before release.
+        </p>
+        <pre><code>mconfig crowdmapurl https://achaea.maps.example.org
+mconfig crowdmapreporter river-scout
+mconfig crowdmapthreshold 2
+mconfig crowdmap on</code></pre>
+        <dl class="endpoint-list script-options">
+          <div>
+            <dt><code>crowdmapurl</code></dt>
+            <dd>The project’s HTTPS origin, with no endpoint path. Do not use the shared platform/project-picker host.</dd>
+          </div>
+          <div>
+            <dt><code>crowdmapreporter</code></dt>
+            <dd>A stable pseudonym used to count independent confirmations. Choose one that is not personal information.</dd>
+          </div>
+          <div>
+            <dt><code>crowdmapthreshold</code></dt>
+            <dd>The non-negative confirmation threshold used for both the version check and map download. Start with <code>2</code> for a cautious map.</dd>
+          </div>
+          <div>
+            <dt><code>crowdmap</code></dt>
+            <dd>Turns Crowdmap downloads on after the URL and settings have been saved.</dd>
+          </div>
+        </dl>
+        <p>
+          On startup and periodic update checks, the planned integration will
+          request <code>/map/version</code> first. If the version differs from
+          the locally installed map, it will download the matching binary map
+          from <code>/map</code>. Mapping actions will continue to work if the
+          service is temporarily unreachable; only the update or report will be
+          retried later.
+        </p>
+        <p>
+          Reports are intended to be sent automatically for changes the script
+          can identify reliably, such as room names, exits, areas, coordinates,
+          and selected room metadata. Before enabling reporting in a preview
+          build, review its release notes for the final opt-in command and the
+          supported change types.
+        </p>
+      </section>
+
+      <section class="policy-section" aria-labelledby="admin-heading">
+        <h2 id="admin-heading">For map administrators</h2>
+        <p>
+          Open <a href="review.html">Review</a> on a project host to inspect
+          pending reports, compare an incoming upstream map, and apply the
+          reviewed result. This final action requires a map-administrator API
+          key and rechecks the baseline version before changing it.
+        </p>
+      </section>
+    </main>
+    <script src="javascripts/sponsorship-navigation.js"></script>
+    <script src="javascripts/project-navigation.js"></script>
+  </body>
+</html>
