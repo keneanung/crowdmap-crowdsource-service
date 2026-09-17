@@ -178,21 +178,25 @@
                 />
               </label>
               <div class="admin-actions">
-                <button class="button button-danger" id="delete-selected" type="button" disabled>
+                <button class="button button-danger" id="delete-selected" type="button" aria-describedby="admin-action-hint" disabled>
                   Delete selected reports
                 </button>
-                <button class="button button-secondary" id="stage-upstream" type="button" disabled>
+                <button class="button button-secondary" id="stage-upstream" type="button" aria-describedby="admin-action-hint" disabled>
                   Load upstream update
                 </button>
                 <button
                   class="button button-primary"
                   id="apply-update"
                   type="button"
+                  aria-describedby="admin-action-hint"
                   disabled
                 >
                   Apply reviewed upstream update
                 </button>
               </div>
+              <p class="admin-action-hint" id="admin-action-hint" aria-live="polite">
+                Enter the map administrator API key to enable administrative actions.
+              </p>
             </div>
             <p class="apply-note">
               Loading and previewing do not modify the baseline. Changes are committed only when the reviewed update is applied.

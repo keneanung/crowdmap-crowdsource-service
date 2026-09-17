@@ -9,6 +9,7 @@ import * as model from "./review-model.js";
     changes: [],
     filter: "all",
     groups: new Map(),
+    previewedSelectionKey: null,
     rawVersion: "",
     search: "",
     selected: new Set(),
@@ -18,6 +19,7 @@ import * as model from "./review-model.js";
 
   var elements = {
     apiKey: document.querySelector("#api-key"),
+    adminActionHint: document.querySelector("#admin-action-hint"),
     apply: document.querySelector("#apply-update"),
     baselineVersion: document.querySelector("#baseline-version"),
     changeList: document.querySelector("#change-list"),
@@ -70,12 +72,16 @@ import * as model from "./review-model.js";
     );
   }
 
+  function selectionKey() {
+    return Array.from(state.selected).sort().join(",");
+  }
+
   function updateActions() {
     var count = state.selected.size;
     var hasApiKey = elements.apiKey.value.trim().length > 0;
     var busy = Boolean(state.busyAction);
     elements.selectedCount.textContent = String(count);
-    elements.previewSelected.disabled = count === 0;
+    elements.previewSelected.disabled = !state.stagedReview && count === 0;
     elements.deleteSelected.disabled = busy || !hasApiKey || count === 0 || Boolean(state.stagedReview);
     elements.stageUpstream.disabled = busy || !hasApiKey || !state.rawVersion || Boolean(state.stagedReview);
     elements.selectedLabel.textContent = state.stagedReview ? "selected to keep" : "selected";
@@ -85,10 +91,51 @@ import * as model from "./review-model.js";
     elements.showBaseline.textContent = state.stagedReview
       ? "Staged upstream"
       : "Current baseline";
-    elements.apply.disabled = busy || !state.stagedReview || !model.canApply(
-      state.rawVersion,
-      elements.apiKey.value,
-    );
+    elements.apply.disabled =
+      busy ||
+      !state.stagedReview ||
+      state.previewedSelectionKey !== selectionKey() ||
+      !model.canApply(state.rawVersion, elements.apiKey.value);
+
+    elements.deleteSelected.title = busy
+      ? "Wait for the current administrator action to finish."
+      : !hasApiKey
+        ? "Enter the map administrator API key first."
+        : state.stagedReview
+          ? "During baseline review, leave unwanted reports unselected so they are discarded on apply."
+          : count === 0
+            ? "Select one or more reports first."
+            : "Permanently delete the selected reports without changing the baseline.";
+    elements.stageUpstream.title = busy
+      ? "Wait for the current administrator action to finish."
+      : !hasApiKey
+        ? "Enter the map administrator API key first."
+        : !state.rawVersion
+          ? "Wait for the current baseline version to load."
+          : state.stagedReview
+            ? "An upstream update is already staged."
+            : "Load the configured upstream map for review.";
+    elements.apply.title = busy
+      ? "Wait for the current administrator action to finish."
+      : !hasApiKey
+        ? "Enter the map administrator API key first."
+        : !state.stagedReview
+          ? "Load an upstream update first."
+          : state.previewedSelectionKey !== selectionKey()
+            ? "Preview the reviewed result after changing the selection."
+            : "Apply the staged upstream map with the selected reports.";
+
+    elements.adminActionHint.textContent = busy
+      ? "An administrator action is currently running."
+      : !hasApiKey
+        ? "Enter the map administrator API key to enable administrative actions."
+        : state.stagedReview && state.previewedSelectionKey !== selectionKey()
+          ? "The selection changed. Preview the reviewed result before applying it."
+          : state.stagedReview
+            ? "The preview matches the current selection. Apply it when the reviewed result is correct."
+            : count === 0
+              ? "Select reports to preview or delete, or load an upstream update to begin baseline review."
+              : "Preview or delete the selected reports, or load an upstream update to begin baseline review.";
   }
 
   function updateReportFocus() {
@@ -240,6 +287,10 @@ import * as model from "./review-model.js";
       );
       previewButton.appendChild(content);
       previewButton.addEventListener("click", function () {
+        if (state.stagedReview) {
+          state.previewedSelectionKey = null;
+          updateActions();
+        }
         previewChanges([change.changeId], change);
       });
       card.append(checkbox, previewButton);
@@ -285,6 +336,8 @@ import * as model from "./review-model.js";
       undefined,
       state.stagedReview.id,
     );
+    state.previewedSelectionKey = selectionKey();
+    updateActions();
   }
 
   function displayValue(value) {
@@ -481,6 +534,7 @@ import * as model from "./review-model.js";
       });
       state.rawVersion = response.headers.get("X-Map-Version-Raw") || "";
       state.selected.clear();
+      state.previewedSelectionKey = null;
       state.activeId = null;
       state.groups = model.groupChanges(state.changes);
       var relatedCount = state.changes.filter(isRelated).length;
@@ -687,7 +741,9 @@ import * as model from "./review-model.js";
     }
   });
   elements.previewSelected.addEventListener("click", function () {
+    if (state.stagedReview) state.previewedSelectionKey = selectionKey();
     previewChanges(Array.from(state.selected));
+    updateActions();
   });
   elements.reportFocus.addEventListener("change", function () {
     var roomNumber = Number(elements.reportFocus.value);
@@ -696,6 +752,10 @@ import * as model from "./review-model.js";
   });
   elements.showBaseline.addEventListener("click", function () {
     state.activeId = null;
+    if (state.stagedReview) {
+      state.previewedSelectionKey = state.selected.size === 0 ? "" : null;
+      updateActions();
+    }
     elements.previewTitle.textContent = state.stagedReview
       ? "Staged upstream"
       : "Baseline map";

@@ -522,6 +522,12 @@ main {
   gap: 10px;
   justify-content: flex-end;
 }
+.admin-action-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+  text-align: right;
+}
 .apply-controls label span {
   color: var(--muted);
   display: block;
