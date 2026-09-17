@@ -329,3 +329,25 @@ test("applyChange keeps changes when a baseline download fails", async () => {
     (await readFile(config.projects[0].versionFile, "utf8")).trim(),
   ).toEqual("466");
 });
+
+test("applyChange uses the exact staged upstream map", async () => {
+  fetchMock.mockClear();
+  const staged = await request(app)
+    .get("/change/review-upstream?version=466")
+    .set("x-api-key", "abc123456")
+    .expect(200);
+  const reviewId = (staged.body as { id: string }).id;
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+
+  await request(app)
+    .post("/change/apply")
+    .set("x-api-key", "abc123456")
+    .send({
+      version: "466",
+      obsoleteChanges: [],
+      reviewId,
+    })
+    .expect(200);
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
