@@ -291,4 +291,5 @@ export type ChangeSubmission =
 export interface ApplicationSubmission {
   version: string;
   obsoleteChanges: string[];
+  reviewId?: string;
 }
