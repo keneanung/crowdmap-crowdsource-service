@@ -579,6 +579,7 @@ export class ChangeController extends Controller {
     return await this.mapService.applyBaselineUpdate(
       application.version,
       application.obsoleteChanges,
+      application.reviewId,
       project,
     );
   }
