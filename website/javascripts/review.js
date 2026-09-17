@@ -147,6 +147,7 @@ import * as model from "./review-model.js";
         else state.selected.delete(change.changeId);
         updateActions();
         updateReportFocus();
+        if (state.stagedReview) showStagedSelection();
         renderList();
       });
 
@@ -260,6 +261,21 @@ import * as model from "./review-model.js";
       state.stagedReview && state.stagedReview.id,
     );
     renderList();
+  }
+
+  function showStagedSelection() {
+    var carriedChanges = state.changes.filter(function (change) {
+      return state.selected.has(change.changeId);
+    });
+    elements.previewTitle.textContent = "Incoming upstream and reviewed result";
+    elements.previewDescription.textContent =
+      "The left pane is staged upstream; the right pane adds the selected reports.";
+    window.CrowdmapReviewMap.show(
+      Array.from(state.selected),
+      carriedChanges,
+      undefined,
+      state.stagedReview.id,
+    );
   }
 
   function displayValue(value) {
@@ -635,29 +651,19 @@ import * as model from "./review-model.js";
       if (!response.ok) throw new Error("Could not stage upstream (HTTP " + response.status + ")");
       state.stagedReview = await response.json();
       var outcomes = new Map(state.stagedReview.reconciliation.map(function (item) { return [item.changeId, item]; }));
-      state.selected = new Set(state.changes.filter(function (change) {
+      state.changes.forEach(function (change) {
         var outcome = outcomes.get(change.changeId);
         change.upstreamConflict = outcome && outcome.status === "upstream-conflict"
           ? { baselineVersion: state.stagedReview.upstreamVersion, reason: outcome.reason }
           : undefined;
         change.upstreamResolved = Boolean(outcome && outcome.status === "resolved");
-        return !change.upstreamResolved;
-      }).map(function (change) { return change.changeId; }));
+      });
+      state.selected.clear();
       elements.upstreamConflictCount.textContent = String(
         state.changes.filter(function (change) { return Boolean(change.upstreamConflict); }).length,
       );
       elements.baselineVersion.textContent = state.stagedReview.upstreamVersion;
-      elements.previewTitle.textContent = "Incoming upstream and reviewed result";
-      elements.previewDescription.textContent = "The left pane is staged upstream; the right pane carries the selected reports forward.";
-      var carriedChanges = state.changes.filter(function (change) {
-        return state.selected.has(change.changeId);
-      });
-      window.CrowdmapReviewMap.show(
-        Array.from(state.selected),
-        carriedChanges,
-        undefined,
-        state.stagedReview.id,
-      );
+      showStagedSelection();
       renderList();
       updateReportFocus();
       updateActions();
