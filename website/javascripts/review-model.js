@@ -209,6 +209,7 @@ const model = (() => {
       "areaId",
       "type",
       "upstreamConflict",
+      "upstreamResolved",
     ]);
     var details = Object.keys(change)
       .filter(function (key) {
