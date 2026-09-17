@@ -35,3 +35,7 @@ export function filterChanges(
   selected: Set<string>,
 ): ReviewChange[];
 export function canApply(rawVersion: string, apiKey: string): boolean;
+export function unselectedChangeIds(
+  changes: ReviewChange[],
+  selected: Set<string>,
+): string[];

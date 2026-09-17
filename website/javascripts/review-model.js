@@ -275,6 +275,16 @@ const model = (() => {
     return Boolean(rawVersion && apiKey.trim());
   }
 
+  function unselectedChangeIds(changes, selected) {
+    return changes
+      .filter(function (change) {
+        return !selected.has(change.changeId);
+      })
+      .map(function (change) {
+        return change.changeId;
+      });
+  }
+
   return {
     canApply: canApply,
     changeSummary: changeSummary,
@@ -285,6 +295,7 @@ const model = (() => {
     relationshipDetails: relationshipDetails,
     targetKey: targetKey,
     typeLabel: typeLabel,
+    unselectedChangeIds: unselectedChangeIds,
   };
 })();
 
@@ -302,4 +313,5 @@ export const {
   relationshipDetails,
   targetKey,
   typeLabel,
+  unselectedChangeIds,
 } = model;

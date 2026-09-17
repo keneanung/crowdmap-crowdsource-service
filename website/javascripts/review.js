@@ -558,9 +558,7 @@ import * as model from "./review-model.js";
 
   async function applyUpdate() {
     var selectedIds = Array.from(state.selected);
-    var obsoleteIds = state.changes
-      .filter(function (change) { return !state.selected.has(change.changeId); })
-      .map(function (change) { return change.changeId; });
+    var obsoleteIds = model.unselectedChangeIds(state.changes, state.selected);
     var keptCount = selectedIds.length;
     var removalCount = obsoleteIds.length;
     var confirmed = window.confirm(
