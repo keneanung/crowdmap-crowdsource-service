@@ -73,11 +73,8 @@ import * as model from "./review-model.js";
     var count = state.selected.size;
     elements.selectedCount.textContent = String(count);
     elements.previewMarked.disabled = count === 0;
-    elements.deleteSelected.disabled =
-      count === 0 || Boolean(state.stagedReview);
-    elements.selectedLabel.textContent = state.stagedReview
-      ? "carried forward"
-      : "selected";
+    elements.deleteSelected.disabled = count === 0 || Boolean(state.stagedReview);
+    elements.selectedLabel.textContent = state.stagedReview ? "carried forward" : "selected";
     elements.apply.disabled = !model.canApply(
       state.rawVersion,
       elements.apiKey.value,
@@ -86,26 +83,17 @@ import * as model from "./review-model.js";
 
   function updateReportFocus() {
     var reports = state.changes.filter(function (change) {
-      return (
-        typeof change.roomNumber === "number" &&
-        (!state.stagedReview || state.selected.has(change.changeId))
-      );
+      return typeof change.roomNumber === "number" &&
+        (!state.stagedReview || state.selected.has(change.changeId));
     });
     var rooms = new Map();
     reports.forEach(function (change) {
       if (!rooms.has(change.roomNumber)) rooms.set(change.roomNumber, []);
       rooms.get(change.roomNumber).push(model.typeLabel(change.type));
     });
-    elements.reportFocus.replaceChildren(
-      new Option("Choose a reported room…", ""),
-    );
+    elements.reportFocus.replaceChildren(new Option("Choose a reported room…", ""));
     rooms.forEach(function (types, roomNumber) {
-      elements.reportFocus.add(
-        new Option(
-          "Room " + roomNumber + " · " + types.join(", "),
-          String(roomNumber),
-        ),
-      );
+      elements.reportFocus.add(new Option("Room " + roomNumber + " · " + types.join(", "), String(roomNumber)));
     });
     elements.reportFocus.disabled = rooms.size === 0;
   }
@@ -135,9 +123,7 @@ import * as model from "./review-model.js";
       var checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = state.selected.has(change.changeId);
-      checkbox.disabled = Boolean(
-        state.stagedReview && change.upstreamResolved,
-      );
+      checkbox.disabled = Boolean(state.stagedReview && change.upstreamResolved);
       checkbox.title = state.stagedReview
         ? change.upstreamResolved
           ? "Already present in upstream; this report will be removed when the update is applied."
@@ -148,9 +134,7 @@ import * as model from "./review-model.js";
       checkbox.setAttribute(
         "aria-label",
         state.stagedReview
-          ? "Carry " +
-              model.typeLabel(change.type) +
-              " into the reviewed upstream map"
+          ? "Carry " + model.typeLabel(change.type) + " into the reviewed upstream map"
           : "Select " + model.typeLabel(change.type),
       );
       checkbox.addEventListener("click", function (event) {
@@ -192,14 +176,10 @@ import * as model from "./review-model.js";
       if (change.upstreamResolved)
         badges.appendChild(makeBadge("Resolved upstream", "badge-success"));
       else if (state.stagedReview)
-        badges.appendChild(
-          makeBadge(
-            state.selected.has(change.changeId) ? "Carry forward" : "Discard",
-            state.selected.has(change.changeId)
-              ? "badge-success"
-              : "badge-danger",
-          ),
-        );
+        badges.appendChild(makeBadge(
+          state.selected.has(change.changeId) ? "Carry forward" : "Discard",
+          state.selected.has(change.changeId) ? "badge-success" : "badge-danger",
+        ));
       badges.appendChild(makeBadge(change.changeId.slice(-8), "badge-id"));
       content.append(heading, summary, badges);
       if (change.upstreamConflict) {
@@ -291,8 +271,7 @@ import * as model from "./review-model.js";
     row.className = "property-diff-row";
     row.innerHTML = "<span></span><span></span>";
     row.children[0].textContent = label;
-    row.children[1].textContent =
-      displayValue(before) + " → " + displayValue(after);
+    row.children[1].textContent = displayValue(before) + " → " + displayValue(after);
     row.addEventListener("click", function () {
       window.CrowdmapReviewMap.focus(roomNumber);
     });
@@ -327,8 +306,7 @@ import * as model from "./review-model.js";
     elements.roomDiffTitle.textContent = "Room " + roomNumber;
     if (!before || !after) {
       var presence = document.createElement("p");
-      presence.className =
-        "property-presence " + (!before ? "addition" : "removal");
+      presence.className = "property-presence " + (!before ? "addition" : "removal");
       presence.textContent = !before
         ? "Added in the candidate map."
         : "Removed from the candidate map.";
@@ -356,9 +334,7 @@ import * as model from "./review-model.js";
         });
       }
     });
-    var exits = new Set(
-      Object.keys(before.exits || {}).concat(Object.keys(after.exits || {})),
-    );
+    var exits = new Set(Object.keys(before.exits || {}).concat(Object.keys(after.exits || {})));
     exits.forEach(function (direction) {
       if ((before.exits || {})[direction] !== (after.exits || {})[direction]) {
         changed.push({
@@ -369,31 +345,17 @@ import * as model from "./review-model.js";
         });
       }
     });
-    var userDataKeys = new Set(
-      Object.keys(before.userData || {}).concat(
-        Object.keys(after.userData || {}),
-      ),
-    );
+    var userDataKeys = new Set(Object.keys(before.userData || {}).concat(Object.keys(after.userData || {})));
     var userDataChanges = Array.from(userDataKeys).filter(function (key) {
       return (before.userData || {})[key] !== (after.userData || {})[key];
     });
     changed.slice(0, 3).forEach(function (field) {
-      addSummaryRow(
-        elements.roomDiffSummary,
-        field.label,
-        field.before,
-        field.after,
-        roomNumber,
-      );
+      addSummaryRow(elements.roomDiffSummary, field.label, field.before, field.after, roomNumber);
     });
     if (changed.length > 3) {
       var remaining = document.createElement("p");
       remaining.className = "property-summary-note";
-      remaining.textContent =
-        changed.length -
-        3 +
-        " more changed value" +
-        (changed.length === 4 ? "." : "s.");
+      remaining.textContent = (changed.length - 3) + " more changed value" + (changed.length === 4 ? "." : "s.");
       elements.roomDiffSummary.appendChild(remaining);
     }
     if (changed.length === 0) {
@@ -420,73 +382,34 @@ import * as model from "./review-model.js";
       ["roomChar", "Symbol"],
       ["hash", "Hash"],
     ].forEach(function (field) {
-      addPropertyRow(
-        fullProperties,
-        field[1],
-        before[field[0]],
-        after[field[0]],
-        roomNumber,
-      );
+      addPropertyRow(fullProperties, field[1], before[field[0]], after[field[0]], roomNumber);
     });
     elements.roomDiffDetails.appendChild(fullProperties);
     var exitDetails = document.createElement("details");
     exitDetails.className = "property-details-list";
     var exitSummary = document.createElement("summary");
-    exitSummary.textContent =
-      exits.size + " exit" + (exits.size === 1 ? "" : "s");
+    exitSummary.textContent = exits.size + " exit" + (exits.size === 1 ? "" : "s");
     exitDetails.appendChild(exitSummary);
-    Array.from(exits)
-      .sort()
-      .forEach(function (direction) {
-        addPropertyRow(
-          exitDetails,
-          direction + " exit",
-          (before.exits || {})[direction],
-          (after.exits || {})[direction],
-          roomNumber,
-        );
-      });
+    Array.from(exits).sort().forEach(function (direction) {
+      addPropertyRow(exitDetails, direction + " exit", (before.exits || {})[direction], (after.exits || {})[direction], roomNumber);
+    });
     elements.roomDiffDetails.appendChild(exitDetails);
     if (userDataKeys.size) {
       var data = document.createElement("details");
       data.className = "property-details-list";
       var summary = document.createElement("summary");
-      summary.textContent =
-        userDataKeys.size +
-        " user-data value" +
-        (userDataKeys.size === 1 ? "" : "s");
+      summary.textContent = userDataKeys.size + " user-data value" + (userDataKeys.size === 1 ? "" : "s");
       data.appendChild(summary);
-      Array.from(userDataKeys)
-        .sort()
-        .forEach(function (key) {
-          addPropertyRow(
-            data,
-            "User data · " + key,
-            (before.userData || {})[key],
-            (after.userData || {})[key],
-            roomNumber,
-          );
-        });
+      Array.from(userDataKeys).sort().forEach(function (key) {
+        addPropertyRow(data, "User data · " + key, (before.userData || {})[key], (after.userData || {})[key], roomNumber);
+      });
       elements.roomDiffDetails.appendChild(data);
     }
-    var unchanged =
-      [
-        "name",
-        "env",
-        "area",
-        "x",
-        "y",
-        "z",
-        "weight",
-        "roomChar",
-        "hash",
-      ].filter(function (key) {
-        return before[key] === after[key];
-      }).length +
+    var unchanged = ["name", "env", "area", "x", "y", "z", "weight", "roomChar", "hash"].filter(function (key) {
+      return before[key] === after[key];
+    }).length +
       Array.from(exits).filter(function (direction) {
-        return (
-          (before.exits || {})[direction] === (after.exits || {})[direction]
-        );
+        return (before.exits || {})[direction] === (after.exits || {})[direction];
       }).length +
       Array.from(userDataKeys).filter(function (key) {
         return (before.userData || {})[key] === (after.userData || {})[key];
@@ -497,8 +420,7 @@ import * as model from "./review-model.js";
     elements.roomDiffSummary.appendChild(note);
     var detailsNote = document.createElement("p");
     detailsNote.className = "unchanged-note";
-    detailsNote.textContent =
-      "Long exit and user-data lists remain independently expandable.";
+    detailsNote.textContent = "Long exit and user-data lists remain independently expandable.";
     elements.roomDiffDetails.appendChild(detailsNote);
   }
 
@@ -554,29 +476,15 @@ import * as model from "./review-model.js";
   async function applyUpdate() {
     var selectedIds = Array.from(state.selected);
     var obsoleteIds = state.stagedReview
-      ? state.changes
-          .filter(function (change) {
-            return !state.selected.has(change.changeId);
-          })
-          .map(function (change) {
-            return change.changeId;
-          })
+      ? state.changes.filter(function (change) { return !state.selected.has(change.changeId); }).map(function (change) { return change.changeId; })
       : selectedIds;
-    var removalCount = state.stagedReview
-      ? obsoleteIds.length
-      : selectedIds.length;
+    var removalCount = state.stagedReview ? obsoleteIds.length : selectedIds.length;
     var removal =
       removalCount === 0
         ? " without removing any pending changes"
         : state.stagedReview
-          ? " and discard " +
-            removalCount +
-            " report" +
-            (removalCount === 1 ? "" : "s")
-          : " and remove " +
-            removalCount +
-            " incorporated change" +
-            (removalCount === 1 ? "" : "s");
+          ? " and discard " + removalCount + " report" + (removalCount === 1 ? "" : "s")
+          : " and remove " + removalCount + " incorporated change" + (removalCount === 1 ? "" : "s");
     var confirmed = window.confirm(
       "Apply the newly published upstream baseline" + removal + "?",
     );
@@ -649,10 +557,7 @@ import * as model from "./review-model.js";
 
   async function deleteSelected() {
     if (!elements.apiKey.value) {
-      showNotice(
-        "Enter the map administrator API key before deleting a report.",
-        true,
-      );
+      showNotice("Enter the map administrator API key before deleting reports.", true);
       elements.apiKey.focus();
       return;
     }
@@ -663,14 +568,9 @@ import * as model from "./review-model.js";
       return sum + change.reporters;
     }, 0);
     var confirmed = window.confirm(
-      "Permanently delete " +
-        selectedChanges.length +
-        " selected report" +
-        (selectedChanges.length === 1 ? "" : "s") +
-        " containing " +
-        reporterCount +
-        " reporter confirmation" +
-        (reporterCount === 1 ? "" : "s") +
+      "Permanently delete " + selectedChanges.length + " selected report" +
+        (selectedChanges.length === 1 ? "" : "s") + " containing " +
+        reporterCount + " reporter confirmation" + (reporterCount === 1 ? "" : "s") +
         "?\n\nThe baseline map will not be changed.",
     );
     if (!confirmed) return;
@@ -686,21 +586,11 @@ import * as model from "./review-model.js";
         body: JSON.stringify({ changeIds: Array.from(state.selected) }),
       });
       if (!response.ok) {
-        var body = await response.json().catch(function () {
-          return {};
-        });
-        throw new Error(
-          body.message || "Delete failed (HTTP " + response.status + ")",
-        );
+        var body = await response.json().catch(function () { return {}; });
+        throw new Error(body.message || "Delete failed (HTTP " + response.status + ")");
       }
       var result = await response.json();
-      showNotice(
-        result.deleted +
-          " pending report" +
-          (result.deleted === 1 ? "" : "s") +
-          " deleted. The baseline map was not changed.",
-        false,
-      );
+      showNotice(result.deleted + " pending report" + (result.deleted === 1 ? "" : "s") + " deleted. The baseline map was not changed.", false);
       await loadChanges();
       previewChanges([], null);
     } catch (error) {
@@ -732,53 +622,26 @@ import * as model from "./review-model.js";
     elements.stageUpstream.disabled = true;
     elements.stageUpstream.textContent = "Loading upstream…";
     try {
-      var response = await fetch(
-        "change/review-upstream?version=" +
-          encodeURIComponent(state.rawVersion),
-        {
-          headers: { "X-API-Key": elements.apiKey.value },
-        },
-      );
-      if (!response.ok)
-        throw new Error(
-          "Could not stage upstream (HTTP " + response.status + ")",
-        );
+      var response = await fetch("change/review-upstream?version=" + encodeURIComponent(state.rawVersion), {
+        headers: { "X-API-Key": elements.apiKey.value },
+      });
+      if (!response.ok) throw new Error("Could not stage upstream (HTTP " + response.status + ")");
       state.stagedReview = await response.json();
-      var outcomes = new Map(
-        state.stagedReview.reconciliation.map(function (item) {
-          return [item.changeId, item];
-        }),
-      );
-      state.selected = new Set(
-        state.changes
-          .filter(function (change) {
-            var outcome = outcomes.get(change.changeId);
-            change.upstreamConflict =
-              outcome && outcome.status === "upstream-conflict"
-                ? {
-                    baselineVersion: state.stagedReview.upstreamVersion,
-                    reason: outcome.reason,
-                  }
-                : undefined;
-            change.upstreamResolved = Boolean(
-              outcome && outcome.status === "resolved",
-            );
-            return !change.upstreamResolved;
-          })
-          .map(function (change) {
-            return change.changeId;
-          }),
-      );
+      var outcomes = new Map(state.stagedReview.reconciliation.map(function (item) { return [item.changeId, item]; }));
+      state.selected = new Set(state.changes.filter(function (change) {
+        var outcome = outcomes.get(change.changeId);
+        change.upstreamConflict = outcome && outcome.status === "upstream-conflict"
+          ? { baselineVersion: state.stagedReview.upstreamVersion, reason: outcome.reason }
+          : undefined;
+        change.upstreamResolved = Boolean(outcome && outcome.status === "resolved");
+        return !change.upstreamResolved;
+      }).map(function (change) { return change.changeId; }));
       elements.upstreamConflictCount.textContent = String(
-        state.changes.filter(function (change) {
-          return Boolean(change.upstreamConflict);
-        }).length,
+        state.changes.filter(function (change) { return Boolean(change.upstreamConflict); }).length,
       );
       elements.baselineVersion.textContent = state.stagedReview.upstreamVersion;
-      elements.previewTitle.textContent =
-        "Incoming upstream and reviewed result";
-      elements.previewDescription.textContent =
-        "The left pane is staged upstream; the right pane carries the selected reports forward.";
+      elements.previewTitle.textContent = "Incoming upstream and reviewed result";
+      elements.previewDescription.textContent = "The left pane is staged upstream; the right pane carries the selected reports forward.";
       var carriedChanges = state.changes.filter(function (change) {
         return state.selected.has(change.changeId);
       });
@@ -791,12 +654,7 @@ import * as model from "./review-model.js";
       renderList();
       updateReportFocus();
       updateActions();
-      showNotice(
-        "Upstream " +
-          state.stagedReview.upstreamVersion +
-          " staged. Nothing has been applied locally.",
-        false,
-      );
+      showNotice("Upstream " + state.stagedReview.upstreamVersion + " staged. Nothing has been applied locally.", false);
     } catch (error) {
       showNotice(error.message, true);
     } finally {
@@ -817,12 +675,7 @@ import * as model from "./review-model.js";
     elements.previewTitle.textContent = "Baseline map";
     elements.previewDescription.textContent =
       "No pending changes are applied in this view.";
-    window.CrowdmapReviewMap.show(
-      [],
-      [],
-      undefined,
-      state.stagedReview && state.stagedReview.id,
-    );
+    window.CrowdmapReviewMap.show([], [], undefined, state.stagedReview && state.stagedReview.id);
     renderList();
   });
   elements.differenceMode.addEventListener("change", function () {
@@ -865,6 +718,7 @@ import * as model from "./review-model.js";
   elements.wipePosition.disabled = true;
   loadChanges().then(function () {
     updateReportFocus();
-    if (!state.stagedReview) window.CrowdmapReviewMap.show([], [], undefined);
+    if (!state.stagedReview)
+      window.CrowdmapReviewMap.show([], [], undefined);
   });
 })();
