@@ -65,10 +65,6 @@ a:focus-visible {
   max-width: 1600px;
   padding: 38px 34px 24px;
 }
-.review-actions {
-  display: flex;
-  gap: 10px;
-}
 .button-danger {
   background: #401f25;
   border-color: #8c3d45;
@@ -513,11 +509,15 @@ main {
   padding-left: 21px;
 }
 .apply-controls {
-  align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: 1fr auto;
   margin-top: 18px;
+}
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
 }
 .apply-controls label span {
   color: var(--muted);

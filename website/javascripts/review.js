@@ -5,6 +5,7 @@ import * as model from "./review-model.js";
 
   var state = {
     activeId: null,
+    busyAction: null,
     changes: [],
     filter: "all",
     groups: new Map(),
@@ -71,11 +72,14 @@ import * as model from "./review-model.js";
 
   function updateActions() {
     var count = state.selected.size;
+    var hasApiKey = elements.apiKey.value.trim().length > 0;
+    var busy = Boolean(state.busyAction);
     elements.selectedCount.textContent = String(count);
     elements.previewMarked.disabled = count === 0;
-    elements.deleteSelected.disabled = count === 0 || Boolean(state.stagedReview);
+    elements.deleteSelected.disabled = busy || !hasApiKey || count === 0 || Boolean(state.stagedReview);
+    elements.stageUpstream.disabled = busy || !hasApiKey || !state.rawVersion || Boolean(state.stagedReview);
     elements.selectedLabel.textContent = state.stagedReview ? "carried forward" : "selected";
-    elements.apply.disabled = !model.canApply(
+    elements.apply.disabled = busy || !state.stagedReview || !model.canApply(
       state.rawVersion,
       elements.apiKey.value,
     );
@@ -490,7 +494,8 @@ import * as model from "./review-model.js";
     );
     if (!confirmed) return;
 
-    elements.apply.disabled = true;
+    state.busyAction = "apply";
+    updateActions();
     elements.apply.textContent = "Applying…";
     try {
       var response = await fetch("change/apply", {
@@ -548,9 +553,8 @@ import * as model from "./review-model.js";
     } catch (error) {
       showNotice(error.message, true);
     } finally {
-      elements.apply.textContent = state.stagedReview
-        ? "Apply reviewed upstream update"
-        : "Apply baseline update";
+      state.busyAction = null;
+      elements.apply.textContent = "Apply reviewed upstream update";
       updateActions();
     }
   }
@@ -574,7 +578,8 @@ import * as model from "./review-model.js";
         "?\n\nThe baseline map will not be changed.",
     );
     if (!confirmed) return;
-    elements.deleteSelected.disabled = true;
+    state.busyAction = "delete";
+    updateActions();
     elements.deleteSelected.textContent = "Deleting…";
     try {
       var response = await fetch("change/delete", {
@@ -596,6 +601,7 @@ import * as model from "./review-model.js";
     } catch (error) {
       showNotice(error.message, true);
     } finally {
+      state.busyAction = null;
       elements.deleteSelected.textContent = "Delete selected";
       updateActions();
     }
@@ -619,7 +625,8 @@ import * as model from "./review-model.js";
   elements.deleteSelected.addEventListener("click", deleteSelected);
   elements.stageUpstream.addEventListener("click", async function () {
     if (!state.rawVersion) return;
-    elements.stageUpstream.disabled = true;
+    state.busyAction = "stage";
+    updateActions();
     elements.stageUpstream.textContent = "Loading upstream…";
     try {
       var response = await fetch("change/review-upstream?version=" + encodeURIComponent(state.rawVersion), {
@@ -658,8 +665,9 @@ import * as model from "./review-model.js";
     } catch (error) {
       showNotice(error.message, true);
     } finally {
-      elements.stageUpstream.disabled = false;
+      state.busyAction = null;
       elements.stageUpstream.textContent = "Load upstream update";
+      updateActions();
     }
   });
   elements.previewMarked.addEventListener("click", function () {

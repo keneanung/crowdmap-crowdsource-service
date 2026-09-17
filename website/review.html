@@ -27,15 +27,9 @@
           published upstream map update.
         </p>
       </div>
-      <div class="review-actions">
-        <button class="button button-danger" id="delete-selected" type="button" disabled>
-          Delete selected
-        </button>
-        <button class="button button-secondary" id="refresh" type="button">
-          Refresh
-        </button>
-      </div>
-      <button class="button button-primary" id="stage-upstream" type="button">Load upstream update</button>
+      <button class="button button-secondary" id="refresh" type="button">
+        Refresh
+      </button>
     </header>
 
     <main>
@@ -179,14 +173,22 @@
                   placeholder="Kept in memory only"
                 />
               </label>
-              <button
-                class="button button-primary"
-                id="apply-update"
-                type="button"
-                disabled
-              >
-                Apply reviewed upstream update
-              </button>
+              <div class="admin-actions">
+                <button class="button button-danger" id="delete-selected" type="button" disabled>
+                  Delete selected
+                </button>
+                <button class="button button-secondary" id="stage-upstream" type="button" disabled>
+                  Load upstream update
+                </button>
+                <button
+                  class="button button-primary"
+                  id="apply-update"
+                  type="button"
+                  disabled
+                >
+                  Apply reviewed upstream update
+                </button>
+              </div>
             </div>
             <p class="apply-note">
               Loading upstream does not modify the local map. Resolved reports are removed only when this final step succeeds.
