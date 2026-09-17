@@ -2,7 +2,14 @@ import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { copyFile, mkdtemp, readFile, rename, rm } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
@@ -494,6 +501,7 @@ export class MapService {
   private async replaceBaseline(
     changes: Change[],
     project: MapProject,
+    stagedReview?: StagedUpstreamReview,
   ): Promise<BaselineReplacement> {
     const suffix = randomUUID();
     const stagedMap = `${project.mapFile}.${suffix}.staged`;
@@ -511,10 +519,17 @@ export class MapService {
     let reconciliation: NonNullable<MapWorkerResponse["reconciliation"]>;
 
     try {
-      await Promise.all([
-        downloadMapFile(project, stagedMap),
-        downloadMapVersion(project, stagedVersion),
-      ]);
+      await Promise.all(
+        stagedReview
+          ? [
+              copyFile(stagedReview.mapFile, stagedMap),
+              writeFile(stagedVersion, stagedReview.upstreamVersion, "utf8"),
+            ]
+          : [
+              downloadMapFile(project, stagedMap),
+              downloadMapVersion(project, stagedVersion),
+            ],
+      );
       baselineVersion = (await readFile(stagedVersion, "utf8")).trim();
       if (!baselineVersion) {
         throw new Error("Downloaded baseline version is empty");
@@ -570,6 +585,7 @@ export class MapService {
   public async applyBaselineUpdate(
     expectedVersion: string,
     obsoleteChanges: string[],
+    reviewId?: string,
     projectDefinition?: MapProject,
   ): Promise<BaselineUpdateResult> {
     const project = this.project(projectDefinition);
@@ -583,10 +599,27 @@ export class MapService {
           "The map version provided does not match the current map version",
         );
       }
+      const stagedReview = reviewId
+        ? runtime.stagedUpstreamReviews.get(reviewId)
+        : undefined;
+      if (reviewId && !stagedReview) {
+        throw new NotFoundError(
+          "The staged upstream review has expired; load it again.",
+        );
+      }
+      if (stagedReview && stagedReview.baselineVersion !== serverVersion) {
+        throw new ConflictError(
+          "The staged review no longer matches the current map version",
+        );
+      }
 
       runtime.baselineUpdateRevision += 1;
       const changes = await repository.getChanges(0);
-      const replacement = await this.replaceBaseline(changes, project);
+      const replacement = await this.replaceBaseline(
+        changes,
+        project,
+        stagedReview,
+      );
       const automaticallyResolved = replacement.reconciliation
         .filter((result) => result.status === "resolved")
         .map((result) => result.changeId);
@@ -610,6 +643,10 @@ export class MapService {
         throw error;
       }
       await replacement.complete();
+      if (stagedReview) {
+        runtime.stagedUpstreamReviews.delete(stagedReview.id);
+        await rm(stagedReview.directory, { recursive: true, force: true });
+      }
       return {
         automaticallyResolved: automaticallyResolved.filter(
           (changeId) => !obsoleteChanges.includes(changeId),
