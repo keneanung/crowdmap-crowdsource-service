@@ -132,6 +132,24 @@ export class MapService {
     };
   }
 
+  public async deletePendingChanges(
+    changeIds: string[],
+    projectDefinition?: MapProject,
+  ): Promise<number> {
+    const project = this.project(projectDefinition);
+    this.assertAvailable(project);
+    const runtime = this.runtime(project);
+    const repository = this.changes(project);
+    const deletion = runtime.baselineUpdateQueue.then(() =>
+      repository.deleteChanges(changeIds),
+    );
+    runtime.baselineUpdateQueue = deletion.then(
+      () => undefined,
+      () => undefined,
+    );
+    return deletion;
+  }
+
   public async initializeProject(projectDefinition: MapProject): Promise<void> {
     const project = this.project(projectDefinition);
     const runtime = this.runtime(project);

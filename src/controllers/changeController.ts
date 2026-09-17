@@ -549,9 +549,10 @@ export class ChangeController extends Controller {
     if (!canAdministerProject(request.user, project.id)) {
       throw new AuthorizationError("Access Denied");
     }
-    const deleted = await this.changeService
-      .forProject(project.id)
-      .deleteChanges(submission.changeIds);
+    const deleted = await this.mapService.deletePendingChanges(
+      submission.changeIds,
+      project,
+    );
     return { deleted };
   }
 

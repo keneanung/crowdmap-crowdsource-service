@@ -30,3 +30,30 @@ test("a rejected baseline update does not invalidate an in-flight snapshot", asy
   await expect(snapshotPending).resolves.toMatchObject({ rawVersion: "466" });
   expect(getChanges).toHaveBeenCalledTimes(1);
 });
+
+test("pending-report deletions are serialized with map mutations", async () => {
+  let finishFirstDeletion: (deleted: number) => void = () => undefined;
+  const firstDeletionPending = new Promise<number>((resolve) => {
+    finishFirstDeletion = resolve;
+  });
+  const deleteChanges = jest
+    .fn<(changeIds: string[], projectId?: string) => Promise<number>>()
+    .mockImplementationOnce(() => firstDeletionPending)
+    .mockResolvedValueOnce(1);
+  const changeService = {
+    deleteChanges,
+  } as unknown as ChangeService;
+  const mapService = new MapService(changeService);
+
+  const first = mapService.deletePendingChanges(["first"]);
+  const second = mapService.deletePendingChanges(["second"]);
+  await Promise.resolve();
+
+  expect(deleteChanges).toHaveBeenCalledTimes(1);
+  expect(deleteChanges).toHaveBeenCalledWith(["first"], "default");
+
+  finishFirstDeletion(1);
+  await expect(first).resolves.toBe(1);
+  await expect(second).resolves.toBe(1);
+  expect(deleteChanges).toHaveBeenNthCalledWith(2, ["second"], "default");
+});
