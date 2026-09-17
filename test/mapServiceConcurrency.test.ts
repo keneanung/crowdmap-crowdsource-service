@@ -57,3 +57,30 @@ test("pending-report deletions are serialized with map mutations", async () => {
   await expect(second).resolves.toBe(1);
   expect(deleteChanges).toHaveBeenNthCalledWith(2, ["second"], "default");
 });
+
+test("pending-report deletion invalidates an in-flight change snapshot", async () => {
+  let finishSnapshotRead: (changes: Change[]) => void = () => undefined;
+  const snapshotReadPending = new Promise<Change[]>((resolve) => {
+    finishSnapshotRead = resolve;
+  });
+  const getChanges = jest
+    .fn<(timesSeen: number, include: string[], exclude: string[], projectId?: string) => Promise<Change[]>>()
+    .mockImplementationOnce(() => snapshotReadPending)
+    .mockResolvedValueOnce([]);
+  const deleteChanges = jest.fn(() => Promise.resolve(1));
+  const changeService = {
+    deleteChanges,
+    getChanges,
+  } as unknown as ChangeService;
+  const mapService = new MapService(changeService);
+
+  const snapshotPending = mapService.getChangesSnapshot(0);
+  await Promise.resolve();
+  expect(getChanges).toHaveBeenCalledTimes(1);
+
+  await expect(mapService.deletePendingChanges(["deleted"])).resolves.toBe(1);
+  finishSnapshotRead([]);
+
+  await expect(snapshotPending).resolves.toMatchObject({ changes: [] });
+  expect(getChanges).toHaveBeenCalledTimes(2);
+});
