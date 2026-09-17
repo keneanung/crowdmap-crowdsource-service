@@ -170,6 +170,54 @@ test("manual report deletion is atomic and project-scoped", async () => {
   });
 });
 
+test("duplicate confirmations retain one logical administrator decision", async () => {
+  const updateOne = jest.fn<
+    (filter: unknown, update: unknown, options: unknown) => Promise<void>
+  >(async () => Promise.resolve());
+  const deleteMany = jest.fn<
+    (filter: unknown) => Promise<{ deletedCount: number }>
+  >(async () => Promise.resolve({ deletedCount: 1 }));
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        updateOne,
+        deleteMany,
+        countDocuments: jest.fn(async () => Promise.resolve(0)),
+        updateMany: jest.fn(async () => Promise.resolve()),
+        createIndexes: jest.fn(async () => Promise.resolve([])),
+        indexExists: jest.fn(async () => Promise.resolve(false)),
+      })),
+    })),
+  } as unknown as MongoClient;
+  const service = new MongoChangeService(mongo);
+
+  await service.addChange(
+    new ChangeRoomName(42, ["reporter-a"], "Discarded name", "reviewed-id"),
+  );
+  await service.addChange(
+    new ChangeRoomName(42, ["reporter-b"], "Discarded name", "later-id"),
+  );
+  await service.deleteChanges(["reviewed-id"]);
+
+  expect(updateOne).toHaveBeenNthCalledWith(
+    1,
+    { projectId: "default", type: "room-name", roomNumber: 42, name: "Discarded name" },
+    expect.anything(),
+    { upsert: true },
+  );
+  expect(updateOne).toHaveBeenNthCalledWith(
+    2,
+    { projectId: "default", type: "room-name", roomNumber: 42, name: "Discarded name" },
+    expect.anything(),
+    { upsert: true },
+  );
+  expect(deleteMany).toHaveBeenCalledWith({
+    projectId: "default",
+    changeId: { $in: ["reviewed-id"] },
+  });
+});
+
 test("identical logical changes coexist and reads/deletes remain project-scoped", async () => {
   const updateOne = jest.fn<
     (filter: unknown, update: unknown, options: unknown) => Promise<void>
