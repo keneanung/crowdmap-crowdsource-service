@@ -130,6 +130,7 @@ describe("change review model", () => {
     expect(
       changeSummary({
         ...changes[2],
+        upstreamResolved: true,
         upstreamConflict: {
           baselineVersion: "467",
           reason: "Upstream moved it",
