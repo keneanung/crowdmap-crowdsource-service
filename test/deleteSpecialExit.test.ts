@@ -4,10 +4,160 @@
 import { beforeEach, expect, test } from "@jest/globals";
 import request from "supertest";
 import { app } from "../src/app.js";
+import {
+  DeleteRoom,
+  DeleteSpecialExit,
+} from "../src/models/business/change.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
 beforeEach(() => {
   setupChangeServiceMock();
+});
+
+test("removes metadata associated with a deleted special exit", () => {
+  const map = {
+    rooms: {
+      1: {
+        mSpecialExits: { "worm warp": 1337 },
+        exitWeights: { "worm warp": 10 },
+        doors: { "worm warp": 3 },
+        customLines: { "worm warp": [] },
+        customLinesArrow: { "worm warp": true },
+        customLinesColor: { "worm warp": {} },
+        customLinesStyle: { "worm warp": 1 },
+        mSpecialExitLocks: ["worm warp"],
+      },
+    },
+  } as unknown as Mudlet.MudletMap;
+
+  new DeleteSpecialExit(1, ["Test Reporter"], "worm warp").apply(map);
+
+  expect(map.rooms[1]).toStrictEqual({
+    mSpecialExits: {},
+    exitWeights: {},
+    doors: {},
+    customLines: {},
+    customLinesArrow: {},
+    customLinesColor: {},
+    customLinesStyle: {},
+    mSpecialExitLocks: [],
+  });
+});
+
+test("does not remove normal-exit metadata when commands collide", () => {
+  const room = {
+    north: 2,
+    mSpecialExits: { north: 1337 },
+    exitWeights: { north: 10 },
+    doors: { north: 3 },
+    customLines: { north: [] },
+    customLinesArrow: { north: true },
+    customLinesColor: { north: {} },
+    customLinesStyle: { north: 1 },
+    mSpecialExitLocks: ["north"],
+  };
+  const map = { rooms: { 1: room } } as unknown as Mudlet.MudletMap;
+
+  new DeleteSpecialExit(1, ["Test Reporter"], "north").apply(map);
+
+  expect(room).toStrictEqual({
+    north: 2,
+    mSpecialExits: {},
+    exitWeights: { north: 10 },
+    doors: { north: 3 },
+    customLines: { north: [] },
+    customLinesArrow: { north: true },
+    customLinesColor: { north: {} },
+    customLinesStyle: { north: 1 },
+    mSpecialExitLocks: [],
+  });
+});
+
+test("does not remove metadata when the special exit does not exist", () => {
+  const room = {
+    north: 2,
+    mSpecialExits: {},
+    exitWeights: { north: 10 },
+    doors: { north: 3 },
+    customLines: { north: [] },
+    customLinesArrow: { north: true },
+    customLinesColor: { north: {} },
+    customLinesStyle: { north: 1 },
+    mSpecialExitLocks: ["north"],
+  };
+  const map = { rooms: { 1: room } } as unknown as Mudlet.MudletMap;
+
+  new DeleteSpecialExit(1, ["Test Reporter"], "north").apply(map);
+
+  expect(room).toStrictEqual({
+    north: 2,
+    mSpecialExits: {},
+    exitWeights: { north: 10 },
+    doors: { north: 3 },
+    customLines: { north: [] },
+    customLinesArrow: { north: true },
+    customLinesColor: { north: {} },
+    customLinesStyle: { north: 1 },
+    mSpecialExitLocks: ["north"],
+  });
+});
+
+test("removes incoming special-exit metadata when deleting a room", () => {
+  const sourceRoom = {
+    x: 0,
+    y: 0,
+    z: 0,
+    mSpecialExits: { "worm warp": 2 },
+    exitWeights: { "worm warp": 10 },
+    doors: { "worm warp": 3 },
+    customLines: { "worm warp": [] },
+    customLinesArrow: { "worm warp": true },
+    customLinesColor: { "worm warp": {} },
+    customLinesStyle: { "worm warp": 1 },
+    mSpecialExitLocks: ["worm warp"],
+  };
+  const destinationRoom = {
+    area: 1,
+    mSpecialExits: {},
+  };
+  const map = {
+    rooms: { 1: sourceRoom, 2: destinationRoom },
+    areas: {
+      1: {
+        rooms: [1, 2],
+        max_x: 0,
+        max_y: 0,
+        max_z: 0,
+        min_x: 0,
+        min_y: 0,
+        min_z: 0,
+        span: [0, 0, 0],
+        xmaxForZ: {},
+        ymaxForZ: {},
+        xminForZ: {},
+        yminForZ: {},
+        zLevels: [],
+      },
+    },
+    mpRoomDbHashToRoomId: {},
+  } as unknown as Mudlet.MudletMap;
+
+  new DeleteRoom(2, ["Test Reporter"]).apply(map);
+
+  expect(sourceRoom).toStrictEqual({
+    x: 0,
+    y: 0,
+    z: 0,
+    mSpecialExits: {},
+    exitWeights: {},
+    doors: {},
+    customLines: {},
+    customLinesArrow: {},
+    customLinesColor: {},
+    customLinesStyle: {},
+    mSpecialExitLocks: [],
+  });
+  expect(map.rooms).not.toHaveProperty("2");
 });
 
 test("Should accept and return special exit deletion", async () => {
