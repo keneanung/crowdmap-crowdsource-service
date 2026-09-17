@@ -140,9 +140,10 @@ export class MapService {
     this.assertAvailable(project);
     const runtime = this.runtime(project);
     const repository = this.changes(project);
-    const deletion = runtime.baselineUpdateQueue.then(() =>
-      repository.deleteChanges(changeIds),
-    );
+    const deletion = runtime.baselineUpdateQueue.then(async () => {
+      runtime.baselineUpdateRevision += 1;
+      return repository.deleteChanges(changeIds);
+    });
     runtime.baselineUpdateQueue = deletion.then(
       () => undefined,
       () => undefined,
