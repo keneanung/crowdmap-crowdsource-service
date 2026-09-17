@@ -26,6 +26,7 @@ import type {
 import type {
   ApplicationSubmission,
   ChangeSubmission,
+  DeleteChangesSubmission,
 } from "../models/api/submission.js";
 import type { Change } from "../models/business/change.js";
 import {
@@ -534,6 +535,24 @@ export class ChangeController extends Controller {
       throw new AuthorizationError("Access Denied");
     }
     return await this.mapService.stageUpstreamReview(version, project);
+  }
+
+  /** Permanently deletes pending reports without changing the baseline map. */
+  @Post("/delete")
+  @Security("api_key")
+  @Response<AuthorizationError>(403, "Authorization Error")
+  public async deleteChanges(
+    @Request() request: ProjectRequest & { user: User },
+    @Body() submission: DeleteChangesSubmission,
+  ): Promise<{ deleted: number }> {
+    const project = requireProjectContext(request).project;
+    if (!canAdministerProject(request.user, project.id)) {
+      throw new AuthorizationError("Access Denied");
+    }
+    const deleted = await this.changeService
+      .forProject(project.id)
+      .deleteChanges(submission.changeIds);
+    return { deleted };
   }
 
   /**

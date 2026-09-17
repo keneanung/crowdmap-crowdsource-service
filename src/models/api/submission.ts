@@ -1,5 +1,9 @@
 import { ChangeType, Direction } from "./common.js";
 
+export interface DeleteChangesSubmission {
+  changeIds: string[];
+}
+
 export interface ChangeBaseSubmission {
   /**
    * Discriminator for the change type.

@@ -48,4 +48,15 @@ export class MockChangeService extends ChangeService {
     this.changes.set(projectId ?? "default", kept);
     return Promise.resolve();
   }
+  public deleteChanges(
+    changeIds: string[],
+    projectId?: string,
+  ): Promise<number> {
+    const changes = this.scoped(projectId);
+    const kept = changes.filter(
+      (change) => !changeIds.includes(change.changeId),
+    );
+    this.changes.set(projectId ?? "default", kept);
+    return Promise.resolve(changes.length - kept.length);
+  }
 }

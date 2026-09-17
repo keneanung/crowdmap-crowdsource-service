@@ -107,7 +107,9 @@ test("creates indexes when the changes collection does not yet exist", async () 
     })),
   } as unknown as MongoClient;
 
-  await expect(new MongoChangeService(mongo).initialize()).resolves.toBeUndefined();
+  await expect(
+    new MongoChangeService(mongo).initialize(),
+  ).resolves.toBeUndefined();
 
   expect(indexExists).toHaveBeenCalledTimes(1);
   expect(createIndexes).toHaveBeenCalledTimes(1);
@@ -136,6 +138,35 @@ test("baseline reconciliation deletes only resolved changes", async () => {
   expect(deleteMany).toHaveBeenCalledWith({
     projectId: "default",
     changeId: { $in: ["resolved-change"] },
+  });
+});
+
+test("manual report deletion is atomic and project-scoped", async () => {
+  const deleteMany = jest.fn<
+    (filter: unknown) => Promise<{ deletedCount: number }>
+  >(() => Promise.resolve({ deletedCount: 2 }));
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        deleteMany,
+        countDocuments: jest.fn(async () => Promise.resolve(0)),
+        updateMany: jest.fn(async () => Promise.resolve()),
+        createIndexes: jest.fn(async () => Promise.resolve([])),
+        indexExists: jest.fn(async () => Promise.resolve(false)),
+      })),
+    })),
+  } as unknown as MongoClient;
+
+  const deleted = await new MongoChangeService(mongo).deleteChanges(
+    ["wrong-report", "conflicting-report"],
+    "alpha",
+  );
+
+  expect(deleted).toBe(2);
+  expect(deleteMany).toHaveBeenCalledWith({
+    projectId: "alpha",
+    changeId: { $in: ["wrong-report", "conflicting-report"] },
   });
 });
 

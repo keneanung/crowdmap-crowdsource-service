@@ -4,7 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Change review · Crowdmap</title>
-    <link href="stylesheets/site-navigation.css" rel="stylesheet" type="text/css" />
+    <link
+      href="stylesheets/site-navigation.css"
+      rel="stylesheet"
+      type="text/css"
+    />
     <link href="stylesheets/review.css" rel="stylesheet" type="text/css" />
   </head>
   <body>
@@ -12,9 +16,13 @@
       <a class="site-navigation__brand" href="index.html">Crowdmap</a>
       <ul class="site-navigation__links">
         <li data-project-navigation><a href="index.html">Explorer</a></li>
-        <li data-project-navigation><a href="review.html" aria-current="page">Review</a></li>
+        <li data-project-navigation>
+          <a href="review.html" aria-current="page">Review</a>
+        </li>
         <li><a href="help.html">How it works</a></li>
-        <li data-sponsorship-navigation hidden><a href="sponsor.html">Sponsor</a></li>
+        <li data-sponsorship-navigation hidden>
+          <a href="sponsor.html">Sponsor</a>
+        </li>
         <li><a href="privacy.html">Privacy Policy</a></li>
       </ul>
     </nav>
@@ -27,10 +35,22 @@
           published upstream map update.
         </p>
       </div>
-      <button class="button button-secondary" id="refresh" type="button">
-        Refresh
+      <div class="review-actions">
+        <button
+          class="button button-danger"
+          id="delete-selected"
+          type="button"
+          disabled
+        >
+          Delete selected
+        </button>
+        <button class="button button-secondary" id="refresh" type="button">
+          Refresh
+        </button>
+      </div>
+      <button class="button button-primary" id="stage-upstream" type="button">
+        Load upstream update
       </button>
-      <button class="button button-primary" id="stage-upstream" type="button">Load upstream update</button>
     </header>
 
     <main>
@@ -46,7 +66,8 @@
           ><span>upstream conflicts</span>
         </div>
         <div class="stat stat-selected">
-          <strong id="selected-count">0</strong><span>carried forward</span>
+          <strong id="selected-count">0</strong
+          ><span id="selected-label">selected</span>
         </div>
         <div class="baseline-version">
           <span>Baseline version</span
@@ -126,20 +147,63 @@
             </div>
           </div>
           <div class="comparison-toolbar" aria-label="Map comparison controls">
-            <button class="comparison-toggle active" id="comparison-side-by-side" type="button">Side by side</button>
-            <button class="comparison-toggle" id="comparison-wipe" type="button">Wipe</button>
-            <label class="difference-toggle"><input id="difference-mode" type="checkbox" /> Differences only</label>
-            <label class="wipe-range" for="wipe-position">Wipe <input id="wipe-position" type="range" min="0" max="100" value="50" /></label>
-            <button class="button button-secondary" id="blink-toggle" type="button">Blink candidate</button>
+            <button
+              class="comparison-toggle active"
+              id="comparison-side-by-side"
+              type="button"
+            >
+              Side by side
+            </button>
+            <button
+              class="comparison-toggle"
+              id="comparison-wipe"
+              type="button"
+            >
+              Wipe
+            </button>
+            <label class="difference-toggle"
+              ><input id="difference-mode" type="checkbox" /> Differences
+              only</label
+            >
+            <label class="wipe-range" for="wipe-position"
+              >Wipe
+              <input
+                id="wipe-position"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+            /></label>
+            <button
+              class="button button-secondary"
+              id="blink-toggle"
+              type="button"
+            >
+              Blink candidate
+            </button>
           </div>
           <div class="map-comparison" id="map-comparison" aria-live="polite">
             <section class="map-pane map-pane-baseline">
-              <header><strong>Incoming upstream</strong><span id="baseline-map-status">Loading…</span></header>
-              <div id="baseline-map" class="renderer-map" aria-label="Baseline map"></div>
+              <header>
+                <strong>Incoming upstream</strong
+                ><span id="baseline-map-status">Loading…</span>
+              </header>
+              <div
+                id="baseline-map"
+                class="renderer-map"
+                aria-label="Baseline map"
+              ></div>
             </section>
             <section class="map-pane map-pane-candidate">
-              <header><strong>Reviewed result</strong><span id="candidate-map-status">Loading…</span></header>
-              <div id="candidate-map" class="renderer-map" aria-label="Candidate map"></div>
+              <header>
+                <strong>Reviewed result</strong
+                ><span id="candidate-map-status">Loading…</span>
+              </header>
+              <div
+                id="candidate-map"
+                class="renderer-map"
+                aria-label="Candidate map"
+              ></div>
             </section>
           </div>
 
@@ -149,9 +213,19 @@
                 <p class="eyebrow">Selected target</p>
                 <h2 id="room-diff-title">Choose a room on either map</h2>
               </div>
-              <button class="button button-secondary" id="show-all-details" type="button" disabled>Show all details</button>
+              <button
+                class="button button-secondary"
+                id="show-all-details"
+                type="button"
+                disabled
+              >
+                Show all details
+              </button>
             </div>
-            <div id="room-diff-summary" class="room-diff-summary">The panes stay synchronized: click a room, a change, or a property below to focus it in both maps.</div>
+            <div id="room-diff-summary" class="room-diff-summary">
+              The panes stay synchronized: click a room, a change, or a property
+              below to focus it in both maps.
+            </div>
             <div id="room-diff-details" class="room-diff-details" hidden></div>
           </article>
 
@@ -159,10 +233,16 @@
             <h2>Stage and apply an upstream map update</h2>
             <ol>
               <li>
-                Load the new upstream map. Exact matches are resolved; unchanged reports are carried forward; conflicts can be kept or dropped.
+                Load the new upstream map. Exact matches are resolved; unchanged
+                reports are carried forward; conflicts can be kept or dropped.
               </li>
-              <li>Inspect incoming upstream against the reviewed result above.</li>
-              <li>Apply the staged decision. The server rechecks the current baseline first.</li>
+              <li>
+                Inspect incoming upstream against the reviewed result above.
+              </li>
+              <li>
+                Apply the staged decision. The server rechecks the current
+                baseline first.
+              </li>
             </ol>
             <div class="apply-controls">
               <label>
@@ -184,7 +264,8 @@
               </button>
             </div>
             <p class="apply-note">
-              Loading upstream does not modify the local map. Resolved reports are removed only when this final step succeeds.
+              Loading upstream does not modify the local map. Resolved reports
+              are removed only when this final step succeeds.
             </p>
           </article>
         </section>

@@ -127,6 +127,8 @@ export class MapService {
         this.changeService.applyChanges(apply, project.id),
       reconcileChanges: (resolved) =>
         this.changeService.reconcileChanges(resolved, project.id),
+      deleteChanges: (changeIds) =>
+        this.changeService.deleteChanges(changeIds, project.id),
     };
   }
 
