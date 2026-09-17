@@ -29,7 +29,7 @@ import * as model from "./review-model.js";
     notice: document.querySelector("#notice"),
     pendingCount: document.querySelector("#pending-count"),
     previewDescription: document.querySelector("#preview-description"),
-    previewMarked: document.querySelector("#show-marked"),
+    previewSelected: document.querySelector("#show-selected"),
     reportFocus: document.querySelector("#report-focus"),
     previewTitle: document.querySelector("#preview-title"),
     comparisonSideBySide: document.querySelector("#comparison-side-by-side"),
@@ -75,10 +75,16 @@ import * as model from "./review-model.js";
     var hasApiKey = elements.apiKey.value.trim().length > 0;
     var busy = Boolean(state.busyAction);
     elements.selectedCount.textContent = String(count);
-    elements.previewMarked.disabled = count === 0;
+    elements.previewSelected.disabled = count === 0;
     elements.deleteSelected.disabled = busy || !hasApiKey || count === 0 || Boolean(state.stagedReview);
     elements.stageUpstream.disabled = busy || !hasApiKey || !state.rawVersion || Boolean(state.stagedReview);
-    elements.selectedLabel.textContent = state.stagedReview ? "carried forward" : "selected";
+    elements.selectedLabel.textContent = state.stagedReview ? "selected to keep" : "selected";
+    elements.previewSelected.textContent = state.stagedReview
+      ? "Preview reviewed result"
+      : "Preview selected reports";
+    elements.showBaseline.textContent = state.stagedReview
+      ? "Staged upstream"
+      : "Current baseline";
     elements.apply.disabled = busy || !state.stagedReview || !model.canApply(
       state.rawVersion,
       elements.apiKey.value,
@@ -130,16 +136,16 @@ import * as model from "./review-model.js";
       checkbox.disabled = Boolean(state.stagedReview && change.upstreamResolved);
       checkbox.title = state.stagedReview
         ? change.upstreamResolved
-          ? "Already present in upstream; this report will be removed when the update is applied."
+          ? "Already present in the staged upstream map; no additional selection is needed."
           : checkbox.checked
-            ? "Checked: carry this report forward. Uncheck to discard it."
-            : "Unchecked: discard this report when applying the upstream update."
-        : "Select this report.";
+            ? "Selected to keep in addition to the staged upstream map."
+            : "Not selected; this report will be discarded when the update is applied."
+        : "Select this report for preview or deletion.";
       checkbox.setAttribute(
         "aria-label",
         state.stagedReview
-          ? "Carry " + model.typeLabel(change.type) + " into the reviewed upstream map"
-          : "Select " + model.typeLabel(change.type),
+          ? "Keep " + model.typeLabel(change.type) + " in addition to the staged upstream map"
+          : "Select " + model.typeLabel(change.type) + " for preview or deletion",
       );
       checkbox.addEventListener("click", function (event) {
         event.stopPropagation();
@@ -178,10 +184,10 @@ import * as model from "./review-model.js";
           ),
         );
       if (change.upstreamResolved)
-        badges.appendChild(makeBadge("Resolved upstream", "badge-success"));
+        badges.appendChild(makeBadge("Already upstream", "badge-success"));
       else if (state.stagedReview)
         badges.appendChild(makeBadge(
-          state.selected.has(change.changeId) ? "Carry forward" : "Discard",
+          state.selected.has(change.changeId) ? "Selected to keep" : "Will be discarded",
           state.selected.has(change.changeId) ? "badge-success" : "badge-danger",
         ));
       badges.appendChild(makeBadge(change.changeId.slice(-8), "badge-id"));
@@ -249,12 +255,12 @@ import * as model from "./review-model.js";
       ? model.typeLabel(activeChange.type)
       : state.stagedReview
         ? "Reviewed result"
-        : "Marked changes";
+        : "Selected reports";
     elements.previewDescription.textContent = activeChange
       ? model.changeSummary(activeChange)
       : state.stagedReview
         ? ids.length + " selected reports added to the staged upstream preview."
-        : ids.length + " marked changes applied to the baseline preview.";
+        : ids.length + " selected reports applied to the baseline preview.";
     window.CrowdmapReviewMap.show(
       ids,
       state.changes.filter(function (change) {
@@ -267,7 +273,7 @@ import * as model from "./review-model.js";
   }
 
   function showStagedSelection() {
-    var carriedChanges = state.changes.filter(function (change) {
+    var selectedChanges = state.changes.filter(function (change) {
       return state.selected.has(change.changeId);
     });
     elements.previewTitle.textContent = "Incoming upstream and reviewed result";
@@ -275,7 +281,7 @@ import * as model from "./review-model.js";
       "The left pane is staged upstream; the right pane adds the selected reports.";
     window.CrowdmapReviewMap.show(
       Array.from(state.selected),
-      carriedChanges,
+      selectedChanges,
       undefined,
       state.stagedReview.id,
     );
@@ -498,18 +504,15 @@ import * as model from "./review-model.js";
 
   async function applyUpdate() {
     var selectedIds = Array.from(state.selected);
-    var obsoleteIds = state.stagedReview
-      ? state.changes.filter(function (change) { return !state.selected.has(change.changeId); }).map(function (change) { return change.changeId; })
-      : selectedIds;
-    var removalCount = state.stagedReview ? obsoleteIds.length : selectedIds.length;
-    var removal =
-      removalCount === 0
-        ? " without removing any pending changes"
-        : state.stagedReview
-          ? " and discard " + removalCount + " report" + (removalCount === 1 ? "" : "s")
-          : " and remove " + removalCount + " incorporated change" + (removalCount === 1 ? "" : "s");
+    var obsoleteIds = state.changes
+      .filter(function (change) { return !state.selected.has(change.changeId); })
+      .map(function (change) { return change.changeId; });
+    var keptCount = selectedIds.length;
+    var removalCount = obsoleteIds.length;
     var confirmed = window.confirm(
-      "Apply the newly published upstream baseline" + removal + "?",
+      "Apply the reviewed upstream update, keep " + keptCount + " selected report" +
+        (keptCount === 1 ? "" : "s") + ", and discard " + removalCount + " report" +
+        (removalCount === 1 ? "" : "s") + "?",
     );
     if (!confirmed) return;
 
@@ -621,7 +624,7 @@ import * as model from "./review-model.js";
       showNotice(error.message, true);
     } finally {
       state.busyAction = null;
-      elements.deleteSelected.textContent = "Delete selected";
+      elements.deleteSelected.textContent = "Delete selected reports";
       updateActions();
     }
   }
@@ -670,7 +673,11 @@ import * as model from "./review-model.js";
       renderList();
       updateReportFocus();
       updateActions();
-      showNotice("Upstream " + state.stagedReview.upstreamVersion + " staged. Nothing has been applied locally.", false);
+      showNotice(
+        "Upstream " + state.stagedReview.upstreamVersion +
+          " staged. Select reports to keep, then preview the reviewed result.",
+        false,
+      );
     } catch (error) {
       showNotice(error.message, true);
     } finally {
@@ -679,7 +686,7 @@ import * as model from "./review-model.js";
       updateActions();
     }
   });
-  elements.previewMarked.addEventListener("click", function () {
+  elements.previewSelected.addEventListener("click", function () {
     previewChanges(Array.from(state.selected));
   });
   elements.reportFocus.addEventListener("change", function () {
@@ -689,9 +696,12 @@ import * as model from "./review-model.js";
   });
   elements.showBaseline.addEventListener("click", function () {
     state.activeId = null;
-    elements.previewTitle.textContent = "Baseline map";
-    elements.previewDescription.textContent =
-      "No pending changes are applied in this view.";
+    elements.previewTitle.textContent = state.stagedReview
+      ? "Staged upstream"
+      : "Baseline map";
+    elements.previewDescription.textContent = state.stagedReview
+      ? "The staged upstream map without any additional pending reports."
+      : "The current baseline without any pending reports.";
     window.CrowdmapReviewMap.show([], [], undefined, state.stagedReview && state.stagedReview.id);
     renderList();
   });

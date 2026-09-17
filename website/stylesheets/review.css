@@ -508,6 +508,9 @@ main {
   gap: 7px;
   padding-left: 21px;
 }
+.review-guide-intro {
+  color: var(--muted);
+}
 .apply-controls {
   display: grid;
   gap: 10px;

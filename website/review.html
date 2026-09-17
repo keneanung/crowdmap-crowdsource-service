@@ -76,7 +76,7 @@
                 Upstream conflicts
               </button>
               <button class="filter" data-filter="selected" type="button">
-                Marked
+                Selected
               </button>
             </div>
           </div>
@@ -116,11 +116,11 @@
               </button>
               <button
                 class="button button-secondary"
-                id="show-marked"
+                id="show-selected"
                 type="button"
                 disabled
               >
-                Preview carried reports
+                Preview selected reports
               </button>
             </div>
           </div>
@@ -155,13 +155,17 @@
           </article>
 
           <article class="review-guide">
-            <h2>Stage and apply an upstream map update</h2>
+            <h2>Map administrator actions</h2>
+            <p class="review-guide-intro">
+              Before staging an update, select reports to preview them together or delete them. Deletion does not change the baseline map.
+            </p>
             <ol>
               <li>
-                Load the new upstream map. Exact matches are resolved; unchanged reports are carried forward; conflicts can be kept or dropped.
+                Load the new upstream map. Reports already present upstream are resolved automatically.
               </li>
-              <li>Inspect incoming upstream against the reviewed result above.</li>
-              <li>Apply the staged decision. The server rechecks the current baseline first.</li>
+              <li>Select the remaining reports you want to keep in addition to the upstream map.</li>
+              <li>Preview the reviewed result and adjust the selection if necessary.</li>
+              <li>Apply the reviewed update. Unselected reports are discarded.</li>
             </ol>
             <div class="apply-controls">
               <label>
@@ -175,7 +179,7 @@
               </label>
               <div class="admin-actions">
                 <button class="button button-danger" id="delete-selected" type="button" disabled>
-                  Delete selected
+                  Delete selected reports
                 </button>
                 <button class="button button-secondary" id="stage-upstream" type="button" disabled>
                   Load upstream update
@@ -191,7 +195,7 @@
               </div>
             </div>
             <p class="apply-note">
-              Loading upstream does not modify the local map. Resolved reports are removed only when this final step succeeds.
+              Loading and previewing do not modify the baseline. Changes are committed only when the reviewed update is applied.
             </p>
           </article>
         </section>
