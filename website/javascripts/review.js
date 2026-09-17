@@ -9,6 +9,7 @@ import * as model from "./review-model.js";
     changes: [],
     filter: "all",
     groups: new Map(),
+    loadingChanges: false,
     previewedSelectionKey: null,
     rawVersion: "",
     search: "",
@@ -79,9 +80,15 @@ import * as model from "./review-model.js";
   function updateActions() {
     var count = state.selected.size;
     var hasApiKey = elements.apiKey.value.trim().length > 0;
-    var busy = Boolean(state.busyAction);
+    var busy = Boolean(state.busyAction) || state.loadingChanges;
     elements.selectedCount.textContent = String(count);
-    elements.previewSelected.disabled = !state.stagedReview && count === 0;
+    elements.refresh.disabled = busy;
+    elements.refresh.title = state.busyAction
+      ? "Wait for the current administrator action to finish."
+      : state.loadingChanges
+        ? "Pending reports are being refreshed."
+        : "Reload pending reports. Refreshing cancels a staged upstream review.";
+    elements.previewSelected.disabled = state.loadingChanges || (!state.stagedReview && count === 0);
     elements.deleteSelected.disabled = busy || !hasApiKey || count === 0 || Boolean(state.stagedReview);
     elements.stageUpstream.disabled = busy || !hasApiKey || !state.rawVersion || Boolean(state.stagedReview);
     elements.selectedLabel.textContent = state.stagedReview ? "selected to keep" : "selected";
@@ -517,7 +524,10 @@ import * as model from "./review-model.js";
   }
 
   async function loadChanges() {
-    elements.refresh.disabled = true;
+    if (state.loadingChanges || state.busyAction && !["apply", "delete"].includes(state.busyAction))
+      return;
+    state.loadingChanges = true;
+    updateActions();
     elements.queueStatus.textContent = "Loading pending changes…";
     try {
       var response = await fetch("change?timesSeen=0", {
@@ -533,6 +543,7 @@ import * as model from "./review-model.js";
         if (conflict) change.upstreamConflict = conflict;
       });
       state.rawVersion = response.headers.get("X-Map-Version-Raw") || "";
+      state.stagedReview = null;
       state.selected.clear();
       state.previewedSelectionKey = null;
       state.activeId = null;
@@ -547,12 +558,14 @@ import * as model from "./review-model.js";
       );
       elements.baselineVersion.textContent = state.rawVersion || "Unavailable";
       renderList();
-      updateActions();
+      updateReportFocus();
+      previewChanges([], null);
     } catch (error) {
       elements.queueStatus.textContent = error.message;
       showNotice(error.message, true);
     } finally {
-      elements.refresh.disabled = false;
+      state.loadingChanges = false;
+      updateActions();
     }
   }
 
@@ -623,7 +636,6 @@ import * as model from "./review-model.js";
       );
       state.stagedReview = null;
       await loadChanges();
-      previewChanges([], null);
     } catch (error) {
       showNotice(error.message, true);
     } finally {
@@ -671,7 +683,6 @@ import * as model from "./review-model.js";
       var result = await response.json();
       showNotice(result.deleted + " pending report" + (result.deleted === 1 ? "" : "s") + " deleted. The baseline map was not changed.", false);
       await loadChanges();
-      previewChanges([], null);
     } catch (error) {
       showNotice(error.message, true);
     } finally {
