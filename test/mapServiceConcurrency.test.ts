@@ -21,7 +21,7 @@ test("a rejected baseline update does not invalidate an in-flight snapshot", asy
   expect(getChanges).toHaveBeenCalledTimes(1);
 
   await expect(
-    mapService.applyBaselineUpdate("outdated-version", []),
+    mapService.applyBaselineUpdate("outdated-version", [], undefined),
   ).rejects.toThrow(
     "The map version provided does not match the current map version",
   );
