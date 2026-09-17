@@ -80,6 +80,32 @@ const directions: Direction[] = [
   "out",
 ];
 
+const deleteSpecialExitFromRoom = (
+  room: Mudlet.MudletMap["rooms"][number],
+  exitCommand: string,
+): void => {
+  if (!Object.hasOwn(room.mSpecialExits, exitCommand)) return;
+
+  Reflect.deleteProperty(room.mSpecialExits, exitCommand);
+  room.mSpecialExitLocks = room.mSpecialExitLocks.filter(
+    (lockedExitCommand) => lockedExitCommand !== exitCommand,
+  );
+
+  const direction = directions.find((candidate) => candidate === exitCommand);
+  if (direction && room[direction] !== -1) return;
+
+  for (const exitData of [
+    room.exitWeights,
+    room.doors,
+    room.customLines,
+    room.customLinesArrow,
+    room.customLinesColor,
+    room.customLinesStyle,
+  ]) {
+    Reflect.deleteProperty(exitData, exitCommand);
+  }
+};
+
 export abstract class ChangeBase<T extends ChangeBase<T>> {
   type!: ChangeType;
   reporters = new Set<string>();
@@ -418,20 +444,7 @@ export class DeleteSpecialExit extends RoomChangeBase<DeleteSpecialExit> {
       // if the room does not exist for some reason, make this a no-op
       return;
     }
-    for (const exitData of [
-      room.mSpecialExits,
-      room.exitWeights,
-      room.doors,
-      room.customLines,
-      room.customLinesArrow,
-      room.customLinesColor,
-      room.customLinesStyle,
-    ]) {
-      Reflect.deleteProperty(exitData, this.exitCommand);
-    }
-    room.mSpecialExitLocks = room.mSpecialExitLocks.filter(
-      (exitCommand) => exitCommand !== this.exitCommand,
-    );
+    deleteSpecialExitFromRoom(room, this.exitCommand);
   }
   public getIdentifyingParts() {
     return {
@@ -516,11 +529,7 @@ export class DeleteRoom extends RoomChangeBase<DeleteRoom> {
         otherRoom.mSpecialExits,
       )) {
         if (destination === this.roomNumber) {
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          delete otherRoom.mSpecialExits[command];
-          otherRoom.mSpecialExitLocks = otherRoom.mSpecialExitLocks.filter(
-            (exitCommand) => exitCommand !== command,
-          );
+          deleteSpecialExitFromRoom(otherRoom, command);
         }
       }
     }
