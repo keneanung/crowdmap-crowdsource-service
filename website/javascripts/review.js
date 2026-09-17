@@ -147,7 +147,6 @@ import * as model from "./review-model.js";
         else state.selected.delete(change.changeId);
         updateActions();
         updateReportFocus();
-        if (state.stagedReview) showStagedSelection();
         renderList();
       });
 
@@ -248,10 +247,14 @@ import * as model from "./review-model.js";
     state.activeId = activeChange ? activeChange.changeId : null;
     elements.previewTitle.textContent = activeChange
       ? model.typeLabel(activeChange.type)
-      : "Marked changes";
+      : state.stagedReview
+        ? "Reviewed result"
+        : "Marked changes";
     elements.previewDescription.textContent = activeChange
       ? model.changeSummary(activeChange)
-      : ids.length + " marked changes applied to the baseline preview.";
+      : state.stagedReview
+        ? ids.length + " selected reports added to the staged upstream preview."
+        : ids.length + " marked changes applied to the baseline preview.";
     window.CrowdmapReviewMap.show(
       ids,
       state.changes.filter(function (change) {
