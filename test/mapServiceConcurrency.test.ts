@@ -1,5 +1,6 @@
 import { expect, jest, test } from "@jest/globals";
 import { Change } from "../src/models/business/change.js";
+import { config, type MapProject } from "../src/config/values.js";
 import { ChangeService } from "../src/services/changeService.js";
 import { MapService } from "../src/services/mapService.js";
 
@@ -83,4 +84,34 @@ test("pending-report deletion invalidates an in-flight change snapshot", async (
 
   await expect(snapshotPending).resolves.toMatchObject({ changes: [] });
   expect(getChanges).toHaveBeenCalledTimes(2);
+});
+
+test("staged review expiry waits for an in-flight baseline mutation", async () => {
+  let finishMutation: () => void = () => undefined;
+  const mutationPending = new Promise<void>((resolve) => {
+    finishMutation = resolve;
+  });
+  const stagedUpstreamReviews = new Map([
+    ["review", { directory: "/tmp/nonexistent-staged-review" }],
+  ]);
+  const runtime = {
+    baselineUpdateQueue: mutationPending,
+    baselineUpdateRevision: 0,
+    stagedUpstreamReviews,
+  };
+  const mapService = new MapService({} as ChangeService) as unknown as {
+    enqueueStagedReviewExpiry(
+      runtimeState: typeof runtime,
+      project: MapProject,
+      reviewId: string,
+    ): void;
+  };
+
+  mapService.enqueueStagedReviewExpiry(runtime, config.projects[0], "review");
+  await Promise.resolve();
+
+  expect(stagedUpstreamReviews.has("review")).toBe(true);
+  finishMutation();
+  await runtime.baselineUpdateQueue;
+  expect(stagedUpstreamReviews.has("review")).toBe(false);
 });
