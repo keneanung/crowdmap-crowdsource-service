@@ -351,3 +351,74 @@ test("applyChange uses the exact staged upstream map", async () => {
 
   expect(fetchMock).toHaveBeenCalledTimes(2);
 });
+
+test("staged apply keeps selected and later reports while discarding unselected reports", async () => {
+  for (const [roomNumber, name] of [[1, "Keep"], [2, "Discard"]] as const) {
+    await request(app).post("/change").send({
+      type: "room-name",
+      roomNumber,
+      name,
+      reporter: "Reviewer",
+    });
+  }
+  const before = await request(app).get("/change").expect(200);
+  const reports = before.body as { changeId: string; name: string }[];
+  const discarded = reports.find((report) => report.name === "Discard");
+  if (!discarded) throw new Error("Expected the discard report");
+  const staged = await request(app)
+    .get("/change/review-upstream?version=466")
+    .set("x-api-key", "abc123456")
+    .expect(200);
+
+  await request(app).post("/change").send({
+    type: "room-name",
+    roomNumber: 3,
+    name: "Arrived later",
+    reporter: "Later reporter",
+  });
+  await request(app)
+    .post("/change/apply")
+    .set("x-api-key", "abc123456")
+    .send({
+      version: "466",
+      obsoleteChanges: [discarded.changeId],
+      reviewId: (staged.body as { id: string }).id,
+    })
+    .expect(200);
+
+  await request(app)
+    .get("/change")
+    .expect(200)
+    .expect((response) => {
+      expect(
+        (response.body as { name: string }[]).map((report) => report.name),
+      ).toEqual(["Keep", "Arrived later"]);
+    });
+});
+
+test("staged apply with zero selected reports discards the reviewed queue", async () => {
+  await request(app).post("/change").send({
+    type: "room-name",
+    roomNumber: 1,
+    name: "Discard all",
+    reporter: "Reviewer",
+  });
+  const pending = await request(app).get("/change").expect(200);
+  const reports = pending.body as { changeId: string }[];
+  const staged = await request(app)
+    .get("/change/review-upstream?version=466")
+    .set("x-api-key", "abc123456")
+    .expect(200);
+
+  await request(app)
+    .post("/change/apply")
+    .set("x-api-key", "abc123456")
+    .send({
+      version: "466",
+      obsoleteChanges: reports.map((report) => report.changeId),
+      reviewId: (staged.body as { id: string }).id,
+    })
+    .expect(200);
+
+  await request(app).get("/change").expect(200).expect([]);
+});
