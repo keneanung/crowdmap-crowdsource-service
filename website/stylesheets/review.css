@@ -65,15 +65,6 @@ a:focus-visible {
   max-width: 1600px;
   padding: 38px 34px 24px;
 }
-.button-danger {
-  background: #401f25;
-  border-color: #8c3d45;
-  color: #ffadb5;
-}
-.button-danger:hover:not(:disabled) {
-  background: #592830;
-}
-
 .back-link {
   color: var(--muted);
   text-decoration: none;
@@ -373,6 +364,14 @@ main {
 .button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+.button.button-danger {
+  background: #401f25;
+  border-color: #8c3d45;
+  color: #ffadb5;
+}
+.button.button-danger:hover:not(:disabled) {
+  background: #592830;
 }
 .button-secondary {
   background: #1c3049;
