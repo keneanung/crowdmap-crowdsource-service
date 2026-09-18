@@ -6,6 +6,10 @@ import request from "supertest";
 import { app } from "../src/app.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
+interface MapResponse {
+  areas: { rooms: { id: number; name: string }[] }[];
+}
+
 beforeEach(() => {
   setupChangeServiceMock();
 });
@@ -62,11 +66,12 @@ test("Should download a map containing only explicitly selected changes", async 
   const baselineResponse = await request(app)
     .get("/map?format=json&timesSeen=0")
     .expect(200);
-  const baselineMap: any = JSON.parse(baselineResponse.text);
+  const baselineMap: MapResponse = JSON.parse(baselineResponse.text);
   const baselineRoom2 = baselineMap.areas
-    .flatMap((area: any) => area.rooms)
-    .find((room: any) => room.id === 2);
+    .flatMap((area) => area.rooms)
+    .find((room) => room.id === 2);
   expect(baselineRoom2).toBeDefined();
+  if (!baselineRoom2) throw new Error("Baseline map does not contain room 2");
 
   await request(app).post("/change").send({
     type: "room-name",
@@ -86,11 +91,12 @@ test("Should download a map containing only explicitly selected changes", async 
     .expect(200)
     .expect("X-Map-Version", "466.AYvP5WgAd3c.1")
     .expect((res) => {
-      const map: any = JSON.parse(res.text);
+      const map: MapResponse = JSON.parse(res.text);
       expect(map.areas[5].rooms[0].name).toBe("Selected room name");
       const room2 = map.areas
-        .flatMap((area: any) => area.rooms)
-        .find((room: any) => room.id === 2);
+        .flatMap((area) => area.rooms)
+        .find((room) => room.id === 2);
+      if (!room2) throw new Error("Downloaded map does not contain room 2");
       expect(room2.name).toBe(baselineRoom2.name);
     });
 });
