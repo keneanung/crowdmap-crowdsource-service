@@ -202,13 +202,23 @@ test("duplicate confirmations retain one logical administrator decision", async 
 
   expect(updateOne).toHaveBeenNthCalledWith(
     1,
-    { projectId: "default", type: "room-name", roomNumber: 42, name: "Discarded name" },
+    {
+      projectId: "default",
+      type: "room-name",
+      roomNumber: 42,
+      name: "Discarded name",
+    },
     expect.anything(),
     { upsert: true },
   );
   expect(updateOne).toHaveBeenNthCalledWith(
     2,
-    { projectId: "default", type: "room-name", roomNumber: 42, name: "Discarded name" },
+    {
+      projectId: "default",
+      type: "room-name",
+      roomNumber: 42,
+      name: "Discarded name",
+    },
     expect.anything(),
     { upsert: true },
   );

@@ -264,6 +264,50 @@ export interface DeleteRoomUserDataSubmission extends RoomChangeBaseSubmission {
   key: string;
 }
 
+export interface SetExitDoorSubmission extends RoomChangeBaseSubmission {
+  type: "set-exit-door";
+  direction: Direction;
+  /** 0 = none, 1 = open, 2 = closed, 3 = locked. */
+  status: 0 | 1 | 2 | 3;
+}
+
+export interface SetMapUserDataSubmission extends ChangeBaseSubmission {
+  type: "set-map-user-data";
+  key: string;
+  value: string;
+}
+
+export interface DeleteMapUserDataSubmission extends ChangeBaseSubmission {
+  type: "delete-map-user-data";
+  key: string;
+}
+
+export interface MapLabelSubmission {
+  text: string;
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  fgColor: { alpha: number; r: number; g: number; b: number };
+  bgColor: { alpha: number; r: number; g: number; b: number };
+  noScaling: boolean;
+  showOnTop: boolean;
+}
+
+export interface SetMapLabelSubmission extends ChangeBaseSubmission {
+  type: "set-map-label";
+  areaId: number;
+  labelId: number;
+  label: MapLabelSubmission;
+}
+
+export interface DeleteMapLabelSubmission extends ChangeBaseSubmission {
+  type: "delete-map-label";
+  areaId: number;
+  labelId: number;
+}
+
 export type ChangeSubmission =
   | ChangeRoomNameSubmission
   | ModifyRoomExitSubmission
@@ -286,7 +330,12 @@ export type ChangeSubmission =
   | ModifySpecialExitWeightSubmission
   | SetRoomEnvironmentSubmission
   | ModifyRoomUserDataSubmission
-  | DeleteRoomUserDataSubmission;
+  | DeleteRoomUserDataSubmission
+  | SetExitDoorSubmission
+  | SetMapUserDataSubmission
+  | DeleteMapUserDataSubmission
+  | SetMapLabelSubmission
+  | DeleteMapLabelSubmission;
 
 export interface ApplicationSubmission {
   version: string;

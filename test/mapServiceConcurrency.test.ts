@@ -1,6 +1,6 @@
 import { expect, jest, test } from "@jest/globals";
-import { Change } from "../src/models/business/change.js";
 import { config, type MapProject } from "../src/config/values.js";
+import { Change } from "../src/models/business/change.js";
 import { ChangeService } from "../src/services/changeService.js";
 import { MapService } from "../src/services/mapService.js";
 
@@ -65,7 +65,14 @@ test("pending-report deletion invalidates an in-flight change snapshot", async (
     finishSnapshotRead = resolve;
   });
   const getChanges = jest
-    .fn<(timesSeen: number, include: string[], exclude: string[], projectId?: string) => Promise<Change[]>>()
+    .fn<
+      (
+        timesSeen: number,
+        include: string[],
+        exclude: string[],
+        projectId?: string,
+      ) => Promise<Change[]>
+    >()
     .mockImplementationOnce(() => snapshotReadPending)
     .mockResolvedValueOnce([]);
   const deleteChanges = jest.fn(() => Promise.resolve(1));

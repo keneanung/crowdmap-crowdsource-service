@@ -35,6 +35,8 @@ import {
   CreateRoom,
   DeleteArea,
   DeleteExit,
+  DeleteMapLabel,
+  DeleteMapUserData,
   DeleteRoom,
   DeleteRoomUserData,
   DeleteSpecialExit,
@@ -45,6 +47,9 @@ import {
   ModifySpecialExit,
   ModifySpecialExitWeight,
   RenameArea,
+  SetExitDoor,
+  SetMapLabel,
+  SetMapUserData,
   SetRoomArea,
   SetRoomCoordinates,
   SetRoomEnvironment,
@@ -343,6 +348,57 @@ export class ChangeController extends Controller {
             changeId: typedChange.changeId,
           };
         }
+        case "set-exit-door": {
+          const typedChange = change as SetExitDoor;
+          return {
+            type: "set-exit-door",
+            roomNumber: typedChange.roomNumber,
+            direction: typedChange.direction,
+            status: typedChange.status,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
+        case "set-map-user-data": {
+          const typedChange = change as SetMapUserData;
+          return {
+            type: "set-map-user-data",
+            key: typedChange.key,
+            value: typedChange.value,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
+        case "delete-map-user-data": {
+          const typedChange = change as DeleteMapUserData;
+          return {
+            type: "delete-map-user-data",
+            key: typedChange.key,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
+        case "set-map-label": {
+          const typedChange = change as SetMapLabel;
+          return {
+            type: "set-map-label",
+            areaId: typedChange.areaId,
+            labelId: typedChange.labelId,
+            label: typedChange.label,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
+        case "delete-map-label": {
+          const typedChange = change as DeleteMapLabel;
+          return {
+            type: "delete-map-label",
+            areaId: typedChange.areaId,
+            labelId: typedChange.labelId,
+            reporters: typedChange.reporters.size,
+            changeId: typedChange.changeId,
+          };
+        }
         default: {
           return assertUnreachable(change);
         }
@@ -508,6 +564,27 @@ export class ChangeController extends Controller {
             change.key,
           );
         }
+        case "set-exit-door":
+          return new SetExitDoor(
+            change.roomNumber,
+            [change.reporter],
+            change.direction,
+            change.status,
+          );
+        case "set-map-user-data":
+          return new SetMapUserData(change.key, change.value, [
+            change.reporter,
+          ]);
+        case "delete-map-user-data":
+          return new DeleteMapUserData(change.key, [change.reporter]);
+        case "set-map-label":
+          return new SetMapLabel(change.areaId, change.labelId, change.label, [
+            change.reporter,
+          ]);
+        case "delete-map-label":
+          return new DeleteMapLabel(change.areaId, change.labelId, [
+            change.reporter,
+          ]);
         default: {
           return assertUnreachable(change);
         }

@@ -22,7 +22,12 @@ export type ChangeType =
   | "modify-special-exit-weight"
   | "set-room-environment"
   | "modify-room-user-data"
-  | "delete-room-user-data";
+  | "delete-room-user-data"
+  | "set-exit-door"
+  | "set-map-user-data"
+  | "delete-map-user-data"
+  | "set-map-label"
+  | "delete-map-label";
 
 const resetAreaSize = (area: MudletArea): void => {
   area.max_x = 0;
@@ -193,7 +198,10 @@ export class RenameArea extends ChangeBase<RenameArea> {
 
   public apply(map: Mudlet.MudletMap): void {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!map.areas[this.areaId]) return;
+    if (!map.areas[this.areaId]) {
+      new CreateArea(this.name, this.areaId, []).apply(map);
+      return;
+    }
     const nameIsUsedByAnotherArea = Object.entries(map.areaNames).some(
       ([areaId, areaName]) =>
         Number(areaId) !== this.areaId && areaName === this.name,
@@ -622,6 +630,7 @@ export class SetRoomHash extends RoomChangeBase<SetRoomHash> {
       }
     }
     map.mpRoomDbHashToRoomId[this.hash] = this.roomNumber;
+    map.rooms[this.roomNumber].hash = this.hash;
   }
 
   public getIdentifyingParts() {
@@ -777,7 +786,11 @@ export class ModifyExitWeight extends RoomChangeBase<ModifyExitWeight> {
       // if the room does not exist or the exit is already deleted, make this a no-op
       return;
     }
-    room.exitWeights[this.direction] = this.weight;
+    if (this.weight === 0) {
+      Reflect.deleteProperty(room.exitWeights, this.direction);
+    } else {
+      room.exitWeights[this.direction] = this.weight;
+    }
   }
   public getIdentifyingParts() {
     return {
@@ -933,6 +946,162 @@ export class DeleteRoomUserData extends RoomChangeBase<DeleteRoomUserData> {
   }
 }
 
+export class SetExitDoor extends RoomChangeBase<SetExitDoor> {
+  type: ChangeType = "set-exit-door";
+
+  constructor(
+    roomNumber: number,
+    reporters: string[],
+    public direction: Direction,
+    public status: number,
+    changeId?: string,
+  ) {
+    super(roomNumber, reporters, changeId);
+  }
+
+  public apply(map: Mudlet.MudletMap): void {
+    const room = map.rooms[this.roomNumber];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!room || room[this.direction] === -1) return;
+    if (this.status === 0) Reflect.deleteProperty(room.doors, this.direction);
+    else room.doors[this.direction] = this.status;
+  }
+
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      roomNumber: this.roomNumber,
+      direction: this.direction,
+      status: this.status,
+    };
+  }
+}
+
+export class SetMapUserData extends ChangeBase<SetMapUserData> {
+  type: ChangeType = "set-map-user-data";
+  constructor(
+    public key: string,
+    public value: string,
+    reporters: string[],
+    changeId?: string,
+  ) {
+    super(reporters, changeId);
+  }
+  public apply(map: Mudlet.MudletMap): void {
+    map.mUserData[this.key] = this.value;
+  }
+  public getIdentifyingParts() {
+    return { type: this.type, key: this.key, value: this.value };
+  }
+}
+
+export class DeleteMapUserData extends ChangeBase<DeleteMapUserData> {
+  type: ChangeType = "delete-map-user-data";
+  constructor(
+    public key: string,
+    reporters: string[],
+    changeId?: string,
+  ) {
+    super(reporters, changeId);
+  }
+  public apply(map: Mudlet.MudletMap): void {
+    Reflect.deleteProperty(map.mUserData, this.key);
+  }
+  public getIdentifyingParts() {
+    return { type: this.type, key: this.key };
+  }
+}
+
+export interface MapLabelData {
+  text: string;
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  fgColor: { alpha: number; r: number; g: number; b: number };
+  bgColor: { alpha: number; r: number; g: number; b: number };
+  noScaling: boolean;
+  showOnTop: boolean;
+}
+
+const mudletColor = (color: MapLabelData["fgColor"]) => ({
+  spec: 1,
+  pad: 0,
+  ...color,
+});
+
+export class SetMapLabel extends ChangeBase<SetMapLabel> {
+  type: ChangeType = "set-map-label";
+  constructor(
+    public areaId: number,
+    public labelId: number,
+    public label: MapLabelData,
+    reporters: string[],
+    changeId?: string,
+  ) {
+    super(reporters, changeId);
+  }
+  public apply(map: Mudlet.MudletMap): void {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!map.areas[this.areaId]) return;
+    const labels = (map.labels[this.areaId] ??= []);
+    const value = {
+      id: this.labelId,
+      labelId: this.labelId,
+      areaId: this.areaId,
+      pos: [this.label.x, this.label.y, this.label.z] as [
+        number,
+        number,
+        number,
+      ],
+      size: [this.label.width, this.label.height] as [number, number],
+      text: this.label.text,
+      fgColor: mudletColor(this.label.fgColor),
+      bgColor: mudletColor(this.label.bgColor),
+      pixMap: "",
+      noScaling: this.label.noScaling,
+      showOnTop: this.label.showOnTop,
+    };
+    const index = labels.findIndex(
+      (candidate) => candidate.id === this.labelId,
+    );
+    if (index === -1) labels.push(value);
+    else labels[index] = value;
+  }
+  public getIdentifyingParts() {
+    return {
+      type: this.type,
+      areaId: this.areaId,
+      labelId: this.labelId,
+      label: this.label,
+    };
+  }
+}
+
+export class DeleteMapLabel extends ChangeBase<DeleteMapLabel> {
+  type: ChangeType = "delete-map-label";
+  constructor(
+    public areaId: number,
+    public labelId: number,
+    reporters: string[],
+    changeId?: string,
+  ) {
+    super(reporters, changeId);
+  }
+  public apply(map: Mudlet.MudletMap): void {
+    const labels = map.labels[this.areaId];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!labels) return;
+    map.labels[this.areaId] = labels.filter(({ id }) => id !== this.labelId);
+    if (map.labels[this.areaId].length === 0)
+      Reflect.deleteProperty(map.labels, this.areaId);
+  }
+  public getIdentifyingParts() {
+    return { type: this.type, areaId: this.areaId, labelId: this.labelId };
+  }
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -955,7 +1124,12 @@ export type Change =
   | ModifySpecialExitWeight
   | SetRoomEnvironment
   | ModifyRoomUserData
-  | DeleteRoomUserData;
+  | DeleteRoomUserData
+  | SetExitDoor
+  | SetMapUserData
+  | DeleteMapUserData
+  | SetMapLabel
+  | DeleteMapLabel;
 
 export type Direction =
   | "north"

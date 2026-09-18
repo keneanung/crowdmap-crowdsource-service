@@ -5,6 +5,8 @@ import {
   CreateRoom,
   DeleteArea,
   DeleteExit,
+  DeleteMapLabel,
+  DeleteMapUserData,
   DeleteRoom,
   DeleteRoomUserData,
   DeleteSpecialExit,
@@ -15,6 +17,9 @@ import {
   ModifySpecialExit,
   ModifySpecialExitWeight,
   RenameArea,
+  SetExitDoor,
+  SetMapLabel,
+  SetMapUserData,
   SetRoomArea,
   SetRoomCoordinates,
   SetRoomEnvironment,
@@ -144,6 +149,26 @@ export const changeTargetState = (
         lookup(room(map, typed.roomNumber)?.userData ?? {}, typed.key) ?? null
       );
     }
+    case "set-exit-door": {
+      const typed = change as SetExitDoor;
+      return (
+        lookup(room(map, typed.roomNumber)?.doors ?? {}, typed.direction) ?? 0
+      );
+    }
+    case "set-map-user-data":
+    case "delete-map-user-data": {
+      const typed = change as SetMapUserData | DeleteMapUserData;
+      return lookup(map.mUserData, typed.key) ?? null;
+    }
+    case "set-map-label":
+    case "delete-map-label": {
+      const typed = change as SetMapLabel | DeleteMapLabel;
+      return (
+        lookup(map.labels, typed.areaId)?.find(
+          ({ id }) => id === typed.labelId,
+        ) ?? null
+      );
+    }
   }
 };
 
@@ -196,6 +221,29 @@ export const desiredChangeState = (change: Change): unknown => {
       return (change as ModifyRoomUserData).value;
     case "delete-room-user-data":
       return null;
+    case "set-exit-door":
+      return (change as SetExitDoor).status;
+    case "set-map-user-data":
+      return (change as SetMapUserData).value;
+    case "delete-map-user-data":
+    case "delete-map-label":
+      return null;
+    case "set-map-label": {
+      const typed = change as SetMapLabel;
+      return {
+        id: typed.labelId,
+        labelId: typed.labelId,
+        areaId: typed.areaId,
+        pos: [typed.label.x, typed.label.y, typed.label.z],
+        size: [typed.label.width, typed.label.height],
+        text: typed.label.text,
+        fgColor: { spec: 1, pad: 0, ...typed.label.fgColor },
+        bgColor: { spec: 1, pad: 0, ...typed.label.bgColor },
+        pixMap: "",
+        noScaling: typed.label.noScaling,
+        showOnTop: typed.label.showOnTop,
+      };
+    }
   }
 };
 
