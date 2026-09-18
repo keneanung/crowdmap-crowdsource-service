@@ -101,6 +101,16 @@ import * as model from "./review-model.js";
     elements.showBaseline.textContent = state.stagedReview
       ? "Staged upstream"
       : "Current baseline";
+    elements.showBaseline.disabled = busy;
+    elements.showBaseline.title = state.previewing
+      ? "Wait for the current map preview to finish."
+      : state.loadingChanges
+        ? "Wait for pending reports to finish loading."
+        : state.busyAction
+          ? "Wait for the current administrator action to finish."
+          : state.stagedReview
+            ? "Preview the staged upstream map without additional reports."
+            : "Preview the current baseline without pending reports.";
     elements.apply.disabled =
       busy ||
       !state.stagedReview ||
@@ -214,7 +224,9 @@ import * as model from "./review-model.js";
       checkbox.setAttribute(
         "aria-label",
         state.stagedReview
-          ? "Keep " + model.typeLabel(change.type) + " in addition to the staged upstream map"
+          ? change.upstreamResolved
+            ? model.typeLabel(change.type) + " is already present in the staged upstream map"
+            : "Keep " + model.typeLabel(change.type) + " in addition to the staged upstream map"
           : "Select " + model.typeLabel(change.type) + " for preview or deletion",
       );
       checkbox.addEventListener("click", function (event) {
