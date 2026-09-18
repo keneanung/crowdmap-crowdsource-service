@@ -269,6 +269,13 @@ Each related-change hint identifies the other report and explains the shared
 target or dependency. These relationships are review hints rather than
 automatic conflict decisions.
 
+One way to prepare an upstream update is to select reports to propose, preview
+them, and use **Download selected map**. The download is a binary Mudlet map
+with exactly those reports applied to the current baseline. An upstream map may
+also be changed through its normal workflow. After any new upstream map and
+version are published, return to the review workspace to stage and apply the
+new baseline.
+
 After publishing a new upstream map/version pair, mark only reports already
 represented by that pair and apply the baseline update with a `map_admin` API
 key assigned to that project. Project assignments are stored in

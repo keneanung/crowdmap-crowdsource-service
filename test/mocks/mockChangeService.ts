@@ -24,12 +24,19 @@ export class MockChangeService extends ChangeService {
     return Promise.resolve();
   }
   public getChanges(
-    _timesSeen: number,
-    _include?: string[],
-    _exclude?: string[],
+    timesSeen: number,
+    include: string[] = [],
+    exclude: string[] = [],
     projectId?: string,
   ): Promise<Change[]> {
-    return Promise.resolve(this.scoped(projectId).map(changeDbToBusiness));
+    return Promise.resolve(
+      this.scoped(projectId)
+        .filter((change) => change.numberOfReporters >= timesSeen)
+        .filter((change) => include.length === 0 || include.includes(change.changeId))
+        .filter((change) => exclude.length === 0 || !exclude.includes(change.changeId))
+        .sort((left, right) => left.changeId.localeCompare(right.changeId))
+        .map(changeDbToBusiness),
+    );
   }
   public applyChanges(apply: string[], projectId?: string): Promise<void> {
     const kept = this.scoped(projectId).filter(
