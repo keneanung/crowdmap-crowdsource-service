@@ -57,3 +57,27 @@ test("Should incorporate room name changes into the map", async () => {
       expect(room).toMatchSnapshot();
     });
 });
+
+test("Should download a map containing only explicitly selected changes", async () => {
+  await request(app).post("/change").send({
+    type: "room-name",
+    roomNumber: 1,
+    name: "Selected room name",
+    reporter: "Test Reporter",
+  });
+  await request(app).post("/change").send({
+    type: "room-name",
+    roomNumber: 2,
+    name: "Unselected room name",
+    reporter: "Test Reporter",
+  });
+
+  await request(app)
+    .get("/map?format=json&timesSeen=0&include=018bcfe5-6800-7777-8d30-5e6a25dbfac1")
+    .expect(200)
+    .expect("X-Map-Version", "466.AYvP5WgAd3c.1")
+    .expect((res) => {
+      const map: any = JSON.parse(res.text);
+      expect(map.areas[5].rooms[0].name).toBe("Selected room name");
+    });
+});

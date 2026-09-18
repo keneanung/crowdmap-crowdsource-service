@@ -30,6 +30,7 @@ import * as model from "./review-model.js";
     blink: document.querySelector("#blink-toggle"),
     differenceMode: document.querySelector("#difference-mode"),
     deleteSelected: document.querySelector("#delete-selected"),
+    downloadSelected: document.querySelector("#download-selected"),
     notice: document.querySelector("#notice"),
     pendingCount: document.querySelector("#pending-count"),
     previewDescription: document.querySelector("#preview-description"),
@@ -92,6 +93,7 @@ import * as model from "./review-model.js";
           ? "Wait for the current map preview to finish."
         : "Reload pending reports. Refreshing cancels a staged upstream review.";
     elements.previewSelected.disabled = busy || (!state.stagedReview && count === 0);
+    elements.downloadSelected.disabled = busy || Boolean(state.stagedReview) || count === 0;
     elements.deleteSelected.disabled = busy || !hasApiKey || count === 0 || Boolean(state.stagedReview);
     elements.stageUpstream.disabled = busy || !hasApiKey || !state.rawVersion || Boolean(state.stagedReview);
     elements.selectedLabel.textContent = state.stagedReview ? "selected to keep" : "selected";
@@ -144,6 +146,13 @@ import * as model from "./review-model.js";
           : state.previewedSelectionKey !== selectionKey()
             ? "Preview the reviewed result after changing the selection."
             : "Apply the staged upstream map with the selected reports.";
+    elements.downloadSelected.title = busy
+      ? "Wait for the current action to finish."
+      : state.stagedReview
+        ? "Download proposed maps before staging the published upstream update."
+        : count === 0
+          ? "Select one or more reports first."
+          : "Download a binary map containing exactly the selected reports.";
 
     elements.adminActionHint.textContent = state.previewing
       ? "A map preview is currently being generated."
@@ -732,6 +741,24 @@ import * as model from "./review-model.js";
     }
   }
 
+  function downloadSelected() {
+    var query = new URLSearchParams({ format: "binary", timesSeen: "0" });
+    state.selected.forEach(function (changeId) {
+      query.append("include", changeId);
+    });
+    var download = document.createElement("a");
+    download.href = "map?" + query.toString();
+    download.download = "crowdmap-selected.map";
+    document.body.appendChild(download);
+    download.click();
+    download.remove();
+    showNotice(
+      "Downloading a binary map with " + state.selected.size + " selected report" +
+        (state.selected.size === 1 ? "." : "s."),
+      false,
+    );
+  }
+
   elements.search.addEventListener("input", function () {
     state.search = elements.search.value;
     renderList();
@@ -748,6 +775,7 @@ import * as model from "./review-model.js";
   elements.apiKey.addEventListener("input", updateActions);
   elements.refresh.addEventListener("click", loadChanges);
   elements.deleteSelected.addEventListener("click", deleteSelected);
+  elements.downloadSelected.addEventListener("click", downloadSelected);
   elements.stageUpstream.addEventListener("click", async function () {
     if (!state.rawVersion) return;
     state.busyAction = "stage";
