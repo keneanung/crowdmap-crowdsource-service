@@ -28,6 +28,7 @@ import {
   MapWorkerResponse,
 } from "../models/business/mapWorker.js";
 import {
+  log,
   mapWorkerCompleted,
   mapWorkerFailed,
   mapWorkerStarted,
@@ -645,7 +646,15 @@ export class MapService {
       await replacement.complete();
       if (stagedReview) {
         runtime.stagedUpstreamReviews.delete(stagedReview.id);
-        await rm(stagedReview.directory, { recursive: true, force: true });
+        await rm(stagedReview.directory, { recursive: true, force: true }).catch(
+          (error: unknown) => {
+            log("warn", "staged_upstream_review_cleanup_failed", {
+              error,
+              projectId: project.id,
+              reviewId: stagedReview.id,
+            });
+          },
+        );
       }
       return {
         automaticallyResolved: automaticallyResolved.filter(
