@@ -114,6 +114,31 @@ export class MapService {
     return runtime;
   }
 
+  private enqueueStagedReviewExpiry(
+    runtime: ProjectRuntimeState,
+    project: MapProject,
+    reviewId: string,
+  ): void {
+    const expiration = runtime.baselineUpdateQueue.then(async () => {
+      const expired = runtime.stagedUpstreamReviews.get(reviewId);
+      if (!expired) return;
+      runtime.stagedUpstreamReviews.delete(reviewId);
+      await rm(expired.directory, { recursive: true, force: true }).catch(
+        (error: unknown) => {
+          log("warn", "staged_upstream_review_cleanup_failed", {
+            error,
+            projectId: project.id,
+            reviewId,
+          });
+        },
+      );
+    });
+    runtime.baselineUpdateQueue = expiration.then(
+      () => undefined,
+      () => undefined,
+    );
+  }
+
   private assertAvailable(project: MapProject): void {
     const error = this.runtime(project).availabilityError;
     if (error)
@@ -285,10 +310,7 @@ export class MapService {
       runtime.stagedUpstreamReviews.set(id, staged);
       setTimeout(
         () => {
-          const expired = runtime.stagedUpstreamReviews.get(id);
-          if (!expired) return;
-          runtime.stagedUpstreamReviews.delete(id);
-          void rm(expired.directory, { recursive: true, force: true });
+          this.enqueueStagedReviewExpiry(runtime, project, id);
         },
         60 * 60 * 1000,
       ).unref();
