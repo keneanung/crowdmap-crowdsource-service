@@ -42,6 +42,30 @@ test("an omitted zero exit weight resolves during upstream reconciliation", () =
   });
 });
 
+test.each(["room", "exit"])(
+  "a weight report becomes obsolete when upstream deletes its %s",
+  (deletedTarget) => {
+    const oldMap = loadMap();
+    const newMap = loadMap();
+    if (deletedTarget === "room") {
+      Reflect.deleteProperty(newMap.rooms, 39478);
+    } else {
+      newMap.rooms[39478].east = -1;
+    }
+    const change = new ModifyExitWeight(
+      39478,
+      [],
+      "east",
+      7,
+      `deleted-${deletedTarget}-weight-change`,
+    );
+    expect(reconcileChange(change, oldMap, newMap)).toEqual({
+      changeId: `deleted-${deletedTarget}-weight-change`,
+      status: "resolved",
+    });
+  },
+);
+
 test("label identity is canonical regardless of client JSON field order", () => {
   const first = {
     text: "label",

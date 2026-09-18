@@ -257,6 +257,15 @@ export const reconcileChange = (
   oldMap: Mudlet.MudletMap,
   newMap: Mudlet.MudletMap,
 ): ChangeReconciliation => {
+  if (change.type === "modify-exit-weight") {
+    const typed = change as ModifyExitWeight;
+    const targetRoom = room(newMap, typed.roomNumber);
+    if (!targetRoom || targetRoom[typed.direction] === -1) {
+      // A weight has no meaning after its room or exit is removed. Treat the
+      // report as obsolete instead of retaining an unresolvable conflict.
+      return { changeId: change.changeId, status: "resolved" };
+    }
+  }
   const oldState = changeTargetState(change, oldMap);
   const newState = changeTargetState(change, newMap);
   const desired = desiredChangeState(change);
