@@ -176,6 +176,7 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
     const message = error instanceof Error ? error.message : "Map preview unavailable";
     baselineStatus.textContent = message;
     candidateStatus.textContent = message;
+    throw error;
   }
 }
 

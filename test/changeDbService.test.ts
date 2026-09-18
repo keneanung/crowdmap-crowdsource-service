@@ -107,7 +107,9 @@ test("creates indexes when the changes collection does not yet exist", async () 
     })),
   } as unknown as MongoClient;
 
-  await expect(new MongoChangeService(mongo).initialize()).resolves.toBeUndefined();
+  await expect(
+    new MongoChangeService(mongo).initialize(),
+  ).resolves.toBeUndefined();
 
   expect(indexExists).toHaveBeenCalledTimes(1);
   expect(createIndexes).toHaveBeenCalledTimes(1);
@@ -136,6 +138,83 @@ test("baseline reconciliation deletes only resolved changes", async () => {
   expect(deleteMany).toHaveBeenCalledWith({
     projectId: "default",
     changeId: { $in: ["resolved-change"] },
+  });
+});
+
+test("manual report deletion is atomic and project-scoped", async () => {
+  const deleteMany = jest.fn<
+    (filter: unknown) => Promise<{ deletedCount: number }>
+  >(() => Promise.resolve({ deletedCount: 2 }));
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        deleteMany,
+        countDocuments: jest.fn(async () => Promise.resolve(0)),
+        updateMany: jest.fn(async () => Promise.resolve()),
+        createIndexes: jest.fn(async () => Promise.resolve([])),
+        indexExists: jest.fn(async () => Promise.resolve(false)),
+      })),
+    })),
+  } as unknown as MongoClient;
+
+  const deleted = await new MongoChangeService(mongo).deleteChanges(
+    ["wrong-report", "conflicting-report"],
+    "alpha",
+  );
+
+  expect(deleted).toBe(2);
+  expect(deleteMany).toHaveBeenCalledWith({
+    projectId: "alpha",
+    changeId: { $in: ["wrong-report", "conflicting-report"] },
+  });
+});
+
+test("duplicate confirmations retain one logical administrator decision", async () => {
+  const updateOne = jest.fn<
+    (filter: unknown, update: unknown, options: unknown) => Promise<void>
+  >(async () => Promise.resolve());
+  const deleteMany = jest.fn<
+    (filter: unknown) => Promise<{ deletedCount: number }>
+  >(async () => Promise.resolve({ deletedCount: 1 }));
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        updateOne,
+        deleteMany,
+        countDocuments: jest.fn(async () => Promise.resolve(0)),
+        updateMany: jest.fn(async () => Promise.resolve()),
+        createIndexes: jest.fn(async () => Promise.resolve([])),
+        indexExists: jest.fn(async () => Promise.resolve(false)),
+      })),
+    })),
+  } as unknown as MongoClient;
+  const service = new MongoChangeService(mongo);
+
+  await service.addChange(
+    new ChangeRoomName(42, ["reporter-a"], "Discarded name", "reviewed-id"),
+  );
+  await service.addChange(
+    new ChangeRoomName(42, ["reporter-b"], "Discarded name", "later-id"),
+  );
+  await service.deleteChanges(["reviewed-id"]);
+
+  expect(updateOne).toHaveBeenNthCalledWith(
+    1,
+    { projectId: "default", type: "room-name", roomNumber: 42, name: "Discarded name" },
+    expect.anything(),
+    { upsert: true },
+  );
+  expect(updateOne).toHaveBeenNthCalledWith(
+    2,
+    { projectId: "default", type: "room-name", roomNumber: 42, name: "Discarded name" },
+    expect.anything(),
+    { upsert: true },
+  );
+  expect(deleteMany).toHaveBeenCalledWith({
+    projectId: "default",
+    changeId: { $in: ["reviewed-id"] },
   });
 });
 

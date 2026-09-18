@@ -18,6 +18,7 @@ export interface ProjectChangeRepository {
   ): Promise<Change[]>;
   applyChanges(apply: string[]): Promise<void>;
   reconcileChanges(resolved: string[]): Promise<void>;
+  deleteChanges(changeIds: string[]): Promise<number>;
 }
 
 export abstract class ChangeService {
@@ -33,6 +34,10 @@ export abstract class ChangeService {
     resolved: string[],
     projectId?: string,
   ): Promise<void>;
+  abstract deleteChanges(
+    changeIds: string[],
+    projectId?: string,
+  ): Promise<number>;
 
   public async initialize(): Promise<void> {
     const first = config.projects[0];
@@ -47,6 +52,8 @@ export abstract class ChangeService {
       applyChanges: (apply: string[]) => this.applyChanges(apply, projectId),
       reconcileChanges: (resolved: string[]) =>
         this.reconcileChanges(resolved, projectId),
+      deleteChanges: (changeIds: string[]) =>
+        this.deleteChanges(changeIds, projectId),
     });
   }
 }
@@ -232,5 +239,18 @@ export class MongoChangeService extends ChangeService {
       projectId: this.projectId(projectId),
       changeId: { $in: resolved },
     });
+  }
+
+  public async deleteChanges(
+    changeIds: string[],
+    projectId?: string,
+  ): Promise<number> {
+    if (changeIds.length === 0) return 0;
+    const collection = await this.getCollection();
+    const result = await collection.deleteMany({
+      projectId: this.projectId(projectId),
+      changeId: { $in: changeIds },
+    });
+    return result.deletedCount;
   }
 }

@@ -30,7 +30,6 @@
       <button class="button button-secondary" id="refresh" type="button">
         Refresh
       </button>
-      <button class="button button-primary" id="stage-upstream" type="button">Load upstream update</button>
     </header>
 
     <main>
@@ -46,7 +45,7 @@
           ><span>upstream conflicts</span>
         </div>
         <div class="stat stat-selected">
-          <strong id="selected-count">0</strong><span>carried forward</span>
+          <strong id="selected-count">0</strong><span id="selected-label">selected</span>
         </div>
         <div class="baseline-version">
           <span>Baseline version</span
@@ -77,7 +76,7 @@
                 Upstream conflicts
               </button>
               <button class="filter" data-filter="selected" type="button">
-                Marked
+                Selected
               </button>
             </div>
           </div>
@@ -117,11 +116,11 @@
               </button>
               <button
                 class="button button-secondary"
-                id="show-marked"
+                id="show-selected"
                 type="button"
                 disabled
               >
-                Preview carried reports
+                Preview selected reports
               </button>
             </div>
           </div>
@@ -156,13 +155,17 @@
           </article>
 
           <article class="review-guide">
-            <h2>Stage and apply an upstream map update</h2>
+            <h2>Map administrator actions</h2>
+            <p class="review-guide-intro">
+              Before staging an update, select reports to preview them together or delete them. Deletion does not change the baseline map.
+            </p>
             <ol>
               <li>
-                Load the new upstream map. Exact matches are resolved; unchanged reports are carried forward; conflicts can be kept or dropped.
+                Load the new upstream map. Reports already present upstream are resolved automatically.
               </li>
-              <li>Inspect incoming upstream against the reviewed result above.</li>
-              <li>Apply the staged decision. The server rechecks the current baseline first.</li>
+              <li>Select the remaining reports you want to keep in addition to the upstream map.</li>
+              <li>Preview the reviewed result and adjust the selection if necessary.</li>
+              <li>Apply the reviewed update. Unselected reports are discarded.</li>
             </ol>
             <div class="apply-controls">
               <label>
@@ -174,17 +177,29 @@
                   placeholder="Kept in memory only"
                 />
               </label>
-              <button
-                class="button button-primary"
-                id="apply-update"
-                type="button"
-                disabled
-              >
-                Apply reviewed upstream update
-              </button>
+              <div class="admin-actions">
+                <button class="button button-danger" id="delete-selected" type="button" aria-describedby="admin-action-hint" disabled>
+                  Delete selected reports
+                </button>
+                <button class="button button-secondary" id="stage-upstream" type="button" aria-describedby="admin-action-hint" disabled>
+                  Load upstream update
+                </button>
+                <button
+                  class="button button-primary"
+                  id="apply-update"
+                  type="button"
+                  aria-describedby="admin-action-hint"
+                  disabled
+                >
+                  Apply reviewed upstream update
+                </button>
+              </div>
+              <p class="admin-action-hint" id="admin-action-hint" aria-live="polite">
+                Enter the map administrator API key to enable administrative actions.
+              </p>
             </div>
             <p class="apply-note">
-              Loading upstream does not modify the local map. Resolved reports are removed only when this final step succeeds.
+              Loading and previewing do not modify the baseline. Changes are committed only when the reviewed update is applied.
             </p>
           </article>
         </section>

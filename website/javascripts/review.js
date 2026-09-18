@@ -5,9 +5,13 @@ import * as model from "./review-model.js";
 
   var state = {
     activeId: null,
+    busyAction: null,
     changes: [],
     filter: "all",
     groups: new Map(),
+    loadingChanges: false,
+    previewing: false,
+    previewedSelectionKey: null,
     rawVersion: "",
     search: "",
     selected: new Set(),
@@ -17,6 +21,7 @@ import * as model from "./review-model.js";
 
   var elements = {
     apiKey: document.querySelector("#api-key"),
+    adminActionHint: document.querySelector("#admin-action-hint"),
     apply: document.querySelector("#apply-update"),
     baselineVersion: document.querySelector("#baseline-version"),
     changeList: document.querySelector("#change-list"),
@@ -24,10 +29,11 @@ import * as model from "./review-model.js";
     filters: document.querySelectorAll(".filter"),
     blink: document.querySelector("#blink-toggle"),
     differenceMode: document.querySelector("#difference-mode"),
+    deleteSelected: document.querySelector("#delete-selected"),
     notice: document.querySelector("#notice"),
     pendingCount: document.querySelector("#pending-count"),
     previewDescription: document.querySelector("#preview-description"),
-    previewMarked: document.querySelector("#show-marked"),
+    previewSelected: document.querySelector("#show-selected"),
     reportFocus: document.querySelector("#report-focus"),
     previewTitle: document.querySelector("#preview-title"),
     comparisonSideBySide: document.querySelector("#comparison-side-by-side"),
@@ -37,6 +43,7 @@ import * as model from "./review-model.js";
     stageUpstream: document.querySelector("#stage-upstream"),
     search: document.querySelector("#search"),
     selectedCount: document.querySelector("#selected-count"),
+    selectedLabel: document.querySelector("#selected-label"),
     showBaseline: document.querySelector("#show-baseline"),
     showAllDetails: document.querySelector("#show-all-details"),
     roomDiffDetails: document.querySelector("#room-diff-details"),
@@ -67,14 +74,99 @@ import * as model from "./review-model.js";
     );
   }
 
+  function selectionKey() {
+    return Array.from(state.selected).sort().join(",");
+  }
+
   function updateActions() {
     var count = state.selected.size;
+    var hasApiKey = elements.apiKey.value.trim().length > 0;
+    var busy = Boolean(state.busyAction) || state.loadingChanges || state.previewing;
     elements.selectedCount.textContent = String(count);
-    elements.previewMarked.disabled = count === 0;
-    elements.apply.disabled = !model.canApply(
-      state.rawVersion,
-      elements.apiKey.value,
-    );
+    elements.refresh.disabled = busy;
+    elements.refresh.title = state.busyAction
+      ? "Wait for the current administrator action to finish."
+      : state.loadingChanges
+        ? "Pending reports are being refreshed."
+        : state.previewing
+          ? "Wait for the current map preview to finish."
+        : "Reload pending reports. Refreshing cancels a staged upstream review.";
+    elements.previewSelected.disabled = busy || (!state.stagedReview && count === 0);
+    elements.deleteSelected.disabled = busy || !hasApiKey || count === 0 || Boolean(state.stagedReview);
+    elements.stageUpstream.disabled = busy || !hasApiKey || !state.rawVersion || Boolean(state.stagedReview);
+    elements.selectedLabel.textContent = state.stagedReview ? "selected to keep" : "selected";
+    elements.previewSelected.textContent = state.stagedReview
+      ? "Preview reviewed result"
+      : "Preview selected reports";
+    elements.showBaseline.textContent = state.stagedReview
+      ? "Staged upstream"
+      : "Current baseline";
+    elements.showBaseline.disabled = busy;
+    elements.showBaseline.title = state.previewing
+      ? "Wait for the current map preview to finish."
+      : state.loadingChanges
+        ? "Wait for pending reports to finish loading."
+        : state.busyAction
+          ? "Wait for the current administrator action to finish."
+          : state.stagedReview
+            ? "Preview the staged upstream map without additional reports."
+            : "Preview the current baseline without pending reports.";
+    elements.apply.disabled =
+      busy ||
+      !state.stagedReview ||
+      state.previewedSelectionKey !== selectionKey() ||
+      !model.canApply(state.rawVersion, elements.apiKey.value);
+
+    elements.deleteSelected.title = busy
+      ? "Wait for the current administrator action to finish."
+      : !hasApiKey
+        ? "Enter the map administrator API key first."
+        : state.stagedReview
+          ? "During baseline review, leave unwanted reports unselected so they are discarded on apply."
+          : count === 0
+            ? "Select one or more reports first."
+            : "Permanently delete the selected reports without changing the baseline.";
+    elements.stageUpstream.title = busy
+      ? "Wait for the current administrator action to finish."
+      : !hasApiKey
+        ? "Enter the map administrator API key first."
+        : !state.rawVersion
+          ? "Wait for the current baseline version to load."
+          : state.stagedReview
+            ? "An upstream update is already staged."
+            : "Load the configured upstream map for review.";
+    elements.apply.title = busy
+      ? "Wait for the current administrator action to finish."
+      : !hasApiKey
+        ? "Enter the map administrator API key first."
+        : !state.stagedReview
+          ? "Load an upstream update first."
+          : state.previewedSelectionKey !== selectionKey()
+            ? "Preview the reviewed result after changing the selection."
+            : "Apply the staged upstream map with the selected reports.";
+
+    elements.adminActionHint.textContent = state.previewing
+      ? "A map preview is currently being generated."
+      : busy
+      ? "An administrator action is currently running."
+      : !hasApiKey
+        ? "Enter the map administrator API key to enable administrative actions."
+        : state.stagedReview && state.previewedSelectionKey !== selectionKey()
+          ? "The selection changed. Preview the reviewed result before applying it."
+          : state.stagedReview
+            ? "The preview matches the current selection. Apply it when the reviewed result is correct."
+            : count === 0
+              ? "Select reports to preview or delete, or load an upstream update to begin baseline review."
+              : "Preview or delete the selected reports, or load an upstream update to begin baseline review.";
+    elements.changeList.querySelectorAll(".change-preview").forEach(function (control) {
+      control.disabled = busy;
+    });
+    elements.changeList.querySelectorAll(".change-select").forEach(function (control) {
+      var change = state.changes.find(function (item) {
+        return item.changeId === control.dataset.changeId;
+      });
+      control.disabled = busy || Boolean(state.stagedReview && change && change.upstreamResolved);
+    });
   }
 
   function updateReportFocus() {
@@ -118,20 +210,24 @@ import * as model from "./review-model.js";
 
       var checkbox = document.createElement("input");
       checkbox.type = "checkbox";
+      checkbox.className = "change-select";
+      checkbox.dataset.changeId = change.changeId;
       checkbox.checked = state.selected.has(change.changeId);
-      checkbox.disabled = Boolean(state.stagedReview && change.upstreamResolved);
+      checkbox.disabled = Boolean(state.busyAction || state.loadingChanges || state.stagedReview && change.upstreamResolved);
       checkbox.title = state.stagedReview
         ? change.upstreamResolved
-          ? "Already present in upstream; this report will be removed when the update is applied."
+          ? "Already present in the staged upstream map; no additional selection is needed."
           : checkbox.checked
-            ? "Checked: carry this report forward. Uncheck to discard it."
-            : "Unchecked: discard this report when applying the upstream update."
-        : "Mark this report as incorporated upstream.";
+            ? "Selected to keep in addition to the staged upstream map."
+            : "Not selected; this report will be discarded when the update is applied."
+        : "Select this report for preview or deletion.";
       checkbox.setAttribute(
         "aria-label",
         state.stagedReview
-          ? "Carry " + model.typeLabel(change.type) + " into the reviewed upstream map"
-          : "Mark " + model.typeLabel(change.type) + " as incorporated upstream",
+          ? change.upstreamResolved
+            ? model.typeLabel(change.type) + " is already present in the staged upstream map"
+            : "Keep " + model.typeLabel(change.type) + " in addition to the staged upstream map"
+          : "Select " + model.typeLabel(change.type) + " for preview or deletion",
       );
       checkbox.addEventListener("click", function (event) {
         event.stopPropagation();
@@ -170,10 +266,10 @@ import * as model from "./review-model.js";
           ),
         );
       if (change.upstreamResolved)
-        badges.appendChild(makeBadge("Resolved upstream", "badge-success"));
+        badges.appendChild(makeBadge("Already upstream", "badge-success"));
       else if (state.stagedReview)
         badges.appendChild(makeBadge(
-          state.selected.has(change.changeId) ? "Carry forward" : "Discard",
+          state.selected.has(change.changeId) ? "Selected to keep" : "Will be discarded",
           state.selected.has(change.changeId) ? "badge-success" : "badge-danger",
         ));
       badges.appendChild(makeBadge(change.changeId.slice(-8), "badge-id"));
@@ -217,6 +313,7 @@ import * as model from "./review-model.js";
       var previewButton = document.createElement("button");
       previewButton.type = "button";
       previewButton.className = "change-preview";
+      previewButton.disabled = Boolean(state.busyAction || state.loadingChanges);
       previewButton.setAttribute(
         "aria-label",
         "Preview " +
@@ -225,8 +322,20 @@ import * as model from "./review-model.js";
           model.changeSummary(change),
       );
       previewButton.appendChild(content);
-      previewButton.addEventListener("click", function () {
-        previewChanges([change.changeId], change);
+      previewButton.addEventListener("click", async function () {
+        state.previewing = true;
+        if (state.stagedReview) {
+          state.previewedSelectionKey = null;
+        }
+        updateActions();
+        try {
+          await previewChanges([change.changeId], change);
+        } catch (error) {
+          showNotice(error.message, true);
+        } finally {
+          state.previewing = false;
+          updateActions();
+        }
       });
       card.append(checkbox, previewButton);
       if (relationshipDetailsElement)
@@ -235,15 +344,19 @@ import * as model from "./review-model.js";
     });
   }
 
-  function previewChanges(ids, activeChange) {
+  async function previewChanges(ids, activeChange) {
     state.activeId = activeChange ? activeChange.changeId : null;
     elements.previewTitle.textContent = activeChange
       ? model.typeLabel(activeChange.type)
-      : "Marked changes";
+      : state.stagedReview
+        ? "Reviewed result"
+        : "Selected reports";
     elements.previewDescription.textContent = activeChange
       ? model.changeSummary(activeChange)
-      : ids.length + " marked changes applied to the baseline preview.";
-    window.CrowdmapReviewMap.show(
+      : state.stagedReview
+        ? ids.length + " selected reports added to the staged upstream preview."
+        : ids.length + " selected reports applied to the baseline preview.";
+    await window.CrowdmapReviewMap.show(
       ids,
       state.changes.filter(function (change) {
         return ids.includes(change.changeId);
@@ -252,6 +365,25 @@ import * as model from "./review-model.js";
       state.stagedReview && state.stagedReview.id,
     );
     renderList();
+  }
+
+  async function showStagedSelection() {
+    var selectedChanges = state.changes.filter(function (change) {
+      return state.selected.has(change.changeId);
+    });
+    elements.previewTitle.textContent = "Incoming upstream and reviewed result";
+    elements.previewDescription.textContent =
+      "The left pane is staged upstream; the right pane adds the selected reports.";
+    state.previewedSelectionKey = null;
+    updateActions();
+    await window.CrowdmapReviewMap.show(
+      Array.from(state.selected),
+      selectedChanges,
+      undefined,
+      state.stagedReview.id,
+    );
+    state.previewedSelectionKey = selectionKey();
+    updateActions();
   }
 
   function displayValue(value) {
@@ -431,7 +563,10 @@ import * as model from "./review-model.js";
   }
 
   async function loadChanges() {
-    elements.refresh.disabled = true;
+    if (state.loadingChanges || state.busyAction && !["apply", "delete"].includes(state.busyAction))
+      return;
+    state.loadingChanges = true;
+    updateActions();
     elements.queueStatus.textContent = "Loading pending changes…";
     try {
       var response = await fetch("change?timesSeen=0", {
@@ -447,7 +582,9 @@ import * as model from "./review-model.js";
         if (conflict) change.upstreamConflict = conflict;
       });
       state.rawVersion = response.headers.get("X-Map-Version-Raw") || "";
+      state.stagedReview = null;
       state.selected.clear();
+      state.previewedSelectionKey = null;
       state.activeId = null;
       state.groups = model.groupChanges(state.changes);
       var relatedCount = state.changes.filter(isRelated).length;
@@ -460,33 +597,31 @@ import * as model from "./review-model.js";
       );
       elements.baselineVersion.textContent = state.rawVersion || "Unavailable";
       renderList();
-      updateActions();
+      updateReportFocus();
+      await previewChanges([], null);
     } catch (error) {
       elements.queueStatus.textContent = error.message;
       showNotice(error.message, true);
     } finally {
-      elements.refresh.disabled = false;
+      state.loadingChanges = false;
+      updateActions();
     }
   }
 
   async function applyUpdate() {
     var selectedIds = Array.from(state.selected);
-    var obsoleteIds = state.stagedReview
-      ? state.changes.filter(function (change) { return !state.selected.has(change.changeId); }).map(function (change) { return change.changeId; })
-      : selectedIds;
-    var removalCount = state.stagedReview ? obsoleteIds.length : selectedIds.length;
-    var removal =
-      removalCount === 0
-        ? " without removing any pending changes"
-        : state.stagedReview
-          ? " and discard " + removalCount + " report" + (removalCount === 1 ? "" : "s")
-          : " and remove " + removalCount + " incorporated change" + (removalCount === 1 ? "" : "s");
+    var obsoleteIds = model.unselectedChangeIds(state.changes, state.selected);
+    var keptCount = selectedIds.length;
+    var removalCount = obsoleteIds.length;
     var confirmed = window.confirm(
-      "Apply the newly published upstream baseline" + removal + "?",
+      "Apply the reviewed upstream update, keep " + keptCount + " selected report" +
+        (keptCount === 1 ? "" : "s") + ", and discard " + removalCount + " report" +
+        (removalCount === 1 ? "" : "s") + "?",
     );
     if (!confirmed) return;
 
-    elements.apply.disabled = true;
+    state.busyAction = "apply";
+    updateActions();
     elements.apply.textContent = "Applying…";
     try {
       var response = await fetch("change/apply", {
@@ -498,6 +633,7 @@ import * as model from "./review-model.js";
         body: JSON.stringify({
           version: state.rawVersion,
           obsoleteChanges: obsoleteIds,
+          reviewId: state.stagedReview.id,
         }),
       });
       if (!response.ok) {
@@ -540,13 +676,58 @@ import * as model from "./review-model.js";
       );
       state.stagedReview = null;
       await loadChanges();
-      previewChanges([], null);
     } catch (error) {
       showNotice(error.message, true);
     } finally {
-      elements.apply.textContent = state.stagedReview
-        ? "Apply reviewed upstream update"
-        : "Apply baseline update";
+      state.busyAction = null;
+      elements.apply.textContent = "Apply reviewed upstream update";
+      updateActions();
+    }
+  }
+
+  async function deleteSelected() {
+    if (!elements.apiKey.value) {
+      showNotice("Enter the map administrator API key before deleting reports.", true);
+      elements.apiKey.focus();
+      return;
+    }
+    var selectedChanges = state.changes.filter(function (change) {
+      return state.selected.has(change.changeId);
+    });
+    var reporterCount = selectedChanges.reduce(function (sum, change) {
+      return sum + change.reporters;
+    }, 0);
+    var confirmed = window.confirm(
+      "Permanently delete " + selectedChanges.length + " selected report" +
+        (selectedChanges.length === 1 ? "" : "s") + " containing " +
+        reporterCount + " reporter confirmation" + (reporterCount === 1 ? "" : "s") +
+        "?\n\nThe baseline map will not be changed.",
+    );
+    if (!confirmed) return;
+    state.busyAction = "delete";
+    updateActions();
+    elements.deleteSelected.textContent = "Deleting…";
+    try {
+      var response = await fetch("change/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": elements.apiKey.value,
+        },
+        body: JSON.stringify({ changeIds: Array.from(state.selected) }),
+      });
+      if (!response.ok) {
+        var body = await response.json().catch(function () { return {}; });
+        throw new Error(body.message || "Delete failed (HTTP " + response.status + ")");
+      }
+      var result = await response.json();
+      showNotice(result.deleted + " pending report" + (result.deleted === 1 ? "" : "s") + " deleted. The baseline map was not changed.", false);
+      await loadChanges();
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      state.busyAction = null;
+      elements.deleteSelected.textContent = "Delete selected reports";
       updateActions();
     }
   }
@@ -566,9 +747,11 @@ import * as model from "./review-model.js";
   });
   elements.apiKey.addEventListener("input", updateActions);
   elements.refresh.addEventListener("click", loadChanges);
+  elements.deleteSelected.addEventListener("click", deleteSelected);
   elements.stageUpstream.addEventListener("click", async function () {
     if (!state.rawVersion) return;
-    elements.stageUpstream.disabled = true;
+    state.busyAction = "stage";
+    updateActions();
     elements.stageUpstream.textContent = "Loading upstream…";
     try {
       var response = await fetch("change/review-upstream?version=" + encodeURIComponent(state.rawVersion), {
@@ -577,55 +760,82 @@ import * as model from "./review-model.js";
       if (!response.ok) throw new Error("Could not stage upstream (HTTP " + response.status + ")");
       state.stagedReview = await response.json();
       var outcomes = new Map(state.stagedReview.reconciliation.map(function (item) { return [item.changeId, item]; }));
-      state.selected = new Set(state.changes.filter(function (change) {
+      state.changes.forEach(function (change) {
         var outcome = outcomes.get(change.changeId);
         change.upstreamConflict = outcome && outcome.status === "upstream-conflict"
           ? { baselineVersion: state.stagedReview.upstreamVersion, reason: outcome.reason }
           : undefined;
         change.upstreamResolved = Boolean(outcome && outcome.status === "resolved");
-        return !change.upstreamResolved;
-      }).map(function (change) { return change.changeId; }));
+      });
+      state.selected.clear();
       elements.upstreamConflictCount.textContent = String(
         state.changes.filter(function (change) { return Boolean(change.upstreamConflict); }).length,
       );
       elements.baselineVersion.textContent = state.stagedReview.upstreamVersion;
-      elements.previewTitle.textContent = "Incoming upstream and reviewed result";
-      elements.previewDescription.textContent = "The left pane is staged upstream; the right pane carries the selected reports forward.";
-      var carriedChanges = state.changes.filter(function (change) {
-        return state.selected.has(change.changeId);
-      });
-      window.CrowdmapReviewMap.show(
-        Array.from(state.selected),
-        carriedChanges,
-        undefined,
-        state.stagedReview.id,
-      );
+      await showStagedSelection();
       renderList();
       updateReportFocus();
       updateActions();
-      showNotice("Upstream " + state.stagedReview.upstreamVersion + " staged. Nothing has been applied locally.", false);
+      showNotice(
+        "Upstream " + state.stagedReview.upstreamVersion +
+          " staged. Select reports to keep, then preview the reviewed result.",
+        false,
+      );
     } catch (error) {
       showNotice(error.message, true);
     } finally {
-      elements.stageUpstream.disabled = false;
+      state.busyAction = null;
       elements.stageUpstream.textContent = "Load upstream update";
+      updateActions();
     }
   });
-  elements.previewMarked.addEventListener("click", function () {
-    previewChanges(Array.from(state.selected));
+  elements.previewSelected.addEventListener("click", async function () {
+    var previewedKey = selectionKey();
+    state.previewing = true;
+    if (state.stagedReview) {
+      state.previewedSelectionKey = null;
+    }
+    updateActions();
+    try {
+      await previewChanges(Array.from(state.selected));
+      if (state.stagedReview) state.previewedSelectionKey = previewedKey;
+    } catch (error) {
+      state.previewedSelectionKey = null;
+      showNotice(error.message, true);
+    } finally {
+      state.previewing = false;
+      updateActions();
+    }
   });
   elements.reportFocus.addEventListener("change", function () {
     var roomNumber = Number(elements.reportFocus.value);
     if (Number.isInteger(roomNumber) && roomNumber > 0)
       window.CrowdmapReviewMap.focus(roomNumber);
   });
-  elements.showBaseline.addEventListener("click", function () {
+  elements.showBaseline.addEventListener("click", async function () {
     state.activeId = null;
-    elements.previewTitle.textContent = "Baseline map";
-    elements.previewDescription.textContent =
-      "No pending changes are applied in this view.";
-    window.CrowdmapReviewMap.show([], [], undefined, state.stagedReview && state.stagedReview.id);
+    state.previewing = true;
+    if (state.stagedReview) {
+      state.previewedSelectionKey = null;
+    }
+    updateActions();
+    elements.previewTitle.textContent = state.stagedReview
+      ? "Staged upstream"
+      : "Baseline map";
+    elements.previewDescription.textContent = state.stagedReview
+      ? "The staged upstream map without any additional pending reports."
+      : "The current baseline without any pending reports.";
+    try {
+      await window.CrowdmapReviewMap.show([], [], undefined, state.stagedReview && state.stagedReview.id);
+      if (state.stagedReview && state.selected.size === 0)
+        state.previewedSelectionKey = "";
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      state.previewing = false;
+    }
     renderList();
+    updateActions();
   });
   elements.differenceMode.addEventListener("change", function () {
     window.CrowdmapReviewMap.setDifferenceMode(elements.differenceMode.checked);
@@ -665,9 +875,5 @@ import * as model from "./review-model.js";
   elements.apply.addEventListener("click", applyUpdate);
   elements.blink.disabled = true;
   elements.wipePosition.disabled = true;
-  loadChanges().then(function () {
-    updateReportFocus();
-    if (!state.stagedReview)
-      window.CrowdmapReviewMap.show([], [], undefined);
-  });
+  void loadChanges();
 })();

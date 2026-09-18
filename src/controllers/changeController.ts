@@ -26,6 +26,7 @@ import type {
 import type {
   ApplicationSubmission,
   ChangeSubmission,
+  DeleteChangesSubmission,
 } from "../models/api/submission.js";
 import type { Change } from "../models/business/change.js";
 import {
@@ -536,6 +537,25 @@ export class ChangeController extends Controller {
     return await this.mapService.stageUpstreamReview(version, project);
   }
 
+  /** Permanently deletes pending reports without changing the baseline map. */
+  @Post("/delete")
+  @Security("api_key")
+  @Response<AuthorizationError>(403, "Authorization Error")
+  public async deleteChanges(
+    @Request() request: ProjectRequest & { user: User },
+    @Body() submission: DeleteChangesSubmission,
+  ): Promise<{ deleted: number }> {
+    const project = requireProjectContext(request).project;
+    if (!canAdministerProject(request.user, project.id)) {
+      throw new AuthorizationError("Access Denied");
+    }
+    const deleted = await this.mapService.deletePendingChanges(
+      submission.changeIds,
+      project,
+    );
+    return { deleted };
+  }
+
   /**
    * Apply changes to the base map file. This will apply all changes listed in the submission.
    *
@@ -559,6 +579,7 @@ export class ChangeController extends Controller {
     return await this.mapService.applyBaselineUpdate(
       application.version,
       application.obsoleteChanges,
+      application.reviewId,
       project,
     );
   }

@@ -10,6 +10,7 @@ import {
   ReviewChange,
   targetKey,
   typeLabel,
+  unselectedChangeIds,
 } from "../website/javascripts/review-model.js";
 
 const changes: ReviewChange[] = [
@@ -129,6 +130,7 @@ describe("change review model", () => {
     expect(
       changeSummary({
         ...changes[2],
+        upstreamResolved: true,
         upstreamConflict: {
           baselineVersion: "467",
           reason: "Upstream moved it",
@@ -141,5 +143,16 @@ describe("change review model", () => {
     expect(canApply("466", "map-admin-key")).toBe(true);
     expect(canApply("466", "  ")).toBe(false);
     expect(canApply("", "map-admin-key")).toBe(false);
+  });
+
+  test("treats every pending report as obsolete when none are selected", () => {
+    expect(unselectedChangeIds(changes, new Set())).toEqual(
+      changes.map((change) => change.changeId),
+    );
+    expect(unselectedChangeIds(changes, new Set(["coordinates"]))).toEqual(
+      changes
+        .filter((change) => change.changeId !== "coordinates")
+        .map((change) => change.changeId),
+    );
   });
 });

@@ -105,6 +105,7 @@ test("container health remains available independently of host routing", async (
 
 test("project admins cannot administer another project and site admins can", async () => {
   let projectAdminKey = "";
+  let viewerKey = "";
   await request(app)
     .post("/admin/user")
     .set("Host", "maps.example.test")
@@ -117,6 +118,15 @@ test("project admins cannot administer another project and site admins can", asy
     .expect(201)
     .then((response) => {
       projectAdminKey = response.body as string;
+    });
+  await request(app)
+    .post("/admin/user")
+    .set("Host", "maps.example.test")
+    .set("x-api-key", "abc123456")
+    .send({ name: "viewer", roles: [] })
+    .expect(201)
+    .then((response) => {
+      viewerKey = response.body as string;
     });
 
   await request(app)
@@ -137,4 +147,22 @@ test("project admins cannot administer another project and site admins can", asy
     .set("x-api-key", "abc123456")
     .send({ version: "wrong", obsoleteChanges: [] })
     .expect(409);
+  await request(app)
+    .post("/change/delete")
+    .set("Host", "alpha.example.test")
+    .set("x-api-key", viewerKey)
+    .send({ changeIds: ["unknown"] })
+    .expect(403);
+  await request(app)
+    .post("/change/delete")
+    .set("Host", "beta.example.test")
+    .set("x-api-key", projectAdminKey)
+    .send({ changeIds: ["unknown"] })
+    .expect(403);
+  await request(app)
+    .post("/change/delete")
+    .set("Host", "alpha.example.test")
+    .set("x-api-key", projectAdminKey)
+    .send({ changeIds: ["unknown"] })
+    .expect(200, { deleted: 0 });
 });
