@@ -69,12 +69,26 @@ const model = (() => {
         return (
           "room:" + change.roomNumber + ":exit:" + change.direction + ":weight"
         );
+      case "set-exit-door":
+        return "room:" + change.roomNumber + ":exit:" + change.direction + ":door";
+      case "set-map-user-data":
+      case "delete-map-user-data":
+        return "map:data:" + change.key;
+      case "set-map-label":
+      case "delete-map-label":
+        return "area:" + change.areaId + ":label:" + change.labelId;
       default:
         return "change:" + change.changeId;
     }
   }
 
   function targetDescription(change) {
+    if (change.type.indexOf("map-user-data") !== -1) {
+      return "map user data ‘" + change.key + "’";
+    }
+    if (change.type.indexOf("map-label") !== -1) {
+      return "label " + change.labelId + " in area " + change.areaId;
+    }
     if (
       change.type === "create-area" ||
       change.type === "rename-area" ||

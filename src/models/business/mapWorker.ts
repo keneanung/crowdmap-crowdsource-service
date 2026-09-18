@@ -6,6 +6,8 @@ import {
   CreateRoom,
   DeleteArea,
   DeleteExit,
+  DeleteMapLabel,
+  DeleteMapUserData,
   DeleteRoom,
   DeleteRoomUserData,
   DeleteSpecialExit,
@@ -16,6 +18,9 @@ import {
   ModifySpecialExit,
   ModifySpecialExitWeight,
   RenameArea,
+  SetExitDoor,
+  SetMapLabel,
+  SetMapUserData,
   SetRoomArea,
   SetRoomCoordinates,
   SetRoomEnvironment,
@@ -55,6 +60,11 @@ const changePrototypes: Record<ChangeType, object> = {
   "set-room-environment": SetRoomEnvironment.prototype,
   "modify-room-user-data": ModifyRoomUserData.prototype,
   "delete-room-user-data": DeleteRoomUserData.prototype,
+  "set-exit-door": SetExitDoor.prototype,
+  "set-map-user-data": SetMapUserData.prototype,
+  "delete-map-user-data": DeleteMapUserData.prototype,
+  "set-map-label": SetMapLabel.prototype,
+  "delete-map-label": DeleteMapLabel.prototype,
 };
 
 // Worker construction uses structured cloning: transferable data such as Set is

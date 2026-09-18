@@ -20,7 +20,12 @@ export type ChangeType =
   | "modify-special-exit-weight"
   | "set-room-environment"
   | "modify-room-user-data"
-  | "delete-room-user-data";
+  | "delete-room-user-data"
+  | "set-exit-door"
+  | "set-map-user-data"
+  | "delete-map-user-data"
+  | "set-map-label"
+  | "delete-map-label";
 
 /**
  * An exit direction.

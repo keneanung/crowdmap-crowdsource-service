@@ -1,4 +1,5 @@
 import { ChangeType, Direction } from "./common.js";
+import type { MapLabelSubmission } from "./submission.js";
 
 export interface ChangeBaseResponse {
   type: ChangeType;
@@ -129,6 +130,36 @@ export interface DeleteRoomUserDataResponse extends RoomChangeBaseResponse {
   key: string;
 }
 
+export interface SetExitDoorResponse extends RoomChangeBaseResponse {
+  type: "set-exit-door";
+  direction: Direction;
+  status: number;
+}
+
+export interface SetMapUserDataResponse extends ChangeBaseResponse {
+  type: "set-map-user-data";
+  key: string;
+  value: string;
+}
+
+export interface DeleteMapUserDataResponse extends ChangeBaseResponse {
+  type: "delete-map-user-data";
+  key: string;
+}
+
+export interface SetMapLabelResponse extends ChangeBaseResponse {
+  type: "set-map-label";
+  areaId: number;
+  labelId: number;
+  label: MapLabelSubmission;
+}
+
+export interface DeleteMapLabelResponse extends ChangeBaseResponse {
+  type: "delete-map-label";
+  areaId: number;
+  labelId: number;
+}
+
 export interface ReconciliationResponse {
   automaticallyResolved: number;
   baselineVersion: string;
@@ -158,4 +189,9 @@ export type ChangeResponse =
   | ModifySpecialExitWeightResponse
   | SetRoomEnvironmentResponse
   | ModifyRoomUserDataResponse
-  | DeleteRoomUserDataResponse;
+  | DeleteRoomUserDataResponse
+  | SetExitDoorResponse
+  | SetMapUserDataResponse
+  | DeleteMapUserDataResponse
+  | SetMapLabelResponse
+  | DeleteMapLabelResponse;

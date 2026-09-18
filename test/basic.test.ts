@@ -128,16 +128,14 @@ test("Ko-fi webhook accepts only verified supported URL-encoded payments", async
     kofiCurrency: "USD",
     kofiWebhookToken: "secret",
   });
-  iocContainer
-    .rebind<SponsorshipService>(SponsorshipService)
-    .toConstantValue({
-      isEnabled: () => true,
-      getProgress: () => Promise.resolve(undefined),
-      recordPayment: (payment) => {
-        received.push(payment);
-        return Promise.resolve();
-      },
-    } as SponsorshipService);
+  iocContainer.rebind<SponsorshipService>(SponsorshipService).toConstantValue({
+    isEnabled: () => true,
+    getProgress: () => Promise.resolve(undefined),
+    recordPayment: (payment) => {
+      received.push(payment);
+      return Promise.resolve();
+    },
+  } as SponsorshipService);
   const event = {
     verification_token: "secret",
     kofi_transaction_id: "payment-1",

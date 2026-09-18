@@ -7,6 +7,8 @@ import {
   CreateRoom as CreateRoomBusiness,
   DeleteArea as DeleteAreaBusiness,
   DeleteExit as DeleteExitBusiness,
+  DeleteMapLabel as DeleteMapLabelBusiness,
+  DeleteMapUserData as DeleteMapUserDataBusiness,
   DeleteRoom as DeleteRoomBusiness,
   DeleteRoomUserData as DeleteRoomUserDataBusiness,
   DeleteSpecialExit as DeleteSpecialExitBusiness,
@@ -18,6 +20,9 @@ import {
   ModifySpecialExit as ModifySpecialExitBusiness,
   ModifySpecialExitWeight as ModifySpecialExitWeightBusiness,
   RenameArea as RenameAreaBusiness,
+  SetExitDoor as SetExitDoorBusiness,
+  SetMapLabel as SetMapLabelBusiness,
+  SetMapUserData as SetMapUserDataBusiness,
   SetRoomArea as SetRoomAreaBusiness,
   SetRoomCoordinates as SetRoomCoordinatesBusiness,
   SetRoomEnvironment as SetRoomEnvironmentBusiness,
@@ -159,6 +164,32 @@ export interface DeleteRoomUserData extends RoomChangeBase {
   key: string;
 }
 
+export interface SetExitDoor extends RoomChangeBase {
+  type: "set-exit-door";
+  direction: Direction;
+  status: number;
+}
+export interface SetMapUserData extends ChangeBase {
+  type: "set-map-user-data";
+  key: string;
+  value: string;
+}
+export interface DeleteMapUserData extends ChangeBase {
+  type: "delete-map-user-data";
+  key: string;
+}
+export interface SetMapLabel extends ChangeBase {
+  type: "set-map-label";
+  areaId: number;
+  labelId: number;
+  label: SetMapLabelBusiness["label"];
+}
+export interface DeleteMapLabel extends ChangeBase {
+  type: "delete-map-label";
+  areaId: number;
+  labelId: number;
+}
+
 export type Change =
   | ChangeRoomName
   | ModifyRoomExit
@@ -181,7 +212,12 @@ export type Change =
   | ModifySpecialExitWeight
   | SetRoomEnvironment
   | ModifyRoomUserData
-  | DeleteRoomUserData;
+  | DeleteRoomUserData
+  | SetExitDoor
+  | SetMapUserData
+  | DeleteMapUserData
+  | SetMapLabel
+  | DeleteMapLabel;
 
 export const roomNameBusinessToDb = (
   change: ChangeRoomNameBusiness,
@@ -683,6 +719,61 @@ export const deleteRoomUserDataBusinessToDb = (
   };
 };
 
+const metadata = (change: ChangeBusiness) => ({
+  reporters: Array.from(change.reporters),
+  numberOfReporters: change.reporters.size,
+  changeId: change.changeId,
+});
+
+const addedBusinessToDb = (change: ChangeBusiness): Change =>
+  ({
+    ...change.getIdentifyingParts(),
+    ...metadata(change),
+  }) as Change;
+
+const addedDbToBusiness = (change: Change): ChangeBusiness => {
+  switch (change.type) {
+    case "set-exit-door":
+      return new SetExitDoorBusiness(
+        change.roomNumber,
+        change.reporters,
+        change.direction,
+        change.status,
+        change.changeId,
+      );
+    case "set-map-user-data":
+      return new SetMapUserDataBusiness(
+        change.key,
+        change.value,
+        change.reporters,
+        change.changeId,
+      );
+    case "delete-map-user-data":
+      return new DeleteMapUserDataBusiness(
+        change.key,
+        change.reporters,
+        change.changeId,
+      );
+    case "set-map-label":
+      return new SetMapLabelBusiness(
+        change.areaId,
+        change.labelId,
+        change.label,
+        change.reporters,
+        change.changeId,
+      );
+    case "delete-map-label":
+      return new DeleteMapLabelBusiness(
+        change.areaId,
+        change.labelId,
+        change.reporters,
+        change.changeId,
+      );
+    default:
+      throw new Error("Not an added change type");
+  }
+};
+
 export const changeBusinessToDb = (change: ChangeBusiness): Change => {
   switch (change.type) {
     case "room-name": {
@@ -761,6 +852,12 @@ export const changeBusinessToDb = (change: ChangeBusiness): Change => {
         change as DeleteRoomUserDataBusiness,
       );
     }
+    case "set-exit-door":
+    case "set-map-user-data":
+    case "delete-map-user-data":
+    case "set-map-label":
+    case "delete-map-label":
+      return addedBusinessToDb(change);
     default: {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Unknown change type: ${change.type}`);
@@ -836,6 +933,12 @@ const changeDbToBusinessWithoutMetadata = (change: Change): ChangeBusiness => {
     case "delete-room-user-data": {
       return deleteRoomUserDataDbToBusiness(change);
     }
+    case "set-exit-door":
+    case "set-map-user-data":
+    case "delete-map-user-data":
+    case "set-map-label":
+    case "delete-map-label":
+      return addedDbToBusiness(change);
     default: {
       // @ts-expect-error There should be no way to get here
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions

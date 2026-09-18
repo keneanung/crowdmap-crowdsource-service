@@ -50,10 +50,9 @@ export class MongoUserDbService implements UserDbService {
             `${legacyMapAdmins.toString()} legacy map_admin users have no project assignment. Configure exactly one project, start once to migrate them, then enable multi-project mode.`,
           );
         }
-        await collection.updateMany(
-          unassignedLegacyMapAdmins,
-          { $set: { mapAdminProjects: [config.projects[0]?.id] } },
-        );
+        await collection.updateMany(unassignedLegacyMapAdmins, {
+          $set: { mapAdminProjects: [config.projects[0]?.id] },
+        });
       }
       return await collection.createIndexes([
         { key: { name: 1 }, unique: true, name: "unique_user_name" },

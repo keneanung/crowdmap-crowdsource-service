@@ -353,7 +353,10 @@ test("applyChange uses the exact staged upstream map", async () => {
 });
 
 test("staged apply keeps selected and later reports while discarding unselected reports", async () => {
-  for (const [roomNumber, name] of [[1, "Keep"], [2, "Discard"]] as const) {
+  for (const [roomNumber, name] of [
+    [1, "Keep"],
+    [2, "Discard"],
+  ] as const) {
     await request(app).post("/change").send({
       type: "room-name",
       roomNumber,

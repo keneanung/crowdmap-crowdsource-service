@@ -32,8 +32,13 @@ export class MockChangeService extends ChangeService {
     return Promise.resolve(
       this.scoped(projectId)
         .filter((change) => change.numberOfReporters >= timesSeen)
-        .filter((change) => include.length === 0 || include.includes(change.changeId))
-        .filter((change) => exclude.length === 0 || !exclude.includes(change.changeId))
+        .filter(
+          (change) => include.length === 0 || include.includes(change.changeId),
+        )
+        .filter(
+          (change) =>
+            exclude.length === 0 || !exclude.includes(change.changeId),
+        )
         .sort((left, right) => left.changeId.localeCompare(right.changeId))
         .map(changeDbToBusiness),
     );

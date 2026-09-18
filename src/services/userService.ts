@@ -182,10 +182,7 @@ export class UserService {
     return newApiKey;
   }
 
-  private validateMapAdminProjects(
-    roles: Role[],
-    projectIds?: string[],
-  ): void {
+  private validateMapAdminProjects(roles: Role[], projectIds?: string[]): void {
     if (
       roles.includes("map_admin") &&
       config.projects.length > 1 &&
