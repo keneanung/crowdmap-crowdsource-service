@@ -112,7 +112,7 @@ export const changeTargetState = (
         lookup(
           room(map, typed.roomNumber)?.exitWeights ?? {},
           typed.direction,
-        ) ?? null
+        ) ?? 0
       );
     }
     case "modify-special-exit":

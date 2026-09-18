@@ -11,6 +11,7 @@ import {
   SetRoomArea,
   SetRoomHash,
 } from "../src/models/business/change.js";
+import { reconcileChange } from "../src/models/business/changeReview.js";
 
 const loadMap = () =>
   MudletMapReader.readBuffer(readFileSync("test/setup/baselineFiles/map"));
@@ -21,6 +22,54 @@ test("zero ordinary exit weights are removed", () => {
   room.exitWeights.east = 4;
   new ModifyExitWeight(39478, [], "east", 0).apply(map);
   expect(room.exitWeights).not.toHaveProperty("east");
+});
+
+test("an omitted zero exit weight resolves during upstream reconciliation", () => {
+  const oldMap = loadMap();
+  const newMap = loadMap();
+  oldMap.rooms[39478].exitWeights.east = 4;
+  Reflect.deleteProperty(newMap.rooms[39478].exitWeights, "east");
+  const change = new ModifyExitWeight(
+    39478,
+    [],
+    "east",
+    0,
+    "zero-weight-change",
+  );
+  expect(reconcileChange(change, oldMap, newMap)).toEqual({
+    changeId: "zero-weight-change",
+    status: "resolved",
+  });
+});
+
+test("label identity is canonical regardless of client JSON field order", () => {
+  const first = {
+    text: "label",
+    x: 1,
+    y: 2,
+    z: 3,
+    width: 4,
+    height: 5,
+    fgColor: { alpha: 255, r: 1, g: 2, b: 3 },
+    bgColor: { alpha: 128, r: 4, g: 5, b: 6 },
+    noScaling: false,
+    showOnTop: true,
+  };
+  const reordered = {
+    showOnTop: true,
+    bgColor: { b: 6, g: 5, r: 4, alpha: 128 },
+    height: 5,
+    width: 4,
+    z: 3,
+    y: 2,
+    x: 1,
+    noScaling: false,
+    fgColor: { b: 3, g: 2, r: 1, alpha: 255 },
+    text: "label",
+  };
+  const left = new SetMapLabel(7, 3, first, []).getIdentifyingParts();
+  const right = new SetMapLabel(7, 3, reordered, []).getIdentifyingParts();
+  expect(JSON.stringify(left)).toBe(JSON.stringify(right));
 });
 
 test("renaming an unknown area lazily creates it for a following room move", () => {

@@ -1074,7 +1074,30 @@ export class SetMapLabel extends ChangeBase<SetMapLabel> {
       type: this.type,
       areaId: this.areaId,
       labelId: this.labelId,
-      label: this.label,
+      // MongoDB compares embedded documents using field order. Rebuild the
+      // value explicitly so equivalent client JSON always has one identity.
+      label: {
+        text: this.label.text,
+        x: this.label.x,
+        y: this.label.y,
+        z: this.label.z,
+        width: this.label.width,
+        height: this.label.height,
+        fgColor: {
+          alpha: this.label.fgColor.alpha,
+          r: this.label.fgColor.r,
+          g: this.label.fgColor.g,
+          b: this.label.fgColor.b,
+        },
+        bgColor: {
+          alpha: this.label.bgColor.alpha,
+          r: this.label.bgColor.r,
+          g: this.label.bgColor.g,
+          b: this.label.bgColor.b,
+        },
+        noScaling: this.label.noScaling,
+        showOnTop: this.label.showOnTop,
+      },
     };
   }
 }
