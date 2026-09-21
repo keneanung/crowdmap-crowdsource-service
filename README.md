@@ -234,8 +234,9 @@ platform:
 digits for the configured currency (default `2` for USD/EUR; set `0` for JPY).
 The profile URL must
 be an HTTPS `ko-fi.com` URL; the goal is a positive number in the configured
-three-letter currency. When no profile is configured, the Sponsor navigation
-entry, sponsorship API, and sponsorship page are unavailable.
+three-letter currency. When no profile is configured, the contribution page
+remains available for code, stars, and author sponsorship, and `/sponsor.html`
+redirects to it. Only the Ko-fi support card and sponsorship API are unavailable.
 
 In Ko-fi, configure a webhook to `https://your-service.example/sponsorship/webhook/kofi`
 and use the same verification token as `platform.sponsorship.webhookToken`. The

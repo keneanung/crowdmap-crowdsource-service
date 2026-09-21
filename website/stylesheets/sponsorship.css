@@ -26,7 +26,6 @@
 .contribution-card p:last-child { margin-bottom: 0; }
 .contribution-card a { color: var(--accent); }
 .contribution-link { font-weight: 700; }
-.github-badge { height: 28px; max-width: 100%; }
 
 .sponsorship-label { color: var(--muted); margin: 0; }
 .sponsorship-total { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; margin: 0.35rem 0 1.25rem; }
