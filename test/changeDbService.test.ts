@@ -10,7 +10,9 @@ test("change reporters are merged with one atomic upsert", async () => {
   >(async () => Promise.resolve());
   const createIndexes = jest.fn(async () => Promise.resolve([]));
   const indexExists = jest.fn(async () => Promise.resolve(false));
-  const dropIndex = jest.fn(async () => Promise.resolve());
+  const dropIndex = jest.fn<(name: string) => Promise<void>>(async () =>
+    Promise.resolve(),
+  );
   const countDocuments = jest.fn(async () => Promise.resolve(0));
   const updateMany = jest.fn(async () => Promise.resolve());
   const mongo = {
@@ -80,6 +82,68 @@ test("legacy index migration tolerates a concurrent index drop", async () => {
 
   expect(dropIndex).toHaveBeenCalledWith("unique_logical_change");
   expect(createIndexes).toHaveBeenCalledTimes(1);
+});
+
+test("migrates the prior project logical-change index before extending it", async () => {
+  const createIndexes = jest.fn<(indexes: unknown[]) => Promise<[]>>(async () =>
+    Promise.resolve([]),
+  );
+  const dropIndex = jest.fn<(name: string) => Promise<void>>(async () =>
+    Promise.resolve(),
+  );
+  const mongo = {
+    connect: jest.fn(async () => Promise.resolve()),
+    db: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        countDocuments: jest.fn(async () => Promise.resolve(0)),
+        indexExists: jest.fn((name: string) =>
+          Promise.resolve(name === "unique_project_logical_change"),
+        ),
+        dropIndex,
+        createIndexes,
+        find: jest.fn(() => ({
+          sort: () => ({ toArray: () => Promise.resolve([]) }),
+        })),
+      })),
+    })),
+  } as unknown as MongoClient;
+
+  await new MongoChangeService(mongo).initialize();
+
+  expect(dropIndex).toHaveBeenCalledWith("unique_project_logical_change");
+  expect(dropIndex.mock.invocationCallOrder[0]).toBeLessThan(
+    createIndexes.mock.invocationCallOrder[0] ?? Infinity,
+  );
+  expect(createIndexes.mock.calls[0]?.[0]).toEqual(
+    expect.arrayContaining([
+      {
+        name: "unique_project_logical_change_v2",
+        unique: true,
+        key: {
+          projectId: 1,
+          type: 1,
+          roomNumber: 1,
+          name: 1,
+          areaId: 1,
+          direction: 1,
+          destination: 1,
+          exitCommand: 1,
+          x: 1,
+          y: 1,
+          z: 1,
+          weight: 1,
+          environmentId: 1,
+          key: 1,
+          value: 1,
+          symbol: 1,
+          hash: 1,
+          status: 1,
+          labelId: 1,
+          label: 1,
+        },
+      },
+    ]),
+  );
 });
 
 test("creates indexes when the changes collection does not yet exist", async () => {
