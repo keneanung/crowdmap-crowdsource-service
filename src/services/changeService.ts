@@ -173,6 +173,10 @@ export class MongoChangeService extends ChangeService {
         key: { projectId: 1, numberOfReporters: 1, changeId: 1 },
         name: "project_vetted_changes",
       },
+      {
+        key: { projectId: 1, reporters: 1, changeId: 1 },
+        name: "project_reporter_changes",
+      },
     ]);
     return collection;
   }
@@ -223,6 +227,8 @@ export class MongoChangeService extends ChangeService {
       projectId: this.projectId(projectId),
       ...(reporter
         ? {
+            // The two branches are covered by project_vetted_changes and
+            // project_reporter_changes, respectively.
             $or: [
               { numberOfReporters: { $gte: timesSeen } },
               { reporters: reporter },

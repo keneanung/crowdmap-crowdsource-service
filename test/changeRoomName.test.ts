@@ -85,6 +85,12 @@ test("Should include a reporter's unvetted changes in their map and version", as
     .expect((res) => {
       expect(res.body).toBe("466.AYvP5WgAd3c.1");
     });
+
+  await request(app)
+    .get("/map/renderer?timesSeen=2&reporter=Personal%20Mapper")
+    .expect(200)
+    .expect("Content-Type", "text/javascript; charset=utf-8")
+    .expect("X-Map-Version", "466.AYvP5WgAd3c.1");
 });
 
 test("Should download a map containing only explicitly selected changes", async () => {
