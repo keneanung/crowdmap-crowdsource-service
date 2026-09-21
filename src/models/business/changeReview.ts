@@ -16,6 +16,7 @@ import {
   ModifyRoomUserData,
   ModifySpecialExit,
   ModifySpecialExitWeight,
+  mudletExitKey,
   RenameArea,
   SetExitDoor,
   SetMapLabel,
@@ -111,7 +112,7 @@ export const changeTargetState = (
       return (
         lookup(
           room(map, typed.roomNumber)?.exitWeights ?? {},
-          typed.direction,
+          mudletExitKey(typed.direction),
         ) ?? 0
       );
     }
@@ -152,7 +153,10 @@ export const changeTargetState = (
     case "set-exit-door": {
       const typed = change as SetExitDoor;
       return (
-        lookup(room(map, typed.roomNumber)?.doors ?? {}, typed.direction) ?? 0
+        lookup(
+          room(map, typed.roomNumber)?.doors ?? {},
+          mudletExitKey(typed.direction),
+        ) ?? 0
       );
     }
     case "set-map-user-data":

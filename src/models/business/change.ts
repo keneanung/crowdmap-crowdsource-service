@@ -85,6 +85,24 @@ const directions: Direction[] = [
   "out",
 ];
 
+// Mudlet stores metadata for normal exits (doors, weights, and custom lines)
+// under its short direction names, not the full names used by the API.
+export const mudletExitKey = (direction: Direction): string =>
+  ({
+    north: "n",
+    northeast: "ne",
+    east: "e",
+    southeast: "se",
+    south: "s",
+    southwest: "sw",
+    west: "w",
+    northwest: "nw",
+    up: "up",
+    down: "down",
+    in: "in",
+    out: "out",
+  })[direction];
+
 const deleteSpecialExitFromRoom = (
   room: Mudlet.MudletMap["rooms"][number],
   exitCommand: string,
@@ -786,10 +804,11 @@ export class ModifyExitWeight extends RoomChangeBase<ModifyExitWeight> {
       // if the room does not exist or the exit is already deleted, make this a no-op
       return;
     }
+    const exitKey = mudletExitKey(this.direction);
     if (this.weight === 0) {
-      Reflect.deleteProperty(room.exitWeights, this.direction);
+      Reflect.deleteProperty(room.exitWeights, exitKey);
     } else {
-      room.exitWeights[this.direction] = this.weight;
+      room.exitWeights[exitKey] = this.weight;
     }
   }
   public getIdentifyingParts() {
@@ -963,8 +982,9 @@ export class SetExitDoor extends RoomChangeBase<SetExitDoor> {
     const room = map.rooms[this.roomNumber];
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!room || room[this.direction] === -1) return;
-    if (this.status === 0) Reflect.deleteProperty(room.doors, this.direction);
-    else room.doors[this.direction] = this.status;
+    const exitKey = mudletExitKey(this.direction);
+    if (this.status === 0) Reflect.deleteProperty(room.doors, exitKey);
+    else room.doors[exitKey] = this.status;
   }
 
   public getIdentifyingParts() {
