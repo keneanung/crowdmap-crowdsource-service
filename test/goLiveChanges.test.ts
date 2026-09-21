@@ -19,16 +19,16 @@ const loadMap = () =>
 test("zero ordinary exit weights are removed", () => {
   const map = loadMap();
   const room = map.rooms[39478];
-  room.exitWeights.east = 4;
+  room.exitWeights.e = 4;
   new ModifyExitWeight(39478, [], "east", 0).apply(map);
-  expect(room.exitWeights).not.toHaveProperty("east");
+  expect(room.exitWeights).not.toHaveProperty("e");
 });
 
 test("an omitted zero exit weight resolves during upstream reconciliation", () => {
   const oldMap = loadMap();
   const newMap = loadMap();
-  oldMap.rooms[39478].exitWeights.east = 4;
-  Reflect.deleteProperty(newMap.rooms[39478].exitWeights, "east");
+  oldMap.rooms[39478].exitWeights.e = 4;
+  Reflect.deleteProperty(newMap.rooms[39478].exitWeights, "e");
   const change = new ModifyExitWeight(
     39478,
     [],
@@ -131,7 +131,7 @@ test("door state, map user data, and labels survive a binary round trip", () => 
   };
   new SetMapLabel(areaId, 987, label, []).apply(map);
   const reloaded = MudletMapReader.readBuffer(MudletMapReader.writeBuffer(map));
-  expect(reloaded.rooms[39478].doors.east).toBe(3);
+  expect(reloaded.rooms[39478].doors.e).toBe(3);
   expect(reloaded.mUserData.mapFeatures).toBe("feature-data");
   expect(reloaded.labels[areaId]).toEqual(
     expect.arrayContaining([
@@ -142,4 +142,19 @@ test("door state, map user data, and labels survive a binary round trip", () => 
   expect(reloaded.labels[areaId] ?? []).not.toEqual(
     expect.arrayContaining([expect.objectContaining({ id: 987 })]),
   );
+});
+
+test("normal exit metadata uses Mudlet's short direction keys", () => {
+  const map = loadMap();
+  new SetExitDoor(1335, [], "north", 3).apply(map);
+  new SetExitDoor(1336, [], "south", 3).apply(map);
+  new ModifyExitWeight(39478, [], "east", 4).apply(map);
+
+  const reloaded = MudletMapReader.readBuffer(MudletMapReader.writeBuffer(map));
+  expect(reloaded.rooms[1335].doors).toMatchObject({ n: 3 });
+  expect(reloaded.rooms[1335].doors).not.toHaveProperty("north");
+  expect(reloaded.rooms[1336].doors).toMatchObject({ s: 3 });
+  expect(reloaded.rooms[1336].doors).not.toHaveProperty("south");
+  expect(reloaded.rooms[39478].exitWeights).toMatchObject({ e: 4 });
+  expect(reloaded.rooms[39478].exitWeights).not.toHaveProperty("east");
 });
