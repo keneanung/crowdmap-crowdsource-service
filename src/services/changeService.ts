@@ -102,6 +102,7 @@ export class MongoChangeService extends ChangeService {
     for (const name of [
       "unique_logical_change",
       "unique_logical_change_v2",
+      "unique_project_logical_change",
       "unique_change_id",
       "vetted_changes",
     ]) {
@@ -159,7 +160,7 @@ export class MongoChangeService extends ChangeService {
           label: 1,
         },
         unique: true,
-        name: "unique_project_logical_change",
+        name: "unique_project_logical_change_v2",
       },
       {
         key: { projectId: 1, numberOfReporters: 1, changeId: 1 },
