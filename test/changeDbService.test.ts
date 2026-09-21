@@ -96,8 +96,8 @@ test("migrates the prior project logical-change index before extending it", asyn
     db: jest.fn(() => ({
       collection: jest.fn(() => ({
         countDocuments: jest.fn(async () => Promise.resolve(0)),
-        indexExists: jest.fn(async (name: string) =>
-          name === "unique_project_logical_change",
+        indexExists: jest.fn((name: string) =>
+          Promise.resolve(name === "unique_project_logical_change"),
         ),
         dropIndex,
         createIndexes,
