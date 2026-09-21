@@ -217,7 +217,8 @@ YAML file.
 
 ### Optional Ko-fi sponsorships
 
-Add `platform.sponsorship` to `config.yaml` to enable `/sponsor.html`:
+Add `platform.sponsorship` to `config.yaml` to show Ko-fi support on
+`/contribute.html`:
 
 ```yaml
 platform:

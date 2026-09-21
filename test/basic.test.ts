@@ -82,7 +82,7 @@ test("GET /review.html returns the change review UI", async () => {
     });
 });
 
-test("GET /help.html explains Crowdmap and mapping-client configuration", async () => {
+test("GET /help.html explains the crowdmap service and mapping-client configuration", async () => {
   await request(app)
     .get("/help.html")
     .expect(200)
@@ -99,9 +99,9 @@ test("GET /help.html explains Crowdmap and mapping-client configuration", async 
         /plus reports made with the supplied\s+pseudonym/u,
       );
       expect(res.text).toContain("POST /change");
-      expect(res.text).toContain("mconfig crowdmap on");
+      expect(res.text).toContain("mconfig mapsource service");
       expect(res.text).toContain("Planned IRE Mapping Script setup");
-      expect(res.text).toContain("mconfig crowdmapurl");
+      expect(res.text).toContain("mconfig crowdmapserviceurl");
     });
 });
 
@@ -116,15 +116,18 @@ test("GET /privacy.html renders the privacy notice", async () => {
     });
 });
 
-test("sponsorship routes and navigation are unavailable without a Ko-fi profile", async () => {
-  await request(app).get("/sponsor.html").expect(404);
+test("sponsorship endpoints are unavailable without a Ko-fi profile", async () => {
+  await request(app).get("/sponsor.html").expect(302).expect("Location", "/contribute.html");
+  await request(app).get("/contribute.html").expect(200).expect((res) => {
+    expect(res.text).toContain("Contribute to the service");
+    expect(res.text).toContain("Star the crowdmap service on GitHub");
+  });
   await request(app).get("/sponsorship/progress").expect(404);
   await request(app)
     .get("/")
     .expect(200)
     .expect((res) => {
-      expect(res.text).toContain("data-sponsorship-navigation");
-      expect(res.text).toContain("hidden");
+      expect(res.text).toContain('href="contribute.html"');
     });
 });
 

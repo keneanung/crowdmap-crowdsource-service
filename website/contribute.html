@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Contribute to the crowdmap service</title>
+    <link href="stylesheets/site-navigation.css" rel="stylesheet" />
+    <link href="stylesheets/privacy.css" rel="stylesheet" />
+    <link href="stylesheets/sponsorship.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="site-navigation" aria-label="Primary navigation">
+      <a class="site-navigation__brand" href="index.html">crowdmap service</a>
+      <ul class="site-navigation__links">
+        <li data-project-navigation><a href="index.html">Explorer</a></li>
+        <li data-project-navigation><a href="review.html">Review</a></li>
+        <li><a href="help.html">How it works</a></li>
+        <li><a href="contribute.html" aria-current="page">Contribute</a></li>
+        <li><a href="privacy.html">Privacy Policy</a></li>
+      </ul>
+    </nav>
+    <main>
+      <p class="eyebrow">Build the crowdmap service together</p>
+      <h1>Contribute to the service</h1>
+      <p class="lede">Whether you write code, share feedback, add a star, or help with running costs, every contribution makes the crowdmap service more useful and sustainable.</p>
+
+      <section class="contribution-grid" aria-label="Ways to contribute">
+        <article class="contribution-card">
+          <h2>Contribute code</h2>
+          <p>Help improve the service, documentation, tests, and mapping-client integrations. Issues and pull requests are welcome.</p>
+          <p><a class="contribution-link" href="https://github.com/keneanung/crowdmap-crowdsource-service" rel="noopener" target="_blank">Open the repository</a></p>
+          <p><a href="https://github.com/keneanung/crowdmap-crowdsource-service/blob/main/CONTRIBUTING.md" rel="noopener" target="_blank">Read the contribution guide</a></p>
+        </article>
+
+        <article class="contribution-card">
+          <h2>Star the project</h2>
+          <p>Stars make the project easier to discover and can help it qualify for active open-source-project perks.</p>
+          <p><a href="https://github.com/keneanung/crowdmap-crowdsource-service/stargazers" rel="noopener" target="_blank"><img class="github-badge" src="https://img.shields.io/github/stars/keneanung/crowdmap-crowdsource-service?style=for-the-badge&amp;label=Star%20on%20GitHub" alt="Star the crowdmap service on GitHub" /></a></p>
+        </article>
+
+        <article class="contribution-card">
+          <h2>Sponsor the author</h2>
+          <p>Direct sponsorship supports the ongoing maintenance and development work behind the crowdmap service.</p>
+          <p><a class="contribution-link" href="https://github.com/sponsors/keneanung" rel="noopener" target="_blank">Sponsor keneanung on GitHub</a></p>
+        </article>
+      </section>
+
+      <section class="sponsorship-card" data-sponsorship-card aria-labelledby="sponsorship-status" hidden>
+        <h2>Help cover service costs</h2>
+        <p class="sponsorship-label" id="sponsorship-status">Loading monthly goal…</p>
+        <p class="sponsorship-total"><span id="sponsorship-raised">—</span> <span class="sponsorship-of">of</span> <span id="sponsorship-goal">—</span></p>
+        <progress id="sponsorship-progress" aria-label="Monthly sponsorship progress" value="0" max="1">0%</progress>
+        <a class="sponsorship-button" id="sponsorship-link" href="#" hidden rel="noopener" target="_blank">Support the crowdmap service on Ko-fi</a>
+      </section>
+    </main>
+    <script src="javascripts/sponsorship.js"></script>
+    <script src="javascripts/project-navigation.js"></script>
+  </body>
+</html>

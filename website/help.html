@@ -3,28 +3,28 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>How Crowdmap works</title>
+    <title>How the crowdmap service works</title>
     <link href="stylesheets/site-navigation.css" rel="stylesheet" />
     <link href="stylesheets/privacy.css" rel="stylesheet" />
     <link href="stylesheets/help.css" rel="stylesheet" />
   </head>
   <body>
     <nav class="site-navigation" aria-label="Primary navigation">
-      <a class="site-navigation__brand" href="index.html">Crowdmap</a>
+      <a class="site-navigation__brand" href="index.html">crowdmap service</a>
       <ul class="site-navigation__links">
         <li data-project-navigation><a href="index.html">Explorer</a></li>
         <li data-project-navigation><a href="review.html">Review</a></li>
         <li><a href="help.html" aria-current="page">How it works</a></li>
-        <li data-sponsorship-navigation hidden><a href="sponsor.html">Sponsor</a></li>
+        <li><a href="contribute.html">Contribute</a></li>
         <li><a href="privacy.html">Privacy Policy</a></li>
       </ul>
     </nav>
 
     <main>
-      <p class="eyebrow">Crowdmap service</p>
+      <p class="eyebrow">crowdmap service</p>
       <h1>A shared map, built from small reports</h1>
       <p class="lede">
-        Crowdmap lets players improve a Mudlet map without needing to use Git or
+        The crowdmap service lets players improve a Mudlet map without needing to use Git or
         prepare a pull request. A compatible mapping client reports one observed
         change at a time; the service combines matching reports into a map that
         everyone can download.
@@ -84,11 +84,11 @@
           to a map download also includes an <code>X-Map-Version</code> header.
         </p>
         <p>
-          The stock IRE Mapping Script’s <code>mconfig crowdmap on</code>
-          setting selects its built-in crowdmap sources; it does not currently
-          provide a Crowdmap-service URL setting. Point a service-compatible
-          script or adapter at the endpoints above. The interactive API
-          reference documents the accepted change shapes.
+          In the current IRE Mapping Script proposal, choose
+          <code>mapsource service</code> to use a crowdmap service. That choice
+          reveals the service-specific settings described below. Other mapping
+          clients and adapters can use the endpoints above directly. The
+          interactive API reference documents the accepted change shapes.
         </p>
         <p><a href="docs/">Open the API reference</a></p>
       </section>
@@ -97,32 +97,32 @@
         <p class="preview-label">Preview documentation</p>
         <h2 id="script-preview-heading">Planned IRE Mapping Script setup</h2>
         <p>
-          This is the proposed configuration interface for the Crowdmap-service
+          This is the proposed configuration interface for the crowdmap-service
           integration. It is published early so map operators and script users
           can prepare their settings. These commands are <strong>not available
           in the released IRE Mapping Script yet</strong>; their names and
           behaviour may change before release.
         </p>
-        <pre><code>mconfig crowdmapurl https://achaea.maps.example.org
-mconfig crowdmapreporter river-scout
-mconfig crowdmapthreshold 2
-mconfig crowdmap on</code></pre>
+        <pre><code>mconfig mapsource service
+mconfig crowdmapserviceurl https://achaea.maps.example.org
+mconfig crowdmapservicereports 2
+mconfig crowdmapservicesend on</code></pre>
         <dl class="endpoint-list script-options">
           <div>
-            <dt><code>crowdmapurl</code></dt>
-            <dd>The project’s HTTPS origin, with no endpoint path. Do not use the shared platform/project-picker host.</dd>
+            <dt><code>mapsource</code></dt>
+            <dd>Chooses where map updates come from: <code>game</code>, <code>published</code>, or <code>service</code>. Select <code>service</code> to enable the options below.</dd>
           </div>
           <div>
-            <dt><code>crowdmapreporter</code></dt>
-            <dd>A stable pseudonym used to count independent confirmations. Choose one that is not personal information.</dd>
+            <dt><code>crowdmapserviceurl</code></dt>
+            <dd>The project’s HTTPS origin, with no endpoint path. Do not use the shared platform/project-picker host. The default <code>https://&lt;game&gt;.mudmaps.community</code> derives the subdomain from the connected game.</dd>
           </div>
           <div>
-            <dt><code>crowdmapthreshold</code></dt>
+            <dt><code>crowdmapservicereports</code></dt>
             <dd>The non-negative confirmation threshold used for both the version check and map download. Start with <code>2</code> for a cautious map.</dd>
           </div>
           <div>
-            <dt><code>crowdmap</code></dt>
-            <dd>Turns Crowdmap downloads on after the URL and settings have been saved.</dd>
+            <dt><code>crowdmapservicesend</code></dt>
+            <dd>Opt in to automatically sending supported local map changes to the service. It is available only while <code>mapsource</code> is <code>service</code>.</dd>
           </div>
         </dl>
         <p>
@@ -134,11 +134,11 @@ mconfig crowdmap on</code></pre>
           retried later.
         </p>
         <p>
-          Reports are intended to be sent automatically for changes the script
-          can identify reliably, such as room names, exits, areas, coordinates,
-          and selected room metadata. Before enabling reporting in a preview
-          build, review its release notes for the final opt-in command and the
-          supported change types.
+          The script uses the character name supplied by the game as the
+          reporter value, so no separate reporter setting is needed. Reports
+          are sent only when <code>crowdmapservicesend</code> is enabled and
+          include changes the script can identify reliably, such as room names,
+          exits, areas, coordinates, and selected room metadata.
         </p>
       </section>
 
@@ -152,7 +152,6 @@ mconfig crowdmap on</code></pre>
         </p>
       </section>
     </main>
-    <script src="javascripts/sponsorship-navigation.js"></script>
     <script src="javascripts/project-navigation.js"></script>
   </body>
 </html>
