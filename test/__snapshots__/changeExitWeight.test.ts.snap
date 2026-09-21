@@ -24,6 +24,7 @@ exports[`Should incorporate exit weight changes into the map 1`] = `
     {
       "exitId": 19795,
       "name": "east",
+      "weight": 4,
     },
     {
       "exitId": 30231,
