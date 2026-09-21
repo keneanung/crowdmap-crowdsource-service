@@ -111,12 +111,37 @@ test("migrates the prior project logical-change index before extending it", asyn
   await new MongoChangeService(mongo).initialize();
 
   expect(dropIndex).toHaveBeenCalledWith("unique_project_logical_change");
+  expect(dropIndex.mock.invocationCallOrder[0]).toBeLessThan(
+    createIndexes.mock.invocationCallOrder[0] ?? Infinity,
+  );
   expect(createIndexes.mock.calls[0]?.[0]).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({
+      {
         name: "unique_project_logical_change_v2",
-        key: expect.objectContaining({ status: 1, labelId: 1, label: 1 }),
-      }),
+        unique: true,
+        key: {
+          projectId: 1,
+          type: 1,
+          roomNumber: 1,
+          name: 1,
+          areaId: 1,
+          direction: 1,
+          destination: 1,
+          exitCommand: 1,
+          x: 1,
+          y: 1,
+          z: 1,
+          weight: 1,
+          environmentId: 1,
+          key: 1,
+          value: 1,
+          symbol: 1,
+          hash: 1,
+          status: 1,
+          labelId: 1,
+          label: 1,
+        },
+      },
     ]),
   );
 });
