@@ -63,11 +63,11 @@
         <dl class="endpoint-list">
           <div>
             <dt>Download a map</dt>
-            <dd><code>GET /map?format=binary&amp;timesSeen=2</code></dd>
+            <dd><code>GET /map?format=binary&amp;timesSeen=2&amp;reporter=river-scout</code></dd>
           </div>
           <div>
             <dt>Check its version</dt>
-            <dd><code>GET /map/version?timesSeen=2</code></dd>
+            <dd><code>GET /map/version?timesSeen=2&amp;reporter=river-scout</code></dd>
           </div>
           <div>
             <dt>Submit an observation</dt>
@@ -75,11 +75,13 @@
           </div>
         </dl>
         <p>
-          Use the same non-negative integer for <code>timesSeen</code> when
-          checking the version and downloading the map. <code>0</code> includes
-          every pending report; a higher value includes only reports confirmed
-          by that many distinct people. The response to a map download also
-          includes an <code>X-Map-Version</code> header.
+          Use the same non-negative integer and reporter pseudonym for
+          <code>timesSeen</code> and <code>reporter</code> when checking the
+          version and downloading the map. <code>0</code> includes every
+          pending report; a higher value includes only reports confirmed by
+          that many distinct people, plus reports made with the supplied
+          pseudonym. The response does not reveal reporter values. The response
+          to a map download also includes an <code>X-Map-Version</code> header.
         </p>
         <p>
           The stock IRE Mapping Script’s <code>mconfig crowdmap on</code>
