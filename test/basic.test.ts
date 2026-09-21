@@ -89,7 +89,15 @@ test("GET /help.html explains Crowdmap and mapping-client configuration", async 
     .expect("Content-Type", "text/html; charset=utf-8")
     .expect((res) => {
       expect(res.text).toContain("A shared map, built from small reports");
-      expect(res.text).toContain("GET /map?format=binary");
+      expect(res.text).toContain(
+        "GET /map?format=binary&amp;timesSeen=2&amp;reporter=river-scout",
+      );
+      expect(res.text).toContain(
+        "GET /map/version?timesSeen=2&amp;reporter=river-scout",
+      );
+      expect(res.text).toMatch(
+        /plus reports made with the supplied\s+pseudonym/u,
+      );
       expect(res.text).toContain("POST /change");
       expect(res.text).toContain("mconfig crowdmap on");
       expect(res.text).toContain("Planned IRE Mapping Script setup");

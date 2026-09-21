@@ -154,8 +154,14 @@ export class MapService {
     // Compatibility for focused unit-test doubles written before project scoping.
     return {
       addChange: (change) => this.changeService.addChange(change, project.id),
-      getChanges: (timesSeen, include, exclude) =>
-        this.changeService.getChanges(timesSeen, include, exclude, project.id),
+      getChanges: (timesSeen, include, exclude, reporter) =>
+        this.changeService.getChanges(
+          timesSeen,
+          include,
+          exclude,
+          project.id,
+          reporter,
+        ),
       applyChanges: (apply) =>
         this.changeService.applyChanges(apply, project.id),
       reconcileChanges: (resolved) =>
@@ -223,6 +229,7 @@ export class MapService {
     mapFile?: string,
     rawVersionOverride?: string,
     projectDefinition?: MapProject,
+    reporter?: string,
   ): Promise<MapFileSnapshot> {
     const project = this.project(projectDefinition);
     this.assertAvailable(project);
@@ -234,7 +241,7 @@ export class MapService {
       const updateRevision = runtime.baselineUpdateRevision;
       await runtime.baselineUpdateQueue;
       const [changes, rawVersion] = await Promise.all([
-        this.changes(project).getChanges(timesSeen, include, exclude),
+        this.changes(project).getChanges(timesSeen, include, exclude, reporter),
         rawVersionOverride ?? this.readRawVersion(project),
       ]);
       const file = await this.getTempMapFileName();
@@ -345,6 +352,7 @@ export class MapService {
     include: string[] = [],
     exclude: string[] = [],
     projectDefinition?: MapProject,
+    reporter?: string,
   ): Promise<RendererSnapshot> {
     const project = this.project(projectDefinition);
     this.assertAvailable(project);
@@ -355,7 +363,7 @@ export class MapService {
       const updateRevision = runtime.baselineUpdateRevision;
       await runtime.baselineUpdateQueue;
       const [changes, rawVersion] = await Promise.all([
-        this.changes(project).getChanges(timesSeen, include, exclude),
+        this.changes(project).getChanges(timesSeen, include, exclude, reporter),
         this.readRawVersion(project),
       ]);
       const response = await this.runMapWorker({
@@ -396,6 +404,7 @@ export class MapService {
     include: string[] = [],
     exclude: string[] = [],
     projectDefinition?: MapProject,
+    reporter?: string,
   ): Promise<ChangeSnapshot> {
     const project = this.project(projectDefinition);
     this.assertAvailable(project);
@@ -406,7 +415,7 @@ export class MapService {
       const updateRevision = runtime.baselineUpdateRevision;
       await runtime.baselineUpdateQueue;
       const [changes, rawVersion] = await Promise.all([
-        this.changes(project).getChanges(timesSeen, include, exclude),
+        this.changes(project).getChanges(timesSeen, include, exclude, reporter),
         this.readRawVersion(project),
       ]);
       if (updateRevision === runtime.baselineUpdateRevision) {
@@ -422,8 +431,11 @@ export class MapService {
   public async getVersion(
     timesSeen: number,
     project?: MapProject,
+    reporter?: string,
   ): Promise<string> {
-    return (await this.getChangesSnapshot(timesSeen, [], [], project)).version;
+    return (
+      await this.getChangesSnapshot(timesSeen, [], [], project, reporter)
+    ).version;
   }
 
   public async getRawVersion(projectDefinition?: MapProject) {
