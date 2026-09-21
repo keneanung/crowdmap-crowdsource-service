@@ -28,10 +28,15 @@ export class MockChangeService extends ChangeService {
     include: string[] = [],
     exclude: string[] = [],
     projectId?: string,
+    reporter?: string,
   ): Promise<Change[]> {
     return Promise.resolve(
       this.scoped(projectId)
-        .filter((change) => change.numberOfReporters >= timesSeen)
+        .filter(
+          (change) =>
+            change.numberOfReporters >= timesSeen ||
+            (reporter !== undefined && change.reporters.includes(reporter)),
+        )
         .filter(
           (change) => include.length === 0 || include.includes(change.changeId),
         )

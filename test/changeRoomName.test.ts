@@ -62,6 +62,31 @@ test("Should incorporate room name changes into the map", async () => {
     });
 });
 
+test("Should include a reporter's unvetted changes in their map and version", async () => {
+  await request(app).post("/change").send({
+    type: "room-name",
+    roomNumber: 1,
+    name: "My unvetted room name",
+    reporter: "Personal Mapper",
+  });
+
+  await request(app)
+    .get("/map?format=json&timesSeen=2&reporter=Personal%20Mapper")
+    .expect(200)
+    .expect("X-Map-Version", "466.AYvP5WgAd3c.1")
+    .expect((res) => {
+      const map: MapResponse = JSON.parse(res.text);
+      expect(map.areas[5].rooms[0].name).toBe("My unvetted room name");
+    });
+
+  await request(app)
+    .get("/map/version?timesSeen=2&reporter=Personal%20Mapper")
+    .expect(200)
+    .expect((res) => {
+      expect(res.body).toBe("466.AYvP5WgAd3c.1");
+    });
+});
+
 test("Should download a map containing only explicitly selected changes", async () => {
   const baselineResponse = await request(app)
     .get("/map?format=json&timesSeen=0")

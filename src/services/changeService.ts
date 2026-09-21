@@ -15,6 +15,7 @@ export interface ProjectChangeRepository {
     timesSeen: number,
     include?: string[],
     exclude?: string[],
+    reporter?: string,
   ): Promise<Change[]>;
   applyChanges(apply: string[]): Promise<void>;
   reconcileChanges(resolved: string[]): Promise<void>;
@@ -28,6 +29,7 @@ export abstract class ChangeService {
     include?: string[],
     exclude?: string[],
     projectId?: string,
+    reporter?: string,
   ): Promise<Change[]>;
   abstract applyChanges(apply: string[], projectId?: string): Promise<void>;
   abstract reconcileChanges(
@@ -47,8 +49,12 @@ export abstract class ChangeService {
   public forProject(projectId: string): ProjectChangeRepository {
     return Object.freeze({
       addChange: (change: Change) => this.addChange(change, projectId),
-      getChanges: (timesSeen: number, include?: string[], exclude?: string[]) =>
-        this.getChanges(timesSeen, include, exclude, projectId),
+      getChanges: (
+        timesSeen: number,
+        include?: string[],
+        exclude?: string[],
+        reporter?: string,
+      ) => this.getChanges(timesSeen, include, exclude, projectId, reporter),
       applyChanges: (apply: string[]) => this.applyChanges(apply, projectId),
       reconcileChanges: (resolved: string[]) =>
         this.reconcileChanges(resolved, projectId),
@@ -60,7 +66,8 @@ export abstract class ChangeService {
 
 interface ChangeQuery {
   projectId: string;
-  numberOfReporters: { $gte: number };
+  numberOfReporters?: { $gte: number };
+  $or?: ({ numberOfReporters: { $gte: number } } | { reporters: string })[];
   changeId?: { $in: string[] } | { $nin: string[] };
 }
 
@@ -209,11 +216,19 @@ export class MongoChangeService extends ChangeService {
     include: string[] = [],
     exclude: string[] = [],
     projectId?: string,
+    reporter?: string,
   ): Promise<Change[]> {
     const collection = await this.getCollection();
     const queryObject: ChangeQuery = {
       projectId: this.projectId(projectId),
-      numberOfReporters: { $gte: timesSeen },
+      ...(reporter
+        ? {
+            $or: [
+              { numberOfReporters: { $gte: timesSeen } },
+              { reporters: reporter },
+            ],
+          }
+        : { numberOfReporters: { $gte: timesSeen } }),
     };
     if (include.length > 0) queryObject.changeId = { $in: include };
     else if (exclude.length > 0) queryObject.changeId = { $nin: exclude };

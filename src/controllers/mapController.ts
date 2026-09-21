@@ -38,6 +38,7 @@ export class MapController extends Controller {
    * @param format The map format to download. If the format is `json`, a Mudlet map JSON is returned with content type `application/json`. For `binary`, a Mudlet binary map with content type `application/octet-stream` is sent.
    * @param include Only include changes with the given changeIds.
    * @param exclude Exclude changes with the given changeIds.
+   * @param reporter Also include changes reported by this pseudonym, regardless of their report count.
    * @returns A map file with all vetted changes applied.
    */
   @Get("/")
@@ -49,6 +50,7 @@ export class MapController extends Controller {
     @Query() include: string[] = [],
     @Query() exclude: string[] = [],
     @Query() reviewId?: string,
+    @Query() reporter?: string,
   ): Promise<Readable> {
     if (include.length > 0 && exclude.length > 0) {
       throw new ValidateError(
@@ -77,6 +79,7 @@ export class MapController extends Controller {
       staged?.mapFile,
       staged?.upstreamVersion,
       requireProjectContext(request).project,
+      reporter,
     );
 
     this.setHeader(
@@ -101,16 +104,19 @@ export class MapController extends Controller {
   /**
    * Returns the current map version number of the vetted changes.
    * @param timesSeen How many times a change must have been seen by different people to consider it vetted.
+   * @param reporter Also include changes reported by this pseudonym, regardless of their report count.
    * @returns The current map version number as it would be produced by the vetted changes. The version number is constructed of 3 parts, deliminated by `.`: map base version, the ID of the last change applied, and the number of changes.
    */
   @Get("/version")
   public async getVersion(
     @Request() request: ProjectRequest,
     @Query() timesSeen: number,
+    @Query() reporter?: string,
   ): Promise<string> {
     return await this.mapService.getVersion(
       timesSeen,
       requireProjectContext(request).project,
+      reporter,
     );
   }
 
@@ -119,6 +125,7 @@ export class MapController extends Controller {
    * The default implementation has the map, colors and a default position in three different files. This method returns a single file with all the data.
    *
    * @param timesSeen How many times a change must have been seen by different people to cosider it vetted.
+   * @param reporter Also include changes reported by this pseudonym, regardless of their report count.
    * @returns A map file with all vetted changes applied.
    */
   @Get("/renderer")
@@ -128,6 +135,7 @@ export class MapController extends Controller {
     @Query() timesSeen: number,
     @Query() include: string[] = [],
     @Query() exclude: string[] = [],
+    @Query() reporter?: string,
   ): Promise<Readable> {
     if (include.length > 0 && exclude.length > 0) {
       throw new ValidateError(
@@ -147,6 +155,7 @@ export class MapController extends Controller {
       include,
       exclude,
       requireProjectContext(request).project,
+      reporter,
     );
     this.setHeader("X-Map-Version", snapshot.version);
     this.setHeader("X-Map-Version-Raw", snapshot.rawVersion);
