@@ -6,6 +6,7 @@
   var progress = document.querySelector("#sponsorship-progress");
   var link = document.querySelector("#sponsorship-link");
   var status = document.querySelector("#sponsorship-status");
+  var card = document.querySelector("[data-sponsorship-card]");
 
   function money(amount, currency) {
     return new Intl.NumberFormat(undefined, { style: "currency", currency: currency }).format(amount);
@@ -25,8 +26,7 @@
       link.href = data.profileUrl;
       link.hidden = false;
       status.textContent = "This month’s goal";
+      card.hidden = false;
     })
-    .catch(function () {
-      document.querySelector("main").hidden = true;
-    });
+    .catch(function () {});
 })();

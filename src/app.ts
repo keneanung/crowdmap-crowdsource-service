@@ -164,7 +164,7 @@ app.get("/", (request: ProjectRequest, response, next) => {
   response
     .type("html")
     .send(
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Crowdmap projects</title><link rel="stylesheet" href="/stylesheets/site-navigation.css"><link rel="stylesheet" href="/stylesheets/project-selector.css"></head><body><nav class="site-navigation" aria-label="Primary navigation"><a class="site-navigation__brand" href="/">Crowdmap</a><ul class="site-navigation__links"><li><a href="/help.html">How it works</a></li><li><a href="/privacy.html">Privacy</a></li>${config.kofiProfileUrl ? '<li><a href="/sponsor.html">Sponsor</a></li>' : ""}</ul></nav><main class="project-selector"><p class="project-selector__eyebrow">Crowdmap service</p><h1>Map projects</h1><p class="project-selector__lede">Select a map project to open its explorer.</p><ul class="project-selector__list">${links}</ul></main></body></html>`,
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>crowdmap service projects</title><link rel="stylesheet" href="/stylesheets/site-navigation.css"><link rel="stylesheet" href="/stylesheets/project-selector.css"></head><body><nav class="site-navigation" aria-label="Primary navigation"><a class="site-navigation__brand" href="/">crowdmap service</a><ul class="site-navigation__links"><li><a href="/help.html">How it works</a></li><li><a href="/contribute.html">Contribute</a></li><li><a href="/privacy.html">Privacy</a></li></ul></nav><main class="project-selector"><p class="project-selector__eyebrow">crowdmap service</p><h1>Map projects</h1><p class="project-selector__lede">Select a map project to open its explorer.</p><ul class="project-selector__list">${links}</ul></main></body></html>`,
     );
 });
 app.get("/index.html", (request: ProjectRequest, response, next) => {
@@ -224,11 +224,7 @@ app.use(
   express.static(mapExplorerDirectory, { maxAge: "1h" }),
 );
 app.get("/sponsor.html", (_req: ExRequest, res: ExResponse) => {
-  if (!config.kofiProfileUrl) {
-    res.status(404).json({ message: "Not Found" });
-    return;
-  }
-  res.sendFile(join(currentDirectory, "../website/sponsor.html"));
+  res.redirect(302, "/contribute.html");
 });
 app.use(express.static(join(currentDirectory, "../website")));
 
