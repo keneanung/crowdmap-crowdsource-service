@@ -20,6 +20,13 @@ body {
 #root {
   flex: 1 1 auto;
   min-height: 0;
+  position: relative;
+}
+
+/* The embedded explorer fixes its toolbar to the viewport by default. Keep it
+ * inside the explorer pane so the site navigation cannot cover its controls. */
+#root > header {
+  position: absolute;
 }
 
 .crowdmap-threshold {
