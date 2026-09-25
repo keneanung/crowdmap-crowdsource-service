@@ -50,7 +50,7 @@
     "@typescript-eslint/parser": "^8.70.0",
     "concurrently": "^10.0.5",
     "esbuild": "^0.28.2",
-    "eslint": "^10.10.0",
+    "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^30.5.2",
     "joi": "^18.2.9",
