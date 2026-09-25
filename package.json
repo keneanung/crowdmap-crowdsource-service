@@ -1,6 +1,6 @@
 {
   "name": "crowdmap-crowdsource-service",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Service for making crowdsourcing Mudlet crowdmaps easier",
   "main": "build/src/server.js",
   "type": "module",
