@@ -55,10 +55,13 @@ fix: reject an unknown project host
 docs: explain test deployments
 ```
 
-Use `feat` for a backward-compatible feature, `fix` for a bug fix, and add `!`
-or a `BREAKING CHANGE:` footer for an incompatible change. The accepted
-maintenance types are `build`, `chore`, `ci`, `docs`, `perf`, `refactor`,
-`revert`, `style`, and `test`.
+Use `feat` for a backward-compatible feature and `fix` for a bug fix. For an
+incompatible change, put `!` in the pull request title, for example
+`feat(api)!: replace the project endpoint`. A `BREAKING CHANGE:` footer in an
+individual commit is not sufficient because squash merging may omit it; if the
+final squash message is edited manually, verify that the footer is retained.
+The accepted maintenance types are `build`, `chore`, `ci`, `docs`, `perf`,
+`refactor`, `revert`, `style`, and `test`.
 
 Before opening a pull request, run:
 
