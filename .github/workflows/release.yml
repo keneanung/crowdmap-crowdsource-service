@@ -16,9 +16,9 @@ permissions:
   pull-requests: write
 
 concurrency:
-  # Serialize release creation and retries so an older retry cannot race a
-  # newer release while updating the rolling latest image tag.
-  group: release-please
+  # Main pushes may be coalesced because Release Please scans all commits.
+  # Retry runs are isolated by tag so an unrelated push cannot cancel them.
+  group: release-please-${{ inputs.tag || 'main' }}
   cancel-in-progress: false
 
 jobs:
@@ -51,7 +51,6 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.tag-name }}
       - name: Validate release version
-        id: validate-release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.release-please.outputs.tag-name }}
@@ -62,10 +61,6 @@ jobs:
           fi
           test "v$(node -p "require('./package.json').version")" = "$RELEASE_TAG"
           gh release view "$RELEASE_TAG" >/dev/null
-          latest_tag="$(gh release view --json tagName --jq .tagName)"
-          if [[ "$RELEASE_TAG" = "$latest_tag" ]]; then
-            echo "publish-latest=true" >> "$GITHUB_OUTPUT"
-          fi
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:
@@ -88,7 +83,39 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ needs.release-please.outputs.tag-name }}
-            ${{ steps.validate-release.outputs.publish-latest == 'true' && format('ghcr.io/{0}:latest', github.repository) || '' }}
+          tags: ghcr.io/${{ github.repository }}:${{ needs.release-please.outputs.tag-name }}
           target: prod
+
+  update-latest:
+    needs: [release-please, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      # Only the rolling tag is serialized. If GitHub replaces an older
+      # pending run, the newer run supersedes the same tag update safely.
+      group: release-latest-image
+      cancel-in-progress: false
+
+    steps:
+      - uses: docker/setup-buildx-action@v4.4.1
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Point latest at the newest GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag-name }}
+        run: |
+          latest_tag="$(gh release view --json tagName --jq .tagName)"
+          if [[ "$RELEASE_TAG" != "$latest_tag" ]]; then
+            echo "$RELEASE_TAG is not the newest release; leaving latest unchanged."
+            exit 0
+          fi
+          docker buildx imagetools create \
+            --tag "ghcr.io/$GITHUB_REPOSITORY:latest" \
+            "ghcr.io/$GITHUB_REPOSITORY:$RELEASE_TAG"
