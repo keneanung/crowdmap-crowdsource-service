@@ -56,7 +56,21 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name == 'push' }}
-          tags: |
-            ghcr.io/${{ github.repository }}:main
-            ghcr.io/${{ github.repository }}:main-${{ github.sha }}
+          tags: ghcr.io/${{ github.repository }}:main-${{ github.sha }}
           target: prod
+      - name: Check whether this commit is still the main branch head
+        if: github.event_name == 'push'
+        id: main-head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [[ "$head_sha" = "$GITHUB_SHA" ]]; then
+            echo "is-current=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Update rolling main image
+        if: steps.main-head.outputs.is-current == 'true'
+        run: |
+          docker buildx imagetools create \
+            --tag "ghcr.io/$GITHUB_REPOSITORY:main" \
+            "ghcr.io/$GITHUB_REPOSITORY:main-$GITHUB_SHA"

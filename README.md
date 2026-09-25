@@ -158,7 +158,8 @@ both `ghcr.io/keneanung/crowdmap-crowdsource-service:vMAJOR.MINOR.PATCH` and
 `:latest`. The immutable version tag is the preferred production deployment
 reference. If image publication fails after the release is created, run the
 **Release Please** workflow manually with the existing release tag to validate
-and republish its images.
+and republish its versioned image. A retry does not move `:latest`, preventing
+an older release retry from rolling back deployments that follow that tag.
 
 Every tested push to `main` also publishes a rolling
 `ghcr.io/keneanung/crowdmap-crowdsource-service:main` image and an immutable

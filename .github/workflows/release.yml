@@ -83,5 +83,5 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.release-please.outputs.tag-name }}
-            ghcr.io/${{ github.repository }}:latest
+            ${{ inputs.tag == '' && format('ghcr.io/{0}:latest', github.repository) || '' }}
           target: prod
