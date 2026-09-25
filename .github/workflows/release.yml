@@ -16,7 +16,9 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: release-please-${{ inputs.tag || 'main' }}
+  # Serialize release creation and retries so an older retry cannot race a
+  # newer release while updating the rolling latest image tag.
+  group: release-please
   cancel-in-progress: false
 
 jobs:
