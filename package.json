@@ -6,10 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "npm run build:review && concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\" \"npm run build:review -- --watch\"",
-    "build": "CONFIG_FILE=${CONFIG_FILE:-config.example.yaml} tsoa spec-and-routes && npm run fix:esm-imports && tsc && npm run build:review && cp -R website/ build/",
+    "build": "CONFIG_FILE=${CONFIG_FILE:-config.example.yaml} tsoa spec-and-routes && npm run fix:esm-imports && npm run typecheck && npm run build:review && cp -R website/ build/",
     "fix:esm-imports": "node scripts/fix-esm-imports.mjs",
     "build:review": "esbuild website/javascripts/review-map.ts --bundle --format=iife --target=es2020 --outfile=website/javascripts/review-map.js",
     "start": "node build/src/server.js",
+    "typecheck": "node node_modules/typescript-compiler/bin/tsc",
     "audit:production": "npm audit --omit=dev",
     "prelint": "CONFIG_FILE=${CONFIG_FILE:-config.example.yaml} tsoa spec-and-routes",
     "lint": "eslint .",
@@ -61,7 +62,8 @@
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "tsoa": "^6.6.0",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3",
+    "typescript-compiler": "npm:typescript@^7.0.2"
   },
   "engines": {
     "node": ">=22.0.0"
