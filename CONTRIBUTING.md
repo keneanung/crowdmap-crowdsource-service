@@ -44,6 +44,25 @@ Keep changes focused and include tests when behaviour changes. In particular:
 - Use clear, accessible HTML for website changes; test the page on narrow
   screens as well as desktop widths.
 
+Use [Conventional Commits](https://www.conventionalcommits.org/) for commit
+messages and pull request titles. Pull requests are squash-merged, so the title
+becomes the commit that Release Please uses to calculate the next version and
+build the changelog. Common examples are:
+
+```text
+feat(api): add project status endpoint
+fix: reject an unknown project host
+docs: explain test deployments
+```
+
+Use `feat` for a backward-compatible feature and `fix` for a bug fix. For an
+incompatible change, put `!` in the pull request title, for example
+`feat(api)!: replace the project endpoint`. A `BREAKING CHANGE:` footer in an
+individual commit is not sufficient because squash merging may omit it; if the
+final squash message is edited manually, verify that the footer is retained.
+The accepted maintenance types are `build`, `chore`, `ci`, `docs`, `perf`,
+`refactor`, `revert`, `style`, and `test`.
+
 Before opening a pull request, run:
 
 ```shell
@@ -56,11 +75,11 @@ npm test
 
 ## Pull requests
 
-Use a short, descriptive title and explain what changed and why. Link the
-relevant issue when there is one, describe any configuration or migration steps,
-and mention the checks you ran. Keep unrelated formatting or refactoring out of
-the pull request where possible; it makes review and future troubleshooting
-much easier.
+Use a short Conventional Commit title and explain what changed and why. Link
+the relevant issue when there is one, describe any configuration or migration
+steps, and mention the checks you ran. Keep unrelated formatting or refactoring
+out of the pull request where possible; it makes review and future
+troubleshooting much easier.
 
 By submitting a contribution, you agree that it may be distributed under this
 repository's [MIT License](LICENSE).

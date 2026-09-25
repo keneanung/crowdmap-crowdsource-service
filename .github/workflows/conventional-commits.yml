@@ -1,0 +1,25 @@
+name: Conventional commits
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  pull-request-title:
+    name: PR title
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Conventional Commit format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._/-]+\))?!?: .+'
+          if [[ ! "$PR_TITLE" =~ $pattern ]]; then
+            echo "Pull request titles must use Conventional Commit format."
+            echo "Example: feat(api): add project status endpoint"
+            exit 1
+          fi
