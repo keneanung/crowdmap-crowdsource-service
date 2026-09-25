@@ -156,7 +156,9 @@ Merging that pull request updates `package.json`, `package-lock.json`, and
 `CHANGELOG.md`, creates the matching Git tag and GitHub Release, and publishes
 both `ghcr.io/keneanung/crowdmap-crowdsource-service:vMAJOR.MINOR.PATCH` and
 `:latest`. The immutable version tag is the preferred production deployment
-reference.
+reference. If image publication fails after the release is created, run the
+**Release Please** workflow manually with the existing release tag to validate
+and republish its images.
 
 Every tested push to `main` also publishes a rolling
 `ghcr.io/keneanung/crowdmap-crowdsource-service:main` image and an immutable
@@ -166,8 +168,10 @@ contain changes that have not been included in a release.
 Repository maintainers must enable GitHub's **Allow auto-merge** setting and
 protect `main` with the test, Docker build, and Conventional Commit title checks
 required. Enable squash merging so the checked pull-request title becomes the
-commit on `main`. Patch and minor Dependabot updates are then squash-merged only
-after all required checks pass; major updates still require review.
+commit on `main`. Only after those protections are active, create the repository
+Actions variable `DEPENDABOT_AUTO_MERGE` with the value `true`. Patch and minor
+Dependabot updates are then squash-merged after all required checks pass; major
+updates and all GitHub Actions updates still require review.
 
 For Release Please PRs to trigger normal pull-request checks, add a fine-grained
 personal access token as the `RELEASE_PLEASE_TOKEN` Actions secret with read and

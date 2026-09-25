@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vMAJOR.MINOR.PATCH release tag to republish
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -11,25 +16,28 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: release-please
+  group: release-please-${{ inputs.tag || 'main' }}
   cancel-in-progress: false
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      release-created: ${{ steps.release.outputs.release_created }}
-      tag-name: ${{ steps.release.outputs.tag_name }}
+      publish: >-
+        ${{ inputs.tag != '' ||
+        steps.release.outputs.release_created == 'true' }}
+      tag-name: ${{ inputs.tag || steps.release.outputs.tag_name }}
 
     steps:
       - name: Create or update the release pull request
+        if: inputs.tag == ''
         id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
   publish:
-    if: needs.release-please.outputs.release-created == 'true'
+    if: needs.release-please.outputs.publish == 'true'
     needs: release-please
     runs-on: ubuntu-latest
     permissions:
@@ -40,6 +48,17 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag-name }}
+      - name: Validate release version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag-name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use the vMAJOR.MINOR.PATCH format."
+            exit 1
+          fi
+          test "v$(node -p "require('./package.json').version")" = "$RELEASE_TAG"
+          gh release view "$RELEASE_TAG" >/dev/null
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:

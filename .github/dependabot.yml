@@ -8,7 +8,7 @@ updates:
       timezone: Europe/Berlin
     open-pull-requests-limit: 10
     commit-message:
-      prefix: build
+      prefix: fix
       prefix-development: build
       include: scope
 
@@ -19,7 +19,7 @@ updates:
       day: monday
       timezone: Europe/Berlin
     commit-message:
-      prefix: build
+      prefix: fix
       include: scope
 
   - package-ecosystem: github-actions
