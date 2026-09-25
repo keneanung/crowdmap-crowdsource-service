@@ -1,78 +1,68 @@
-name: Publish release
+name: Release Please
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing vMAJOR.MINOR.PATCH tag to publish or retry
-        required: true
-        type: string
 
 permissions:
   contents: write
-  packages: write
+  issues: write
+  pull-requests: write
 
 concurrency:
-  group: release-${{ inputs.tag || github.ref }}
+  group: release-please
   cancel-in-progress: false
 
 jobs:
-  validate:
+  release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release-created: ${{ steps.release.outputs.release_created }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
 
     steps:
-    - uses: actions/checkout@v7
-      with:
-        ref: ${{ inputs.tag || github.ref }}
-    - name: Use Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version: 26.x
-        cache: npm
-        cache-dependency-path: package-lock.json
-    - name: Validate release version
-      run: |
-        tag="${{ inputs.tag || github.ref_name }}"
-        if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "Release tags must use the vMAJOR.MINOR.PATCH format."
-          exit 1
-        fi
-        test "v$(node -p "require('./package.json').version")" = "$tag"
-    - run: npm ci
-    - run: npm run audit:production
-    - run: npm run lint
-    - run: npm run build --if-present
-    - run: npm test
+      - name: Create or update the release pull request
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
   publish:
-    needs: validate
+    if: needs.release-please.outputs.release-created == 'true'
+    needs: release-please
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-    - uses: actions/checkout@v7
-      with:
-        ref: ${{ inputs.tag || github.ref }}
-    - uses: docker/setup-buildx-action@v4.4.1
-    - uses: docker/login-action@v4
-      with:
-        registry: ghcr.io
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - uses: docker/build-push-action@v7.4.0
-      with:
-        push: true
-        tags: |
-          ghcr.io/keneanung/crowdmap-crowdsource-service:${{ inputs.tag || github.ref_name }}
-          ghcr.io/keneanung/crowdmap-crowdsource-service:latest
-        target: prod
-    - name: Create GitHub release
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        tag="${{ inputs.tag || github.ref_name }}"
-        if ! gh release view "$tag" >/dev/null 2>&1; then
-          gh release create "$tag" --verify-tag --generate-notes
-        fi
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release-please.outputs.tag-name }}
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.x
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run audit:production
+      - run: npm run lint
+      - run: npm test
+      - uses: docker/setup-buildx-action@v4.4.1
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish release image
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.release-please.outputs.tag-name }}
+            ghcr.io/${{ github.repository }}:latest
+          target: prod

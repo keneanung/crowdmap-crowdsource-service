@@ -151,21 +151,29 @@ default it is accessible only from the deployment host at
 
 ### Publish a release
 
-Normal pushes to `main` run the test and container-build checks but do not
-publish an image. To publish a release, update `package.json` to the intended
-stable version, merge it into `main`, then create and push a matching annotated
-tag:
+Release Please maintains a release pull request from Conventional Commit titles.
+Merging that pull request updates `package.json`, `package-lock.json`, and
+`CHANGELOG.md`, creates the matching Git tag and GitHub Release, and publishes
+both `ghcr.io/keneanung/crowdmap-crowdsource-service:vMAJOR.MINOR.PATCH` and
+`:latest`. The immutable version tag is the preferred production deployment
+reference.
 
-```shell
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
-```
+Every tested push to `main` also publishes a rolling
+`ghcr.io/keneanung/crowdmap-crowdsource-service:main` image and an immutable
+`main-<full-commit-sha>` image. Use these only for test deployments; they may
+contain changes that have not been included in a release.
 
-The release workflow verifies that the tag uses the `vMAJOR.MINOR.PATCH`
-format and exactly matches `package.json`. It then reruns the release checks,
-publishes both `ghcr.io/keneanung/crowdmap-crowdsource-service:v1.0.0` and
-`:latest`, and creates a GitHub Release with generated notes. The immutable
-version tag is the preferred deployment reference.
+Repository maintainers must enable GitHub's **Allow auto-merge** setting and
+protect `main` with the test, Docker build, and Conventional Commit title checks
+required. Enable squash merging so the checked pull-request title becomes the
+commit on `main`. Patch and minor Dependabot updates are then squash-merged only
+after all required checks pass; major updates still require review.
+
+For Release Please PRs to trigger normal pull-request checks, add a fine-grained
+personal access token as the `RELEASE_PLEASE_TOKEN` Actions secret with read and
+write access to repository contents, issues, and pull requests. Without that
+secret, the workflow falls back to `GITHUB_TOKEN`, but GitHub will not start
+additional workflows for the release pull request it creates.
 
 #### Public HTTPS deployment with Traefik
 
