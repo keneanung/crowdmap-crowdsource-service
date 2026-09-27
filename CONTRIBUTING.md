@@ -33,6 +33,12 @@ server with:
 npm run dev
 ```
 
+The production build is compiled with TypeScript 7 through the
+`typescript-compiler` package alias. TypeScript 6 remains installed as
+`typescript` for ESLint, Jest, tsoa, and other tools whose peer dependency
+ranges do not yet support TypeScript 7. Run `npm run typecheck` when you only
+need the TypeScript 7 compiler check.
+
 ## Making a change
 
 Keep changes focused and include tests when behaviour changes. In particular:
