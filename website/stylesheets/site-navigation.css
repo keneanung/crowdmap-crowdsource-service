@@ -19,7 +19,9 @@
   line-height: 1.5;
   padding: 0.75rem max(1rem, calc((100% - 1600px) / 2 + 34px));
   position: relative;
-  z-index: 1200;
+  /* Stay above the explorer toolbar (z-index: 100), but below Bootstrap
+   * backdrops and dialogs (1050 and 1055) so modals cover the full page. */
+  z-index: 101;
 }
 
 .site-navigation__brand {
