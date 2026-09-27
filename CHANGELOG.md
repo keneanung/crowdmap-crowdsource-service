@@ -5,6 +5,8 @@
 
 ### Bug Fixes
 
+* **explorer:** keep the toolbar below the site navigation ([687c23f](https://github.com/keneanung/crowdmap-crowdsource-service/commit/687c23f9f1a0b278045df7d2518e06fea696b974))
+* **map:** include a reporter's pending changes in map downloads ([61bce76](https://github.com/keneanung/crowdmap-crowdsource-service/commit/61bce766e3c79ddf80ff5042b52743140c9fd4c1))
 * **ci:** address automation review findings ([4789e8f](https://github.com/keneanung/crowdmap-crowdsource-service/commit/4789e8fc669197c59b2af00cc973801aa5b3ae19))
 * **ci:** harden image publication workflows ([237406c](https://github.com/keneanung/crowdmap-crowdsource-service/commit/237406cacd098d74ba65b901417c3950d2efcb6d))
 * **ci:** isolate release image retries ([313bfb5](https://github.com/keneanung/crowdmap-crowdsource-service/commit/313bfb576f4510b16a794f648c01cb457804932f))
