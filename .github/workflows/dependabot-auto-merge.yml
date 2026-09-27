@@ -9,11 +9,14 @@ permissions:
   pull-requests: write
 
 jobs:
-  auto-merge:
+  metadata:
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       vars.DEPENDABOT_AUTO_MERGE == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      package-ecosystem: ${{ steps.metadata.outputs.package-ecosystem }}
+      update-type: ${{ steps.metadata.outputs.update-type }}
 
     steps:
       - name: Read Dependabot metadata
@@ -22,11 +25,17 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable auto-merge for patch and minor updates
-        if: >-
-          steps.metadata.outputs.package-ecosystem != 'github-actions' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor')
+  auto-merge:
+    needs: metadata
+    if: >-
+      needs.metadata.result == 'success' &&
+      needs.metadata.outputs.package-ecosystem != 'github-actions' &&
+      (needs.metadata.outputs.update-type == 'version-update:semver-patch' ||
+      needs.metadata.outputs.update-type == 'version-update:semver-minor')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Enable auto-merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
