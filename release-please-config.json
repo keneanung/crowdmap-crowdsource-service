@@ -30,33 +30,27 @@
     },
     {
       "type": "chore",
-      "section": "Miscellaneous Chores",
-      "hidden": true
+      "section": "Other"
     },
     {
       "type": "style",
-      "section": "Styles",
-      "hidden": true
+      "section": "Other"
     },
     {
       "type": "refactor",
-      "section": "Code Refactoring",
-      "hidden": true
+      "section": "Other"
     },
     {
       "type": "test",
-      "section": "Tests",
-      "hidden": true
+      "section": "Other"
     },
     {
       "type": "build",
-      "section": "Build System",
-      "hidden": true
+      "section": "Other"
     },
     {
       "type": "ci",
-      "section": "Continuous Integration",
-      "hidden": true
+      "section": "Other"
     }
   ]
 }
