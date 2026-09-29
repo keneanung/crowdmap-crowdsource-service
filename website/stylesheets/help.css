@@ -68,19 +68,6 @@ code {
   padding: 0.08rem 0.28rem;
 }
 
-.preview {
-  border-color: rgb(255 190 85 / 52%);
-}
-
-.preview-label {
-  color: #ffbe55;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  margin: 0 0 0.5rem;
-  text-transform: uppercase;
-}
-
 pre {
   background: rgb(7 17 31 / 80%);
   border: 1px solid var(--border);

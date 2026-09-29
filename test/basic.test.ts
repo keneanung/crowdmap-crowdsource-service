@@ -100,7 +100,8 @@ test("GET /help.html explains the crowdmap service and mapping-client configurat
       );
       expect(res.text).toContain("POST /change");
       expect(res.text).toContain("mconfig mapsource service");
-      expect(res.text).toContain("Planned IRE Mapping Script setup");
+      expect(res.text).toContain("Set up the IRE Mapping Script");
+      expect(res.text).not.toContain("Preview documentation");
       expect(res.text).toContain("mconfig crowdmapserviceurl");
     });
 });

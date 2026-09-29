@@ -25,7 +25,7 @@
       <h1>A shared map, built from small reports</h1>
       <p class="lede">
         The crowdmap service lets players improve a Mudlet map without needing to use Git or
-        prepare a pull request. A compatible mapping client reports one observed
+        prepare a pull request. The IRE Mapping Script reports one observed
         change at a time; the service combines matching reports into a map that
         everyone can download.
       </p>
@@ -45,8 +45,8 @@
         <h2 id="players-heading">What players can do</h2>
         <ul>
           <li>Explore the current shared map and raise the confirmation threshold when you want a more conservative view.</li>
-          <li>Use a compatible mapping client to download a versioned Mudlet map.</li>
-          <li>Contribute observations from your own play. Use a stable pseudonym as your reporter value and do not put personal data in a report.</li>
+          <li>Use the IRE Mapping Script to download a versioned Mudlet map from the service.</li>
+          <li>Contribute observations from your own play. The IRE Mapping Script uses your in-game character name as the reporter value; do not put personal data in map changes.</li>
           <li>Keep using the published map while administrators review changes; reports are not automatically written into the baseline file.</li>
         </ul>
       </section>
@@ -84,61 +84,56 @@
           to a map download also includes an <code>X-Map-Version</code> header.
         </p>
         <p>
-          In the current IRE Mapping Script proposal, choose
-          <code>mapsource service</code> to use a crowdmap service. That choice
-          reveals the service-specific settings described below. Other mapping
+          The IRE Mapping Script handles these requests for you. Other mapping
           clients and adapters can use the endpoints above directly. The
           interactive API reference documents the accepted change shapes.
         </p>
         <p><a href="docs/">Open the API reference</a></p>
       </section>
 
-      <section class="policy-section preview" aria-labelledby="script-preview-heading">
-        <p class="preview-label">Preview documentation</p>
-        <h2 id="script-preview-heading">Planned IRE Mapping Script setup</h2>
+      <section class="policy-section" aria-labelledby="script-heading">
+        <h2 id="script-heading">Set up the IRE Mapping Script</h2>
         <p>
-          This is the proposed configuration interface for the crowdmap-service
-          integration. It is published early so map operators and script users
-          can prepare their settings. These commands are <strong>not available
-          in the released IRE Mapping Script yet</strong>; their names and
-          behaviour may change before release.
+          Install or update the
+          <a href="https://github.com/IRE-Mudlet-Mapping/ire-mapping-script">IRE Mapping Script</a>,
+          then select the live service map in Mudlet:
         </p>
         <pre><code>mconfig mapsource service
-mconfig crowdmapserviceurl https://achaea.maps.example.org
-mconfig crowdmapservicereports 2
-mconfig crowdmapservicesend on</code></pre>
+mconfig crowdmapservicesend on
+mconfig gmcpmapupdates on</code></pre>
+        <p>
+          The service URL defaults to <code>https://&lt;game&gt;.mudmaps.community</code>,
+          using the connected game's subdomain (for example,
+          <code>https://achaea.mudmaps.community</code>). You only need
+          <code>mconfig crowdmapserviceurl https://your-project-host</code>
+          when using a different service. The script waits for the character
+          name supplied by the game and uses it as the reporter value; there
+          is no separate reporter setting.
+        </p>
         <dl class="endpoint-list script-options">
           <div>
             <dt><code>mapsource</code></dt>
-            <dd>Chooses where map updates come from: <code>game</code>, <code>published</code>, or <code>service</code>. Select <code>service</code> to enable the options below.</dd>
-          </div>
-          <div>
-            <dt><code>crowdmapserviceurl</code></dt>
-            <dd>The project’s HTTPS origin, with no endpoint path. Do not use the shared platform/project-picker host. The default <code>https://&lt;game&gt;.mudmaps.community</code> derives the subdomain from the connected game.</dd>
+            <dd>Choose <code>game</code> (the default), <code>published</code> (the established community release), or <code>service</code> (the live map assembled from reports).</dd>
           </div>
           <div>
             <dt><code>crowdmapservicereports</code></dt>
-            <dd>The non-negative confirmation threshold used for both the version check and map download. Start with <code>2</code> for a cautious map.</dd>
+            <dd>Set the number of independent reports required to include another mapper's change. The default is <code>2</code>; <code>0</code> includes reports immediately. Your own reports are always included. For example: <code>mconfig crowdmapservicereports 3</code>.</dd>
           </div>
           <div>
             <dt><code>crowdmapservicesend</code></dt>
-            <dd>Opt in to automatically sending supported local map changes to the service. It is available only while <code>mapsource</code> is <code>service</code>.</dd>
+            <dd>Send supported local map changes as reports. This is off by default; enable it with <code>mconfig crowdmapservicesend on</code> to help confirm changes for other players.</dd>
+          </div>
+          <div>
+            <dt><code>gmcpmapupdates</code></dt>
+            <dd>Apply safe GMCP room information to existing rooms even outside mapping mode. This is off by default; enabling it lets ordinary play contribute room updates when service sending is on.</dd>
           </div>
         </dl>
         <p>
-          On startup and periodic update checks, the planned integration will
-          request <code>/map/version</code> first. If the version differs from
-          the locally installed map, it will download the matching binary map
-          from <code>/map</code>. Mapping actions will continue to work if the
-          service is temporarily unreachable; only the update or report will be
-          retried later.
-        </p>
-        <p>
-          The script uses the character name supplied by the game as the
-          reporter value, so no separate reporter setting is needed. Reports
-          are sent only when <code>crowdmapservicesend</code> is enabled and
-          include changes the script can identify reliably, such as room names,
-          exits, areas, coordinates, and selected room metadata.
+          The script checks the map version and downloads a new map when needed.
+          Local mapping changes still work if the service cannot be reached;
+          failed reports are retried, and the script warns before a later
+          download could overwrite unsent edits. Private room marks and
+          temporary exits remain local.
         </p>
       </section>
 
