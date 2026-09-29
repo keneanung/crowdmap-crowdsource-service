@@ -6,5 +6,51 @@
     ".": {
       "package-name": "crowdmap-crowdsource-service"
     }
-  }
+  },
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance Improvements"
+    },
+    {
+      "type": "revert",
+      "section": "Reverts"
+    },
+    {
+      "type": "docs",
+      "section": "Documentation"
+    },
+    {
+      "type": "chore",
+      "section": "Other"
+    },
+    {
+      "type": "style",
+      "section": "Other"
+    },
+    {
+      "type": "refactor",
+      "section": "Other"
+    },
+    {
+      "type": "test",
+      "section": "Other"
+    },
+    {
+      "type": "build",
+      "section": "Other"
+    },
+    {
+      "type": "ci",
+      "section": "Other"
+    }
+  ]
 }
