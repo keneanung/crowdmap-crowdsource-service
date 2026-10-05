@@ -104,9 +104,15 @@ async function preview(
             ALL_VISIBLE: {},
             createSettings: () => ({ highlight: {} }),
             MapRenderer: class extends Renderer {
-              constructor() {
+              constructor(
+                private reader: { getArea: (area: number) => unknown },
+              ) {
                 super();
                 renderers.push(this);
+              }
+              override drawArea(area: number, level: number) {
+                if (!this.reader.getArea(area)) throw new Error("Unknown area");
+                super.drawArea(area, level);
               }
             },
           },
@@ -139,12 +145,15 @@ test("a new room frames its candidate location in both panes without choosing an
 });
 
 test("a new area leaves the missing baseline pane blank and restores it on existing-room focus", async () => {
-  const { element, focus } = await preview(
+  const { element, focus, renderers } = await preview(
     [existing],
     [existing, { ...added, area: 8 }],
     42,
   );
   expect(element("#baseline-map").style.visibility).toBe("hidden");
+  expect(renderers[0].area).toBeUndefined();
+  expect(renderers[1].area).toBe(8);
+  expect(renderers[1].center).toBe(42);
   expect(element("#candidate-map").style.visibility).toBe("");
   focus(1);
   expect(element("#baseline-map").style.visibility).toBe("");
@@ -155,4 +164,16 @@ test("a deleted room frames its baseline location in the candidate pane", async 
   expect(renderers[0].position).toBe(42);
   expect(renderers[1].position).toBeUndefined();
   expect(renderers[1].point).toEqual({ x: 10, y: 20 });
+});
+
+test("a deleted area leaves the missing candidate pane blank without drawing it", async () => {
+  const { element, renderers } = await preview(
+    [existing, { ...added, area: 8 }],
+    [existing],
+    42,
+  );
+  expect(element("#candidate-map").style.visibility).toBe("hidden");
+  expect(renderers[1].area).toBeUndefined();
+  expect(renderers[0].area).toBe(8);
+  expect(renderers[0].center).toBe(42);
 });

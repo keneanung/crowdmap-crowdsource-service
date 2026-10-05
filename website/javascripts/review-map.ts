@@ -83,8 +83,11 @@ function draw(renderer: MapRenderer | undefined, snapshot: Snapshot | undefined,
   const target = roomId === undefined
     ? (snapshot.loaded.kind === "plain" ? snapshot.loaded.map[0]?.rooms[0] : undefined)
     : ownRoom || room(other, roomId);
-  element.style.visibility = target && snapshot.reader.getArea(target.area) ? "" : "hidden";
-  if (!target) return;
+  if (!target || !snapshot.reader.getArea(target.area)) {
+    element.style.visibility = "hidden";
+    return;
+  }
+  element.style.visibility = "";
   renderer.drawArea(target.area, target.z);
   if (roomId === undefined || ownRoom) {
     renderer.setPosition(target.id, false);
