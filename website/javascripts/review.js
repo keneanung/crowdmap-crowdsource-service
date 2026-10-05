@@ -327,7 +327,7 @@ import * as model from "./review-model.js";
       previewButton.disabled = Boolean(state.busyAction || state.loadingChanges);
       previewButton.setAttribute(
         "aria-label",
-        "Focus " +
+        (typeof change.roomNumber === "number" ? "Focus " : "Inspect ") +
           model.typeLabel(change.type) +
           " for " +
           model.changeSummary(change),
@@ -336,7 +336,9 @@ import * as model from "./review-model.js";
       previewButton.addEventListener("click", function () {
         state.activeId = change.changeId;
         if (typeof change.roomNumber === "number") {
-          window.CrowdmapReviewMap.focus(change.roomNumber);
+          focusRoom(change.roomNumber);
+        } else {
+          inspectReport(change);
         }
         renderList();
       });
@@ -360,12 +362,13 @@ import * as model from "./review-model.js";
         ? ids.length + " selected reports added to the staged upstream preview."
         : ids.length + " selected reports applied to the baseline preview.";
     await window.CrowdmapReviewMap.show(
-      ids,
-      state.changes.filter(function (change) {
+      mode === "all" ? [] : ids,
+      mode === "all" ? state.changes : state.changes.filter(function (change) {
         return ids.includes(change.changeId);
       }),
       undefined,
       state.stagedReview && state.stagedReview.id,
+      mode === "all",
     );
     renderList();
   }
@@ -389,6 +392,38 @@ import * as model from "./review-model.js";
     updateActions();
   }
 
+  function focusRoom(roomNumber) {
+    if (window.CrowdmapReviewMap.focus(roomNumber) === false) {
+      showNotice(
+        state.stagedReview
+          ? "Room " + roomNumber + " is absent from this preview. Select its creation report and preview the reviewed result to inspect it."
+          : "Room " + roomNumber + " is absent from this preview. Choose Preview all reports, or include its creation report in the selected preview.",
+        false,
+      );
+    }
+  }
+
+  function inspectReport(change) {
+    elements.roomDiffTitle.textContent = model.typeLabel(change.type);
+    elements.roomDiffSummary.replaceChildren();
+    var summary = document.createElement("p");
+    summary.textContent = model.changeSummary(change);
+    var note = document.createElement("p");
+    note.className = "property-summary-note";
+    note.textContent = "This report has no room target. Its proposed values are shown below.";
+    elements.roomDiffSummary.append(summary, note);
+    elements.roomDiffDetails.replaceChildren();
+    Object.keys(change).forEach(function (key) {
+      if (["changeId", "type", "reporters", "upstreamConflict", "upstreamResolved"].includes(key)) return;
+      var row = document.createElement("p");
+      row.textContent = key + ": " + displayValue(change[key]);
+      elements.roomDiffDetails.appendChild(row);
+    });
+    elements.roomDiffDetails.hidden = false;
+    elements.showAllDetails.disabled = false;
+    elements.showAllDetails.textContent = "Hide details";
+  }
+
   function displayValue(value) {
     if (value === undefined) return "—";
     if (value === null) return "none";
@@ -404,7 +439,7 @@ import * as model from "./review-model.js";
     row.children[0].textContent = label;
     row.children[1].textContent = displayValue(before) + " → " + displayValue(after);
     row.addEventListener("click", function () {
-      window.CrowdmapReviewMap.focus(roomNumber);
+      focusRoom(roomNumber);
     });
     container.appendChild(row);
   }
@@ -419,7 +454,7 @@ import * as model from "./review-model.js";
     values.textContent = displayValue(before) + " → " + displayValue(after);
     row.append(name, values);
     row.addEventListener("click", function () {
-      window.CrowdmapReviewMap.focus(roomNumber);
+      focusRoom(roomNumber);
     });
     container.appendChild(row);
   }
@@ -438,7 +473,9 @@ import * as model from "./review-model.js";
     if (!before && !after) {
       var unavailable = document.createElement("p");
       unavailable.className = "property-summary-note";
-      unavailable.textContent = "Room is absent from both maps. Select its creation report to preview changes to a new room.";
+      unavailable.textContent = state.stagedReview
+        ? "Room is absent from both maps. Select its creation report and preview the reviewed result to inspect it."
+        : "Room is absent from both maps. Choose Preview all reports, or include its creation report in the selected preview.";
       elements.roomDiffSummary.appendChild(unavailable);
       return;
     }
@@ -857,7 +894,7 @@ import * as model from "./review-model.js";
   elements.reportFocus.addEventListener("change", function () {
     var roomNumber = Number(elements.reportFocus.value);
     if (Number.isInteger(roomNumber) && roomNumber > 0)
-      window.CrowdmapReviewMap.focus(roomNumber);
+      focusRoom(roomNumber);
   });
   elements.showBaseline.addEventListener("click", async function () {
     state.activeId = null;

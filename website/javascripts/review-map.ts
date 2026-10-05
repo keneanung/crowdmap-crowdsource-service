@@ -156,11 +156,13 @@ function announceRoom(roomId: number) {
 }
 
 export function focus(roomId: number) {
-  drawComparison(roomId);
+  const present = Boolean(room(baseline, roomId) || room(candidate, roomId));
+  if (present) drawComparison(roomId);
   announceRoom(roomId);
+  return present;
 }
 
-export async function show(ids: string[], changes: ReviewChange[], roomId?: number, reviewId?: string) {
+export async function show(ids: string[], changes: ReviewChange[], roomId?: number, reviewId?: string, allReports = false) {
   baselineStatus.textContent = "Loading…";
   candidateStatus.textContent = "Loading…";
   currentChanges = changes;
@@ -170,7 +172,7 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
     const result = await Promise.all([
       fetchSnapshot(snapshotUrl(2147483647, [], reviewId)),
       fetchSnapshot(
-        ids.length > 0 ? snapshotUrl(0, ids, reviewId) : snapshotUrl(2147483647, [], reviewId),
+        allReports ? snapshotUrl(0, [], reviewId) : ids.length > 0 ? snapshotUrl(0, ids, reviewId) : snapshotUrl(2147483647, [], reviewId),
       ),
     ]);
     baseline = result[0];
@@ -189,7 +191,8 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
     highlight(candidateRenderer, candidate, baseline, changes, "#5ee1b2");
     drawComparison(roomId);
     baselineStatus.textContent = reviewId ? "Staged upstream" : "Published map";
-    candidateStatus.textContent = ids.length ? ids.length + " report" + (ids.length === 1 ? "" : "s") + " applied" : "No additional reports";
+    const count = allReports ? changes.length : ids.length;
+    candidateStatus.textContent = count ? count + " report" + (count === 1 ? "" : "s") + " applied" : "No additional reports";
     if (roomId) announceRoom(roomId);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Map preview unavailable";

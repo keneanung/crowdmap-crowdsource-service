@@ -46,6 +46,7 @@ async function preview(
   baselineRooms: Room[],
   candidateRooms: Room[],
   roomId: number,
+  options: { ids?: string[]; allReports?: boolean } = {},
 ) {
   const source = await readFile(
     new URL("../website/javascripts/review-map.ts", import.meta.url),
@@ -83,10 +84,21 @@ async function preview(
     clearInterval: jest.fn(),
     dispatchEvent: jest.fn(),
     CrowdmapReviewMap: undefined as unknown as {
-      show: (ids: string[], changes: unknown[], id: number) => Promise<void>;
-      focus: (id: number) => void;
+      show: (
+        ids: string[],
+        changes: unknown[],
+        id: number,
+        reviewId?: string,
+        allReports?: boolean,
+      ) => Promise<void>;
+      focus: (id: number) => boolean;
     },
   };
+  const fetch = jest
+    .fn<(_url: string) => Promise<unknown>>()
+    .mockImplementation(() =>
+      Promise.resolve({ ok: true, arrayBuffer: () => new ArrayBuffer(0) }),
+    );
   runInNewContext(compiled.code, {
     module: { exports: {} },
     require: (name: string) =>
@@ -120,11 +132,22 @@ async function preview(
     window,
     URLSearchParams,
     CustomEvent: jest.fn(),
-    fetch: () =>
-      Promise.resolve({ ok: true, arrayBuffer: () => new ArrayBuffer(0) }),
+    fetch,
   });
-  await window.CrowdmapReviewMap.show(["report"], [], roomId);
-  return { renderers, element, focus: window.CrowdmapReviewMap.focus };
+  const ids = options.ids ?? ["report"];
+  const changes = ids.map((changeId) => ({
+    changeId,
+    type: "room-name",
+    roomNumber: roomId,
+  }));
+  await window.CrowdmapReviewMap.show(
+    ids,
+    changes,
+    roomId,
+    undefined,
+    options.allReports,
+  );
+  return { renderers, element, fetch, focus: window.CrowdmapReviewMap.focus };
 }
 
 const existing = { id: 1, area: 7, x: 0, y: 0, z: 0 };
@@ -176,4 +199,43 @@ test("a deleted area leaves the missing candidate pane blank without drawing it"
   expect(renderers[1].area).toBeUndefined();
   expect(renderers[0].area).toBe(8);
   expect(renderers[0].center).toBe(42);
+});
+
+test("focusing a room absent from both snapshots preserves the current map views", async () => {
+  const { renderers, element, focus, fetch } = await preview(
+    [existing],
+    [existing],
+    1,
+  );
+  expect(focus(42)).toBe(false);
+  expect(renderers[0].position).toBe(1);
+  expect(renderers[1].position).toBe(1);
+  expect(element("#baseline-map").style.visibility).toBe("");
+  expect(element("#candidate-map").style.visibility).toBe("");
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+test("all-report previews use a bounded URL even with thousands of pending reports", async () => {
+  const ids = Array.from(
+    { length: 2000 },
+    (_, index) => "report-" + String(index),
+  );
+  const { fetch } = await preview([existing], [existing], 1, {
+    ids,
+    allReports: true,
+  });
+  expect(fetch.mock.calls[1][0]).toBe("map?format=binary&timesSeen=0");
+});
+
+test("subset previews retain explicit includes and empty selections load only the baseline", async () => {
+  const subset = await preview([existing], [existing], 1, {
+    ids: ["selected"],
+  });
+  expect(subset.fetch.mock.calls[1][0]).toBe(
+    "map?format=binary&timesSeen=0&include=selected",
+  );
+  const empty = await preview([existing], [existing], 1, { ids: [] });
+  expect(empty.fetch.mock.calls[1][0]).toBe(
+    "map?format=binary&timesSeen=2147483647",
+  );
 });

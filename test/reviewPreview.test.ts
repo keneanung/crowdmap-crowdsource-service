@@ -55,7 +55,7 @@ const reports = [
   },
 ];
 
-async function review() {
+async function review(reportList: model.ReviewChange[] = reports) {
   const source = await readFile(
     new URL("../website/javascripts/review.js", import.meta.url),
     "utf8",
@@ -71,7 +71,7 @@ async function review() {
   const show = jest
     .fn<(...args: unknown[]) => Promise<void>>()
     .mockResolvedValue();
-  const focus = jest.fn();
+  const focus = jest.fn<(_room: number) => boolean>().mockReturnValue(true);
   const fetch = jest
     .fn<(url: string) => Promise<unknown>>()
     .mockImplementation((url) =>
@@ -82,7 +82,7 @@ async function review() {
           Promise.resolve(
             url.startsWith("change/review-upstream")
               ? { id: "review", upstreamVersion: "v2", reconciliation: [] }
-              : reports.map((report) => ({ ...report })),
+              : reportList.map((report) => ({ ...report })),
           ),
       }),
     );
@@ -119,7 +119,9 @@ function card(element: (selector: string) => Element, id: string) {
 
 test("initial preview includes all reports and clicking reports only focuses the loaded map", async () => {
   const { element, show, focus, fetch } = await review();
-  expect(show.mock.calls[0][0]).toEqual(["a", "b"]);
+  expect(show.mock.calls[0][0]).toEqual([]);
+  expect(show.mock.calls[0][1]).toEqual(reports);
+  expect(show.mock.calls[0][4]).toBe(true);
   expect(element("#preview-title").textContent).toBe("All pending reports");
   await card(element, "b").children[1].click();
   await card(element, "a").children[1].click();
@@ -140,7 +142,9 @@ test("checkboxes do not reload maps; explicit subset and all previews control in
   expect(show).toHaveBeenCalledTimes(2);
   expect(element("#preview-title").textContent).toBe("Selected reports");
   await element("#show-all").click();
-  expect(show.mock.calls[2][0]).toEqual(["a", "b"]);
+  expect(show.mock.calls[2][0]).toEqual([]);
+  expect(show.mock.calls[2][1]).toEqual(reports);
+  expect(show.mock.calls[2][4]).toBe(true);
   expect(element("#selected-count").textContent).toBe("1");
 });
 
@@ -160,4 +164,69 @@ test("focusing a staged report retains the reviewed selection and apply eligibil
   await card(element, "b").children[1].click();
   expect(show).toHaveBeenCalledTimes(3);
   expect(element("#apply-update").disabled).toBe(false);
+});
+
+test("absent-room reports and room jumps explain the current preview without fetching maps", async () => {
+  const { element, show, focus } = await review();
+  await element("#show-baseline").click();
+  focus.mockReturnValue(false);
+  await card(element, "b").children[1].click();
+  expect(element("#notice").textContent).toContain(
+    "Room 2 is absent from this preview",
+  );
+  expect(element("#notice").textContent).toContain("Preview all reports");
+  element("#report-focus").value = "2";
+  element("#report-focus").listeners.get("change")?.();
+  expect(focus).toHaveBeenCalledTimes(2);
+  expect(show).toHaveBeenCalledTimes(2);
+});
+
+test("reports without room targets inspect their values without moving or reloading maps", async () => {
+  const nonRoomReports = [
+    {
+      changeId: "area",
+      type: "rename-area",
+      areaId: 7,
+      name: "New area name",
+      reporters: 1,
+    },
+    {
+      changeId: "label",
+      type: "set-map-label",
+      areaId: 7,
+      labelId: 2,
+      text: "New label",
+      reporters: 1,
+    },
+    {
+      changeId: "data",
+      type: "set-map-user-data",
+      key: "source",
+      value: "survey",
+      reporters: 1,
+    },
+  ];
+  const { element, show, focus } = await review(nonRoomReports);
+  for (const report of nonRoomReports) {
+    const button = card(element, report.changeId).children[1];
+    expect(button.setAttribute).toHaveBeenCalledWith(
+      "aria-label",
+      expect.stringMatching(/^Inspect /u),
+    );
+    await button.click();
+    expect(element("#room-diff-title").textContent).toBe(
+      model.typeLabel(report.type),
+    );
+    expect(element("#room-diff-summary").children[1].textContent).toContain(
+      "no room target",
+    );
+    expect(element("#room-diff-details").hidden).toBe(false);
+    expect(
+      element("#room-diff-details")
+        .children.map((row) => row.textContent)
+        .join(" "),
+    ).toContain(report.name ?? report.text ?? report.value);
+  }
+  expect(focus).not.toHaveBeenCalled();
+  expect(show).toHaveBeenCalledTimes(1);
 });
