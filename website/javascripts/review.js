@@ -35,6 +35,7 @@ import * as model from "./review-model.js";
     pendingCount: document.querySelector("#pending-count"),
     previewDescription: document.querySelector("#preview-description"),
     previewSelected: document.querySelector("#show-selected"),
+    previewAll: document.querySelector("#show-all"),
     reportFocus: document.querySelector("#report-focus"),
     previewTitle: document.querySelector("#preview-title"),
     comparisonSideBySide: document.querySelector("#comparison-side-by-side"),
@@ -93,6 +94,7 @@ import * as model from "./review-model.js";
           ? "Wait for the current map preview to finish."
         : "Reload pending reports. Refreshing cancels a staged upstream review.";
     elements.previewSelected.disabled = busy || (!state.stagedReview && count === 0);
+    elements.previewAll.disabled = busy || Boolean(state.stagedReview);
     elements.downloadSelected.disabled = busy || Boolean(state.stagedReview) || count === 0;
     elements.deleteSelected.disabled = busy || !hasApiKey || count === 0 || Boolean(state.stagedReview);
     elements.stageUpstream.disabled = busy || !hasApiKey || !state.rawVersion || Boolean(state.stagedReview);
@@ -325,26 +327,18 @@ import * as model from "./review-model.js";
       previewButton.disabled = Boolean(state.busyAction || state.loadingChanges);
       previewButton.setAttribute(
         "aria-label",
-        "Preview " +
+        "Focus " +
           model.typeLabel(change.type) +
           " for " +
           model.changeSummary(change),
       );
       previewButton.appendChild(content);
-      previewButton.addEventListener("click", async function () {
-        state.previewing = true;
-        if (state.stagedReview) {
-          state.previewedSelectionKey = null;
+      previewButton.addEventListener("click", function () {
+        state.activeId = change.changeId;
+        if (typeof change.roomNumber === "number") {
+          window.CrowdmapReviewMap.focus(change.roomNumber);
         }
-        updateActions();
-        try {
-          await previewChanges([change.changeId], change);
-        } catch (error) {
-          showNotice(error.message, true);
-        } finally {
-          state.previewing = false;
-          updateActions();
-        }
+        renderList();
       });
       card.append(checkbox, previewButton);
       if (relationshipDetailsElement)
@@ -353,15 +347,15 @@ import * as model from "./review-model.js";
     });
   }
 
-  async function previewChanges(ids, activeChange) {
-    state.activeId = activeChange ? activeChange.changeId : null;
-    elements.previewTitle.textContent = activeChange
-      ? model.typeLabel(activeChange.type)
+  async function previewChanges(ids, mode) {
+    state.activeId = null;
+    elements.previewTitle.textContent = mode === "all"
+      ? "All pending reports"
       : state.stagedReview
         ? "Reviewed result"
         : "Selected reports";
-    elements.previewDescription.textContent = activeChange
-      ? model.changeSummary(activeChange)
+    elements.previewDescription.textContent = mode === "all"
+      ? ids.length + " pending reports applied to the current baseline. Click a report to focus its room."
       : state.stagedReview
         ? ids.length + " selected reports added to the staged upstream preview."
         : ids.length + " selected reports applied to the baseline preview.";
@@ -370,7 +364,7 @@ import * as model from "./review-model.js";
       state.changes.filter(function (change) {
         return ids.includes(change.changeId);
       }),
-      activeChange && activeChange.roomNumber,
+      undefined,
       state.stagedReview && state.stagedReview.id,
     );
     renderList();
@@ -615,7 +609,9 @@ import * as model from "./review-model.js";
       elements.baselineVersion.textContent = state.rawVersion || "Unavailable";
       renderList();
       updateReportFocus();
-      await previewChanges([], null);
+      await previewChanges(state.changes.map(function (change) {
+        return change.changeId;
+      }), "all");
     } catch (error) {
       elements.queueStatus.textContent = error.message;
       showNotice(error.message, true);
@@ -822,6 +818,21 @@ import * as model from "./review-model.js";
     } finally {
       state.busyAction = null;
       elements.stageUpstream.textContent = "Load upstream update";
+      updateActions();
+    }
+  });
+  elements.previewAll.addEventListener("click", async function () {
+    if (state.stagedReview) return;
+    state.previewing = true;
+    updateActions();
+    try {
+      await previewChanges(state.changes.map(function (change) {
+        return change.changeId;
+      }), "all");
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      state.previewing = false;
       updateActions();
     }
   });

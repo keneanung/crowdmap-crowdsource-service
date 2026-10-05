@@ -189,7 +189,7 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
     highlight(candidateRenderer, candidate, baseline, changes, "#5ee1b2");
     drawComparison(roomId);
     baselineStatus.textContent = reviewId ? "Staged upstream" : "Published map";
-    candidateStatus.textContent = ids.length ? ids.length + " selected report" + (ids.length === 1 ? "" : "s") : "No reports selected";
+    candidateStatus.textContent = ids.length ? ids.length + " report" + (ids.length === 1 ? "" : "s") + " applied" : "No additional reports";
     if (roomId) announceRoom(roomId);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Map preview unavailable";

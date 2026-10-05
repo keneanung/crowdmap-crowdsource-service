@@ -95,9 +95,9 @@
           <div class="inspection-header">
             <div>
               <p class="eyebrow">Visual comparison</p>
-              <h2 id="preview-title">Baseline map</h2>
+              <h2 id="preview-title">All pending reports</h2>
               <p id="preview-description">
-                Choose a report to preview it on the map.
+                The current baseline with all pending reports. Click a report to focus its room.
               </p>
             </div>
             <div class="preview-actions">
@@ -107,6 +107,9 @@
                   <option value="">Choose a reported room…</option>
                 </select>
               </label>
+              <button class="button button-secondary" id="show-all" type="button">
+                Preview all reports
+              </button>
               <button
                 class="button button-secondary"
                 id="show-baseline"
@@ -165,7 +168,7 @@
           <article class="review-guide">
             <h2>Map administrator actions</h2>
             <p class="review-guide-intro">
-              Before staging an update, select reports to preview them together or delete them. Deletion does not change the baseline map.
+              The preview starts with all pending reports. Click a report to focus its room without reloading the maps. Select reports and choose “Preview selected reports” to inspect a subset, or “Preview all reports” to return to the complete view. Deletion does not change the baseline map.
             </p>
             <ol>
               <li>
