@@ -6,7 +6,8 @@ import {
 } from "mudlet-map-renderer/binary";
 
 type ReviewChange = Record<string, unknown> & { changeId: string; type: string; roomNumber?: number; destination?: number };
-type Snapshot = { loaded: LoadedMudletMap; reader: ReturnType<typeof readerFromLoadedMap> };
+type PlainRoom = Extract<LoadedMudletMap, { kind: "plain" }>["map"][number]["rooms"][number];
+type Snapshot = { loaded: LoadedMudletMap; reader: ReturnType<typeof readerFromLoadedMap>; rooms: Map<number, PlainRoom>; rawVersion: string | null };
 
 const baselineElement = document.querySelector<HTMLDivElement>("#baseline-map")!;
 const candidateElement = document.querySelector<HTMLDivElement>("#candidate-map")!;
@@ -25,8 +26,7 @@ let blinkTimer: number | undefined;
 let wipeMode = false;
 
 function room(snapshot: Snapshot | undefined, roomId: number) {
-  if (!snapshot || snapshot.loaded.kind !== "plain") return undefined;
-  return snapshot.loaded.map.flatMap((area) => area.rooms).find((item) => item.id === roomId);
+  return snapshot?.rooms.get(roomId);
 }
 
 function allChangedRoomIds(changes: ReviewChange[]) {
@@ -54,11 +54,20 @@ function snapshotUrl(timesSeen: number, ids: string[], reviewId?: string) {
   return "map?" + query;
 }
 
-async function fetchSnapshot(url: string): Promise<Snapshot> {
+async function fetchSnapshot(url: string, expectedVersion?: string): Promise<Snapshot> {
   const response = await fetch(url);
   if (!response.ok) throw new Error("Map request failed (HTTP " + response.status + ")");
+  if (expectedVersion && response.headers.get("X-Map-Version") !== expectedVersion) {
+    throw new Error("Pending reports or the baseline changed. Refresh the queue before previewing all reports.");
+  }
   const loaded = parseMudletMap(new Uint8Array(await response.arrayBuffer()));
-  return { loaded, reader: readerFromLoadedMap(loaded) };
+  const rooms = new Map<number, PlainRoom>();
+  if (loaded.kind === "plain") {
+    for (const area of loaded.map) {
+      for (const item of area.rooms) rooms.set(item.id, item);
+    }
+  }
+  return { loaded, reader: readerFromLoadedMap(loaded), rooms, rawVersion: response.headers.get("X-Map-Version-Raw") };
 }
 
 function rendererFor(snapshot: Snapshot, element: HTMLDivElement) {
@@ -162,10 +171,9 @@ export function focus(roomId: number) {
   return present;
 }
 
-export async function show(ids: string[], changes: ReviewChange[], roomId?: number, reviewId?: string, allReports = false) {
+export async function show(ids: string[], changes: ReviewChange[], roomId?: number, reviewId?: string, allReports = false, expectedVersion?: string) {
   baselineStatus.textContent = "Loading…";
   candidateStatus.textContent = "Loading…";
-  currentChanges = changes;
   window.clearInterval(blinkTimer);
   comparisonElement.classList.remove("blinking");
   try {
@@ -173,8 +181,13 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
       fetchSnapshot(snapshotUrl(2147483647, [], reviewId)),
       fetchSnapshot(
         allReports ? snapshotUrl(0, [], reviewId) : ids.length > 0 ? snapshotUrl(0, ids, reviewId) : snapshotUrl(2147483647, [], reviewId),
+        allReports ? expectedVersion : undefined,
       ),
     ]);
+    if (!reviewId && result[0].rawVersion && result[1].rawVersion && result[0].rawVersion !== result[1].rawVersion) {
+      throw new Error("The baseline changed while loading the maps. Refresh the queue before previewing reports.");
+    }
+    currentChanges = changes;
     baseline = result[0];
     candidate = result[1];
     baselineRenderer?.destroy();

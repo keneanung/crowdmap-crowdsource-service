@@ -122,6 +122,7 @@ test("initial preview includes all reports and clicking reports only focuses the
   expect(show.mock.calls[0][0]).toEqual([]);
   expect(show.mock.calls[0][1]).toEqual(reports);
   expect(show.mock.calls[0][4]).toBe(true);
+  expect(show.mock.calls[0][5]).toBe("v1");
   expect(element("#preview-title").textContent).toBe("All pending reports");
   await card(element, "b").children[1].click();
   await card(element, "a").children[1].click();
@@ -214,6 +215,9 @@ test("reports without room targets inspect their values without moving or reload
       expect.stringMatching(/^Inspect /u),
     );
     await button.click();
+    expect(element("#room-diff-summary").children[0].textContent).not.toContain(
+      "undefined",
+    );
     expect(element("#room-diff-title").textContent).toBe(
       model.typeLabel(report.type),
     );

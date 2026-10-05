@@ -46,7 +46,15 @@ async function preview(
   baselineRooms: Room[],
   candidateRooms: Room[],
   roomId: number,
-  options: { ids?: string[]; allReports?: boolean } = {},
+  options: {
+    ids?: string[];
+    allReports?: boolean;
+    expectedVersion?: string;
+    candidateVersion?: string;
+    rawVersions?: [string, string];
+    changedRoomIds?: number[];
+    onRoomRead?: () => void;
+  } = {},
 ) {
   const source = await readFile(
     new URL("../website/javascripts/review-map.ts", import.meta.url),
@@ -56,7 +64,14 @@ async function preview(
   const renderers: Renderer[] = [];
   const snapshots = [baselineRooms, candidateRooms].map((rooms) => ({
     kind: "plain",
-    map: [{ rooms }],
+    map: [
+      {
+        get rooms() {
+          options.onRoomRead?.();
+          return rooms;
+        },
+      },
+    ],
   }));
   const elements = new Map<
     string,
@@ -90,15 +105,29 @@ async function preview(
         id: number,
         reviewId?: string,
         allReports?: boolean,
+        expectedVersion?: string,
       ) => Promise<void>;
       focus: (id: number) => boolean;
     },
   };
+  let requestIndex = 0;
   const fetch = jest
     .fn<(_url: string) => Promise<unknown>>()
-    .mockImplementation(() =>
-      Promise.resolve({ ok: true, arrayBuffer: () => new ArrayBuffer(0) }),
-    );
+    .mockImplementation(() => {
+      const index = requestIndex++;
+      return Promise.resolve({
+        ok: true,
+        headers: {
+          get: (name: string) =>
+            name === "X-Map-Version"
+              ? index === 1
+                ? (options.candidateVersion ?? "v1")
+                : "baseline"
+              : (options.rawVersions?.[index] ?? "raw-v1"),
+        },
+        arrayBuffer: () => new ArrayBuffer(0),
+      });
+    });
   runInNewContext(compiled.code, {
     module: { exports: {} },
     require: (name: string) =>
@@ -135,10 +164,10 @@ async function preview(
     fetch,
   });
   const ids = options.ids ?? ["report"];
-  const changes = ids.map((changeId) => ({
+  const changes = ids.map((changeId, index) => ({
     changeId,
     type: "room-name",
-    roomNumber: roomId,
+    roomNumber: options.changedRoomIds?.[index] ?? roomId,
   }));
   await window.CrowdmapReviewMap.show(
     ids,
@@ -146,6 +175,7 @@ async function preview(
     roomId,
     undefined,
     options.allReports,
+    options.expectedVersion,
   );
   return { renderers, element, fetch, focus: window.CrowdmapReviewMap.focus };
 }
@@ -238,4 +268,55 @@ test("subset previews retain explicit includes and empty selections load only th
   expect(empty.fetch.mock.calls[1][0]).toBe(
     "map?format=binary&timesSeen=2147483647",
   );
+});
+
+test("highlighting thousands of rooms reads each snapshot a bounded number of times", async () => {
+  const rooms = Array.from({ length: 2000 }, (_, index) => ({
+    ...existing,
+    id: index + 1,
+  }));
+  const changedRoomIds = rooms.map((room) => room.id);
+  const onRoomRead = jest.fn();
+  const { renderers, focus } = await preview(rooms, rooms, 1, {
+    ids: changedRoomIds.map(String),
+    changedRoomIds,
+    allReports: true,
+    onRoomRead,
+  });
+  expect(renderers[0].renderHighlight).toHaveBeenCalledTimes(2000);
+  expect(renderers[1].renderHighlight).toHaveBeenCalledTimes(2000);
+  expect(onRoomRead.mock.calls.length).toBeLessThan(12);
+  const readsAfterHighlighting = onRoomRead.mock.calls.length;
+  focus(2000);
+  expect(onRoomRead.mock.calls.length - readsAfterHighlighting).toBeLessThan(6);
+});
+
+test.each(["report-added", "report-deleted", "baseline-updated"])(
+  "all-report previews reject a queue version mismatch after %s",
+  async (candidateVersion) => {
+    await expect(
+      preview([existing], [existing], 1, {
+        allReports: true,
+        expectedVersion: "queue-v1",
+        candidateVersion,
+      }),
+    ).rejects.toThrow("Refresh the queue before previewing all reports");
+  },
+);
+
+test("all-report previews accept the loaded queue version", async () => {
+  const { fetch } = await preview([existing], [existing], 1, {
+    allReports: true,
+    expectedVersion: "queue-v1",
+    candidateVersion: "queue-v1",
+  });
+  expect(fetch.mock.calls[1][0]).toBe("map?format=binary&timesSeen=0");
+});
+
+test("maps from different baseline versions are not compared", async () => {
+  await expect(
+    preview([existing], [existing], 1, {
+      rawVersions: ["raw-v1", "raw-v2"],
+    }),
+  ).rejects.toThrow("The baseline changed while loading the maps");
 });

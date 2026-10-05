@@ -13,6 +13,7 @@ import * as model from "./review-model.js";
     previewing: false,
     previewedSelectionKey: null,
     rawVersion: "",
+    queueVersion: "",
     search: "",
     selected: new Set(),
     stagedReview: null,
@@ -369,6 +370,7 @@ import * as model from "./review-model.js";
       undefined,
       state.stagedReview && state.stagedReview.id,
       mode === "all",
+      mode === "all" ? state.queueVersion : undefined,
     );
     renderList();
   }
@@ -630,6 +632,7 @@ import * as model from "./review-model.js";
         if (conflict) change.upstreamConflict = conflict;
       });
       state.rawVersion = response.headers.get("X-Map-Version-Raw") || "";
+      state.queueVersion = response.headers.get("X-Map-Version") || "";
       state.stagedReview = null;
       state.selected.clear();
       state.previewedSelectionKey = null;
