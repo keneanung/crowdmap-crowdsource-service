@@ -77,12 +77,35 @@ function resizeRenderer(renderer: MapRenderer | undefined, element: HTMLDivEleme
   renderer.refresh();
 }
 
-function draw(renderer: MapRenderer | undefined, snapshot: Snapshot | undefined, roomId?: number) {
+function draw(renderer: MapRenderer | undefined, snapshot: Snapshot | undefined, other: Snapshot | undefined, element: HTMLDivElement, roomId?: number) {
   if (!renderer || !snapshot) return;
-  const target = room(snapshot, roomId || 0) || (snapshot.loaded.kind === "plain" ? snapshot.loaded.map[0]?.rooms[0] : undefined);
-  if (!target) return;
+  const ownRoom = roomId === undefined ? undefined : room(snapshot, roomId);
+  const target = roomId === undefined
+    ? (snapshot.loaded.kind === "plain" ? snapshot.loaded.map[0]?.rooms[0] : undefined)
+    : ownRoom || room(other, roomId);
+  if (!target || !snapshot.reader.getArea(target.area)) {
+    element.style.visibility = "hidden";
+    return;
+  }
+  element.style.visibility = "";
   renderer.drawArea(target.area, target.z);
-  renderer.setPosition(target.id);
+  if (roomId === undefined || ownRoom) {
+    renderer.setPosition(target.id, false);
+    renderer.centerOn(target.id, true);
+  } else {
+    renderer.clearPosition();
+    renderer.camera.panToMapPoint(target.x, target.y);
+  }
+}
+
+function drawComparison(roomId?: number) {
+  syncing = true;
+  try {
+    draw(baselineRenderer, baseline, candidate, baselineElement, roomId);
+    draw(candidateRenderer, candidate, baseline, candidateElement, roomId);
+  } finally {
+    syncing = false;
+  }
 }
 
 function applyLens(renderer: MapRenderer | undefined, changes: ReviewChange[]) {
@@ -133,10 +156,7 @@ function announceRoom(roomId: number) {
 }
 
 export function focus(roomId: number) {
-  draw(baselineRenderer, baseline, roomId);
-  draw(candidateRenderer, candidate, roomId);
-  if (baselineRenderer && room(baseline, roomId)) baselineRenderer.centerOn(roomId, true);
-  if (candidateRenderer && room(candidate, roomId)) candidateRenderer.centerOn(roomId, true);
+  drawComparison(roomId);
   announceRoom(roomId);
 }
 
@@ -167,8 +187,7 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
     applyLens(candidateRenderer, changes);
     highlight(baselineRenderer, baseline, candidate, changes, "#ff6f7d");
     highlight(candidateRenderer, candidate, baseline, changes, "#5ee1b2");
-    draw(baselineRenderer, baseline, roomId);
-    draw(candidateRenderer, candidate, roomId);
+    drawComparison(roomId);
     baselineStatus.textContent = reviewId ? "Staged upstream" : "Published map";
     candidateStatus.textContent = ids.length ? ids.length + " selected report" + (ids.length === 1 ? "" : "s") : "No reports selected";
     if (roomId) announceRoom(roomId);
