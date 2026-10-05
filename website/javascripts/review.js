@@ -441,6 +441,13 @@ import * as model from "./review-model.js";
     elements.showAllDetails.textContent = "Show all details";
     elements.roomDiffDetails.hidden = true;
     elements.roomDiffTitle.textContent = "Room " + roomNumber;
+    if (!before && !after) {
+      var unavailable = document.createElement("p");
+      unavailable.className = "property-summary-note";
+      unavailable.textContent = "Room is absent from both maps. Select its creation report to preview changes to a new room.";
+      elements.roomDiffSummary.appendChild(unavailable);
+      return;
+    }
     if (!before || !after) {
       var presence = document.createElement("p");
       presence.className = "property-presence " + (!before ? "addition" : "removal");
@@ -448,8 +455,9 @@ import * as model from "./review-model.js";
         ? "Added in the candidate map."
         : "Removed from the candidate map.";
       elements.roomDiffSummary.appendChild(presence);
-      return;
     }
+    before = before || {};
+    after = after || {};
     var changed = [];
     [
       ["name", "Name"],
