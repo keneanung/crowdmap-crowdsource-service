@@ -156,3 +156,22 @@ describe("change review model", () => {
     );
   });
 });
+
+test("map-wide summaries identify the map and preserve proposed values", () => {
+  expect(
+    changeSummary({
+      changeId: "data",
+      type: "set-map-user-data",
+      key: "source",
+      value: "survey",
+    }),
+  ).toBe("Map · key: source · value: survey");
+  expect(
+    changeSummary({
+      changeId: "area",
+      type: "rename-area",
+      areaId: 7,
+      name: "Garden",
+    }),
+  ).toBe("Area 7 · name: Garden");
+});

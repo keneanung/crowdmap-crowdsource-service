@@ -321,6 +321,8 @@ main {
 
 .inspection-header {
   align-items: start;
+  flex-wrap: wrap;
+  gap: 16px;
   display: flex;
   justify-content: space-between;
   margin-bottom: 15px;
@@ -338,15 +340,20 @@ main {
 }
 .preview-actions {
   display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 8px;
 }
 .room-jump {
+  min-width: 0;
+  max-width: 100%;
   color: var(--muted);
   display: grid;
   font-size: 11px;
   gap: 3px;
 }
 .room-jump select {
+  max-width: 100%;
   background: var(--panel-raised);
   border: 1px solid #3d5878;
   border-radius: 6px;

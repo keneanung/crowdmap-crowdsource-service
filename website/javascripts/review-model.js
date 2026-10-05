@@ -215,7 +215,9 @@ const model = (() => {
     var location =
       change.roomNumber !== undefined
         ? "Room " + change.roomNumber
-        : "Area " + change.areaId;
+        : change.areaId !== undefined
+          ? "Area " + change.areaId
+          : "Map";
     var omitted = new Set([
       "changeId",
       "reporters",
