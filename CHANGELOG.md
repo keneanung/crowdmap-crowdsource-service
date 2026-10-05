@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.2.3...v1.3.0) (2026-10-05)
+
+
+### Features
+
+* preview all pending reports and focus rooms without reloading maps ([#325](https://github.com/keneanung/crowdmap-crowdsource-service/issues/325)) ([ed879dd](https://github.com/keneanung/crowdmap-crowdsource-service/commit/ed879ddf84c1d8c14ed7e2950cb3ecd7e3a1409c))
+
+
+### Bug Fixes
+
+* **deps:** bump mongodb from 7.6.0 to 7.7.0 ([#319](https://github.com/keneanung/crowdmap-crowdsource-service/issues/319)) ([fd05bcf](https://github.com/keneanung/crowdmap-crowdsource-service/commit/fd05bcfef3e44b7ee6d343d6b3a5a41061009a98))
+* review rooms missing from the baseline map ([#323](https://github.com/keneanung/crowdmap-crowdsource-service/issues/323)) ([45ac9ee](https://github.com/keneanung/crowdmap-crowdsource-service/commit/45ac9ee927066600c9875955f62cc4cf36a8f640))
+
+
+### Other
+
+* **deps-dev:** bump @types/node from 26.6.2 to 26.6.4 ([#320](https://github.com/keneanung/crowdmap-crowdsource-service/issues/320)) ([c9c818b](https://github.com/keneanung/crowdmap-crowdsource-service/commit/c9c818b457509a36885e4819a79124591ea55c82))
+* **deps-dev:** bump @typescript-eslint/eslint-plugin from 8.70.1 to 8.71.0 ([#318](https://github.com/keneanung/crowdmap-crowdsource-service/issues/318)) ([67b7dd4](https://github.com/keneanung/crowdmap-crowdsource-service/commit/67b7dd4b9cca4c903140507044993ca659297e2d))
+* **deps-dev:** bump @typescript-eslint/parser from 8.70.1 to 8.71.0 ([#317](https://github.com/keneanung/crowdmap-crowdsource-service/issues/317)) ([34fb693](https://github.com/keneanung/crowdmap-crowdsource-service/commit/34fb69346a0eb404247c70e524d710b057103413))
+* **deps-dev:** bump brace-expansion from 1.1.18 to 1.1.21 in the npm_and_yarn group across 1 directory ([#322](https://github.com/keneanung/crowdmap-crowdsource-service/issues/322)) ([dfdfc21](https://github.com/keneanung/crowdmap-crowdsource-service/commit/dfdfc21693e3bd8c7646cf1712e719ffeb5c5114))
+* **deps-dev:** bump ts-jest from 29.4.13 to 29.4.14 ([#321](https://github.com/keneanung/crowdmap-crowdsource-service/issues/321)) ([a92bfef](https://github.com/keneanung/crowdmap-crowdsource-service/commit/a92bfefae68920fff343eb05eddd68102b6556cf))
+
 ## [1.2.3](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.2.2...v1.2.3) (2026-09-29)
 
 
