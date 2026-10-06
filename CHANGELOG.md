@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.3.0...v1.3.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* update proxy-addr to resolve release audit failure ([#326](https://github.com/keneanung/crowdmap-crowdsource-service/issues/326)) ([4a1b05d](https://github.com/keneanung/crowdmap-crowdsource-service/commit/4a1b05dbbaf365c3b8b68e81945ae34a45c08bfb))
+
 ## [1.3.0](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.2.3...v1.3.0) (2026-10-05)
 
 
