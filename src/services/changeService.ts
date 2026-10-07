@@ -4,12 +4,21 @@ import { MongoClient, MongoServerError, type Collection } from "mongodb";
 import { config } from "../config/values.js";
 import type { Change } from "../models/business/change.js";
 import {
+  observationProperty,
+  observedReport,
+  type CurrentObservation,
+  type ObservedReport,
+} from "../models/business/observation.js";
+import {
   Change as ChangeDb,
   changeBusinessToDb,
   changeDbToBusiness,
 } from "../models/db/change.js";
 
+export type ObservationResponse = ObservedReport;
+
 export interface ProjectChangeRepository {
+  deleteObservations(ids: string[]): Promise<number>;
   addChange(change: Change): Promise<void>;
   getChanges(
     timesSeen: number,
@@ -23,6 +32,15 @@ export interface ProjectChangeRepository {
 }
 
 export abstract class ChangeService {
+  public getObservations(_projectId?: string): Promise<ObservationResponse[]> {
+    return Promise.resolve([]);
+  }
+  public deleteObservations(
+    _ids: string[],
+    _projectId?: string,
+  ): Promise<number> {
+    return Promise.resolve(0);
+  }
   abstract addChange(change: Change, projectId?: string): Promise<void>;
   abstract getChanges(
     timesSeen: number,
@@ -49,6 +67,8 @@ export abstract class ChangeService {
   public forProject(projectId: string): ProjectChangeRepository {
     return Object.freeze({
       addChange: (change: Change) => this.addChange(change, projectId),
+      deleteObservations: (ids: string[]) =>
+        this.deleteObservations(ids, projectId),
       getChanges: (
         timesSeen: number,
         include?: string[],
@@ -64,15 +84,9 @@ export abstract class ChangeService {
   }
 }
 
-interface ChangeQuery {
-  projectId: string;
-  numberOfReporters?: { $gte: number };
-  $or?: ({ numberOfReporters: { $gte: number } } | { reporters: string })[];
-  changeId?: { $in: string[] } | { $nin: string[] };
-}
-
 @provide(ChangeService, (binding) => binding.inSingletonScope())
 export class MongoChangeService extends ChangeService {
+  private observations?: Collection<CurrentObservation>;
   private collectionReady?: Promise<Collection<ChangeDb>>;
   constructor(@inject(MongoClient) private mongo: MongoClient) {
     super();
@@ -178,11 +192,76 @@ export class MongoChangeService extends ChangeService {
         name: "project_reporter_changes",
       },
     ]);
+    const observations = this.mongo
+      .db(config.dbName)
+      .collection<CurrentObservation>("observations");
+    await observations.createIndexes([
+      {
+        key: { projectId: 1, reporter: 1, property: 1 },
+        unique: true,
+        name: "unique_current_observation",
+      },
+      {
+        key: { projectId: 1, "reports.changeId": 1 },
+        name: "observations_by_report",
+      },
+      {
+        key: { projectId: 1, "reports.observationId": 1 },
+        name: "observations_by_id",
+      },
+    ]);
+    // Resumable backfill: preserve every legacy vote, then clear the old
+    // arrays only once that report's votes have all been stored successfully.
+    for await (const legacy of collection.find({ reporters: { $ne: [] } })) {
+      if (!legacy.projectId)
+        throw new Error("Legacy report has no project identity");
+      const property = observationProperty(changeDbToBusiness(legacy));
+      const timestamp = Number.parseInt(
+        legacy.changeId.replaceAll("-", "").slice(0, 12),
+        16,
+      );
+      for (const reporter of legacy.reporters) {
+        const identity = { projectId: legacy.projectId, reporter, property };
+        try {
+          await observations.updateOne(
+            { ...identity, legacy: { $ne: false } },
+            {
+              $setOnInsert: { ...identity, legacy: true },
+              $addToSet: {
+                reports: observedReport(
+                  legacy.projectId,
+                  reporter,
+                  legacy.changeId,
+                  legacy.changeId,
+                  new Date(Number.isFinite(timestamp) ? timestamp : 0),
+                ),
+              },
+            },
+            { upsert: true },
+          );
+        } catch (error) {
+          // A concurrent fresh observation wins over historical backfill.
+          if (!(error instanceof MongoServerError) || error.code !== 11000)
+            throw error;
+        }
+      }
+      await collection.updateOne(
+        { projectId: legacy.projectId, changeId: legacy.changeId },
+        { $set: { reporters: [], numberOfReporters: 0 } },
+      );
+    }
+    this.observations = observations;
     return collection;
   }
 
   private getCollection(): Promise<Collection<ChangeDb>> {
     return (this.collectionReady ??= this.prepareCollection());
+  }
+
+  private observationCollection(): Collection<CurrentObservation> {
+    if (!this.observations)
+      throw new Error("Observation storage is not initialized");
+    return this.observations;
   }
 
   public async addChange(change: Change, projectId?: string): Promise<void> {
@@ -192,27 +271,65 @@ export class MongoChangeService extends ChangeService {
       projectId: scope,
       ...change.getIdentifyingParts(),
     };
-    const changeDb = { ...changeBusinessToDb(change), projectId: scope };
-    const reporters = {
-      $setUnion: [
-        { $ifNull: ["$reporters", []] },
-        Array.from(change.reporters),
-      ],
-    };
-    await collection.updateOne(
-      identifyingParts,
-      [
+    let definition: ChangeDb | null;
+    try {
+      definition = await collection.findOneAndUpdate(
+        identifyingParts,
         {
-          $set: {
-            ...changeDb,
-            changeId: { $ifNull: ["$changeId", change.changeId] },
-            reporters,
-            numberOfReporters: { $size: reporters },
+          $setOnInsert: {
+            ...changeBusinessToDb(change),
+            projectId: scope,
+            reporters: [],
+            numberOfReporters: 0,
           },
         },
-      ],
-      { upsert: true },
-    );
+        { upsert: true, returnDocument: "after" },
+      );
+    } catch (error) {
+      if (!(error instanceof MongoServerError) || error.code !== 11000)
+        throw error;
+      definition = await collection.findOne(identifyingParts);
+    }
+    if (!definition) throw new Error("Could not store report definition");
+    const property = observationProperty(change);
+    const observedAt = new Date();
+    for (const reporter of change.reporters) {
+      const identity = { projectId: scope, reporter, property };
+      const observation = observedReport(
+        scope,
+        reporter,
+        definition.changeId,
+        change.changeId,
+        observedAt,
+      );
+      // MongoDB assigns the timestamp inside the atomic write, avoiding
+      // application-host clock differences when ordering remaining support.
+      const update = [
+        {
+          $set: {
+            legacy: false,
+            reports: [
+              {
+                $mergeObjects: [
+                  { $literal: observation },
+                  { observedAt: "$$NOW" },
+                ],
+              },
+            ],
+          },
+        },
+      ];
+      try {
+        await this.observationCollection().updateOne(identity, update, {
+          upsert: true,
+        });
+      } catch (error) {
+        if (!(error instanceof MongoServerError) || error.code !== 11000)
+          throw error;
+        // Concurrent first submissions can race on the unique identity index.
+        await this.observationCollection().updateOne(identity, update);
+      }
+    }
   }
 
   public async getChanges(
@@ -222,60 +339,122 @@ export class MongoChangeService extends ChangeService {
     projectId?: string,
     reporter?: string,
   ): Promise<Change[]> {
-    const collection = await this.getCollection();
-    const queryObject: ChangeQuery = {
-      projectId: this.projectId(projectId),
-      ...(reporter
-        ? {
-            // The two branches are covered by project_vetted_changes and
-            // project_reporter_changes, respectively.
-            $or: [
-              { numberOfReporters: { $gte: timesSeen } },
-              { reporters: reporter },
+    await this.getCollection();
+    const scope = this.projectId(projectId);
+    const selected = include.length
+      ? { "reports.changeId": { $in: include } }
+      : exclude.length
+        ? { "reports.changeId": { $nin: exclude } }
+        : {};
+    const eligibility = reporter
+      ? {
+          $or: [
+            { numberOfReporters: { $gte: timesSeen } },
+            { reporters: reporter },
+          ],
+        }
+      : { numberOfReporters: { $gte: timesSeen } };
+    const results = await this.observationCollection()
+      .aggregate<ChangeDb>([
+        { $match: { projectId: scope } },
+        { $unwind: "$reports" },
+        { $match: selected },
+        {
+          $sort: {
+            "reports.observedAt": 1,
+            "reports.order": 1,
+            "reports.observationId": 1,
+          },
+        },
+        {
+          $group: {
+            _id: "$reports.changeId",
+            reporters: { $addToSet: "$reporter" },
+            latest: { $last: "$reports" },
+          },
+        },
+        { $set: { numberOfReporters: { $size: "$reporters" } } },
+        { $match: eligibility },
+        {
+          $lookup: {
+            from: "changes",
+            localField: "_id",
+            foreignField: "changeId",
+            pipeline: [{ $match: { projectId: scope } }],
+            as: "definition",
+          },
+        },
+        { $unwind: "$definition" },
+        { $sort: { "latest.observedAt": 1, "latest.order": 1, _id: 1 } },
+        {
+          $replaceWith: {
+            $mergeObjects: [
+              "$definition",
+              {
+                reporters: "$reporters",
+                numberOfReporters: "$numberOfReporters",
+              },
             ],
-          }
-        : { numberOfReporters: { $gte: timesSeen } }),
-    };
-    if (include.length > 0) queryObject.changeId = { $in: include };
-    else if (exclude.length > 0) queryObject.changeId = { $nin: exclude };
-    return (
-      await collection.find(queryObject).sort({ changeId: 1 }).toArray()
-    ).map(changeDbToBusiness);
+          },
+        },
+      ])
+      .toArray();
+    return results.map(changeDbToBusiness);
   }
 
+  public override async getObservations(
+    projectId?: string,
+  ): Promise<ObservationResponse[]> {
+    await this.getCollection();
+    return this.observationCollection()
+      .aggregate<ObservationResponse>([
+        { $match: { projectId: this.projectId(projectId) } },
+        { $unwind: "$reports" },
+        { $replaceWith: "$reports" },
+        { $sort: { observedAt: 1, order: 1, observationId: 1 } },
+      ])
+      .toArray();
+  }
+  public override async deleteObservations(
+    ids: string[],
+    projectId?: string,
+  ): Promise<number> {
+    if (!ids.length) return 0;
+    await this.getCollection();
+    const scope = this.projectId(projectId);
+    const selected = (await this.getObservations(scope)).filter((o) =>
+      ids.includes(o.observationId),
+    );
+    await this.observationCollection().updateMany(
+      { projectId: scope, "reports.observationId": { $in: ids } },
+      { $pull: { reports: { observationId: { $in: ids } } } },
+    );
+    return selected.length;
+  }
   public async applyChanges(
     apply: string[],
     projectId?: string,
   ): Promise<void> {
-    const collection = await this.getCollection();
-    await collection.deleteMany({
-      projectId: this.projectId(projectId),
-      changeId: { $in: apply },
-    });
+    await this.deleteChanges(apply, projectId);
   }
-
   public async reconcileChanges(
     resolved: string[],
     projectId?: string,
   ): Promise<void> {
-    if (resolved.length === 0) return;
-    const collection = await this.getCollection();
-    await collection.deleteMany({
-      projectId: this.projectId(projectId),
-      changeId: { $in: resolved },
-    });
+    await this.deleteChanges(resolved, projectId);
   }
-
   public async deleteChanges(
     changeIds: string[],
     projectId?: string,
   ): Promise<number> {
-    if (changeIds.length === 0) return 0;
-    const collection = await this.getCollection();
-    const result = await collection.deleteMany({
-      projectId: this.projectId(projectId),
-      changeId: { $in: changeIds },
-    });
-    return result.deletedCount;
+    if (!changeIds.length) return 0;
+    await this.getCollection();
+    const scope = this.projectId(projectId);
+    const active = await this.getChanges(0, changeIds, [], scope);
+    await this.observationCollection().updateMany(
+      { projectId: scope, "reports.changeId": { $in: changeIds } },
+      { $pull: { reports: { changeId: { $in: changeIds } } } },
+    );
+    return active.length;
   }
 }

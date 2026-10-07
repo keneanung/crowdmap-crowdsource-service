@@ -55,7 +55,14 @@ const reports = [
   },
 ];
 
-async function review(reportList: model.ReviewChange[] = reports) {
+async function review(
+  reportList: model.ReviewChange[] = reports,
+  observations: {
+    observationId: string;
+    changeId: string;
+    observedAt: string;
+  }[] = [],
+) {
   const source = await readFile(
     new URL("../website/javascripts/review.js", import.meta.url),
     "utf8",
@@ -73,16 +80,18 @@ async function review(reportList: model.ReviewChange[] = reports) {
     .mockResolvedValue();
   const focus = jest.fn<(_room: number) => boolean>().mockReturnValue(true);
   const fetch = jest
-    .fn<(url: string) => Promise<unknown>>()
+    .fn<(url: string, options?: { body?: string }) => Promise<unknown>>()
     .mockImplementation((url) =>
       Promise.resolve({
         ok: true,
         headers: { get: () => "v1" },
         json: () =>
           Promise.resolve(
-            url.startsWith("change/review-upstream")
-              ? { id: "review", upstreamVersion: "v2", reconciliation: [] }
-              : reportList.map((report) => ({ ...report })),
+            url === "change/observations"
+              ? observations
+              : url.startsWith("change/review-upstream")
+                ? { id: "review", upstreamVersion: "v2", reconciliation: [] }
+                : reportList.map((report) => ({ ...report })),
           ),
       }),
     );
@@ -94,10 +103,13 @@ async function review(reportList: model.ReviewChange[] = reports) {
         querySelector: element,
         querySelectorAll: () => [],
         createElement: () => new Element(),
+        createTextNode: (text: string) =>
+          Object.assign(new Element(), { textContent: text }),
       },
       Option: Element,
       window: {
         CrowdmapReviewMap: { show, focus },
+        confirm: jest.fn(() => true),
         addEventListener: jest.fn(),
         clearTimeout: jest.fn(),
         setTimeout: jest.fn(),
@@ -128,7 +140,8 @@ test("initial preview includes all reports and clicking reports only focuses the
   await card(element, "a").children[1].click();
   expect(focus.mock.calls).toEqual([[2], [1]]);
   expect(show).toHaveBeenCalledTimes(1);
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(fetch.mock.calls[1][0]).toBe("change/observations");
 });
 
 test("checkboxes do not reload maps; explicit subset and all previews control included reports", async () => {
@@ -233,4 +246,26 @@ test("reports without room targets inspect their values without moving or reload
   }
   expect(focus).not.toHaveBeenCalled();
   expect(show).toHaveBeenCalledTimes(1);
+});
+
+test("review withdraws an individual observation using its loaded identity", async () => {
+  const { element, fetch } = await review(reports, [
+    {
+      observationId: "observation-a",
+      changeId: "a",
+      observedAt: "2026-10-07T10:00:00Z",
+    },
+  ]);
+  element("#api-key").value = "test-api-key";
+  const details = card(element, "a").children.find((child) =>
+    child.children[0]?.textContent.startsWith("Current observations"),
+  );
+  if (!details) throw new Error("Missing observation details");
+  await details.children[1].children[1].click();
+  const submission = fetch.mock.calls.find(
+    (call) => call[0] === "change/delete",
+  );
+  expect(JSON.parse(submission?.[1]?.body ?? "{}")).toEqual({
+    observationIds: ["observation-a"],
+  });
 });

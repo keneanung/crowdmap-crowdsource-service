@@ -373,3 +373,55 @@ every 60 seconds, while detailed validation errors remain in the service logs.
 ## Contributing
 
 For code setup and contribution guidelines, see [the Contribution file](CONTRIBUTING.md).
+
+### Current observations and report replacement
+
+A reporter now supports their latest received value for each map property,
+including coordinates, names, room membership, routes, locks, weights, doors,
+user-data keys, and labels. Opposing operations such as setting/deleting a key
+or locking/unlocking an exit replace support for the same property. Other
+reporters' observations remain independent. Room and area creation/deletion
+remain separate operations under the existing map-application rules; there is
+no automatic conflict quarantine or dependency cleanup.
+
+The existing `POST /change` payload is unchanged. Arrival order is treated as
+intent: a late retry can replace a more recent opinion. Eligible reports are
+applied in the order of their newest remaining observation, with deterministic
+tie-breaking. Each logical report retains its immutable change ID. Map versions
+combine the baseline version with a SHA-256 hash of the complete ordered list
+of included change IDs; vote-count changes alone do not change that version.
+
+The `changes` collection stores report definitions. The new `observations`
+collection stores current support, with a unique project/reporter/property key.
+Support replacement is a single atomic MongoDB write, including its database
+timestamp; reads aggregate support counts from observations. No replica set,
+transaction coordinator, event log, or background projector is required.
+
+On first startup, legacy support is copied into observation records before its
+old reporter arrays are cleared. Conflicting historical votes are preserved
+because their original observation order is unknown; the reporter's next
+submission for that property replaces those legacy votes. The migration is
+resumable. Back up MongoDB before upgrading, stop older application instances,
+and complete the initial migration with one instance before scaling out.
+Downgrading requires restoring that backup because the old application reads
+the retired reporter arrays. Unreferenced report definitions are retained but
+are absent from the active changelog and map.
+
+`GET /change/observations` lists current observation IDs, report IDs and recency
+without reporter names. Administrators can withdraw individual observations in
+the review page, or submit `observationIds` to `POST /change/delete`. A replaced
+observation has a new ID, so withdrawing an older selection does not delete its
+replacement. Existing `changeIds` deletion requests still withdraw all current
+support for those reports. Baseline reconciliation similarly withdraws the
+observations for reports already satisfied or explicitly discarded by the
+administrator.
+
+Database regressions run against standalone MongoDB when
+`OBSERVATION_TEST_MONGO_URL` is set, for example:
+
+```sh
+OBSERVATION_TEST_MONGO_URL=mongodb://127.0.0.1:27017 npm test
+```
+
+CI runs these checks alongside the regular suite. The database tests create and
+remove a dedicated test database, rather than using production data.

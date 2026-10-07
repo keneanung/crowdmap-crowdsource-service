@@ -614,6 +614,14 @@ export class ChangeController extends Controller {
     return await this.mapService.stageUpstreamReview(version, project);
   }
 
+  /** Current observation identities and recency, without exposing reporter names. */
+  @Get("/observations")
+  public async getObservations(@Request() request: ProjectRequest) {
+    return this.changeService.getObservations(
+      requireProjectContext(request).project.id,
+    );
+  }
+
   /** Permanently deletes pending reports without changing the baseline map. */
   @Post("/delete")
   @Security("api_key")
@@ -626,9 +634,23 @@ export class ChangeController extends Controller {
     if (!canAdministerProject(request.user, project.id)) {
       throw new AuthorizationError("Access Denied");
     }
+    const selection = submission.observationIds ?? submission.changeIds;
+    if (
+      !selection ||
+      (submission.changeIds === undefined) ===
+        (submission.observationIds === undefined)
+    ) {
+      throw new ValidateError(
+        {
+          selection: { message: "Provide either changeIds or observationIds" },
+        },
+        "Invalid deletion selection",
+      );
+    }
     const deleted = await this.mapService.deletePendingChanges(
-      submission.changeIds,
+      selection,
       project,
+      submission.observationIds !== undefined,
     );
     return { deleted };
   }

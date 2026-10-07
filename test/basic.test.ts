@@ -32,7 +32,7 @@ test("the version endpoint returns the baseline version when no changes", async 
     .get("/map/version?timesSeen=0")
     .expect(200)
     .expect((res) => {
-      expect(res.body).toEqual("466.AAAAAAAAAAA.0");
+      expect(res.body).toEqual("466.T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU");
     });
 });
 
@@ -60,7 +60,7 @@ test("the map endpoint returns the map version in the header", async () => {
   await request(app)
     .get("/map?timesSeen=0&format=json")
     .expect(200)
-    .expect("X-Map-Version", "466.AAAAAAAAAAA.0");
+    .expect("X-Map-Version", "466.T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU");
 });
 
 test("GET /docs returns the Swagger UI", async () => {

@@ -52,7 +52,7 @@ test("Should incorporate room name changes into the map", async () => {
   await request(app)
     .get("/map?format=json&timesSeen=0")
     .expect(200)
-    .expect("X-Map-Version", "466.AYvP5WgAd3c.1")
+    .expect("X-Map-Version", "466.BWP49ZDPF-d-nAIAVQMBCIWz7vZc3vv32NcxdusIW0o")
     .expect((res) => {
       const responseText = res.text;
       const map: any = JSON.parse(responseText);
@@ -73,7 +73,7 @@ test("Should include a reporter's unvetted changes in their map and version", as
   await request(app)
     .get("/map?format=json&timesSeen=2&reporter=Personal%20Mapper")
     .expect(200)
-    .expect("X-Map-Version", "466.AYvP5WgAd3c.1")
+    .expect("X-Map-Version", "466.BWP49ZDPF-d-nAIAVQMBCIWz7vZc3vv32NcxdusIW0o")
     .expect((res) => {
       const map: MapResponse = JSON.parse(res.text);
       expect(map.areas[5].rooms[0].name).toBe("My unvetted room name");
@@ -83,14 +83,14 @@ test("Should include a reporter's unvetted changes in their map and version", as
     .get("/map/version?timesSeen=2&reporter=Personal%20Mapper")
     .expect(200)
     .expect((res) => {
-      expect(res.body).toBe("466.AYvP5WgAd3c.1");
+      expect(res.body).toBe("466.BWP49ZDPF-d-nAIAVQMBCIWz7vZc3vv32NcxdusIW0o");
     });
 
   await request(app)
     .get("/map/renderer?timesSeen=2&reporter=Personal%20Mapper")
     .expect(200)
     .expect("Content-Type", "text/javascript; charset=utf-8")
-    .expect("X-Map-Version", "466.AYvP5WgAd3c.1");
+    .expect("X-Map-Version", "466.BWP49ZDPF-d-nAIAVQMBCIWz7vZc3vv32NcxdusIW0o");
 });
 
 test("Should download a map containing only explicitly selected changes", async () => {
@@ -122,7 +122,7 @@ test("Should download a map containing only explicitly selected changes", async 
       "/map?format=json&timesSeen=0&include=018bcfe5-6800-7777-8d30-5e6a25dbfac1",
     )
     .expect(200)
-    .expect("X-Map-Version", "466.AYvP5WgAd3c.1")
+    .expect("X-Map-Version", "466.BWP49ZDPF-d-nAIAVQMBCIWz7vZc3vv32NcxdusIW0o")
     .expect((res) => {
       const map: MapResponse = JSON.parse(res.text);
       expect(map.areas[5].rooms[0].name).toBe("Selected room name");
