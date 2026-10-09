@@ -39,6 +39,13 @@
           <li><strong>Choose your confidence level.</strong> The Explorer’s “Changes reported by” control selects how many independent reports a change needs before it is included in the map you view.</li>
           <li><strong>Maintain the baseline.</strong> A map administrator reviews pending reports when an upstream map update is available and decides which compatible reports carry forward.</li>
         </ol>
+        <p>
+          For each map property, a new observation replaces that reporter's
+          support for their previous value. Other mappers' support stays intact.
+          Room and area creation/deletion remain independent operations.
+          Reports are applied in the order of their newest remaining observation;
+          a delayed retry is treated as another observation when it arrives.
+        </p>
       </section>
 
       <section class="policy-section" aria-labelledby="players-heading">
@@ -143,7 +150,10 @@ mconfig gmcpmapupdates on</code></pre>
           Open <a href="review.html">Review</a> on a project host to inspect
           pending reports, compare an incoming upstream map, and apply the
           reviewed result. This final action requires a map-administrator API
-          key and rechecks the baseline version before changing it.
+          key and rechecks the baseline version before changing it. Review
+          proposed changes by their effect on the map; reporter counts can
+          inform your decision. Keeping or discarding a change applies to all
+          current support for that change.
         </p>
       </section>
     </main>

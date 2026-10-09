@@ -56,3 +56,59 @@ test("deleting unknown reports is idempotent", async () => {
     .expect(200)
     .expect({ deleted: 0 });
 });
+
+test("discarding a change removes every supporter but preserves independent changes", async () => {
+  const changeId = await addReport();
+  await request(app)
+    .post("/change")
+    .send({
+      type: "room-name",
+      roomNumber: 1,
+      name: "Wrong name",
+      reporter: "Another Mapper",
+    })
+    .expect(201);
+  await request(app)
+    .post("/change")
+    .send({
+      type: "room-name",
+      roomNumber: 2,
+      name: "Independent",
+      reporter: "Another Mapper",
+    })
+    .expect(201);
+  const before = await request(app).get("/change?timesSeen=0").expect(200);
+  expect(
+    (before.body as { changeId: string; reporters: number }[]).find(
+      (c) => c.changeId === changeId,
+    )?.reporters,
+  ).toBe(2);
+  await request(app)
+    .post("/change/delete")
+    .set("x-api-key", "abc123456")
+    .send({ changeIds: [changeId] })
+    .expect(200)
+    .expect({ deleted: 1 });
+  const remaining = await request(app).get("/change?timesSeen=0").expect(200);
+  expect(remaining.body).toEqual([
+    expect.objectContaining({
+      roomNumber: 2,
+      name: "Independent",
+      reporters: 1,
+    }),
+  ]);
+});
+
+test("review APIs expose changes rather than individual observations", async () => {
+  await request(app).get("/change/observations").expect(404);
+  await request(app)
+    .post("/change/delete")
+    .set("x-api-key", "abc123456")
+    .send({ observationIds: ["unknown"] })
+    .expect(422);
+  await request(app)
+    .post("/change/delete")
+    .set("x-api-key", "abc123456")
+    .send({})
+    .expect(422);
+});

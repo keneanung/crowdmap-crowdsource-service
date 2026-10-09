@@ -66,7 +66,7 @@
           When you submit a map report, the service stores the reporter value
           you provide and the submitted map-change data: for example room and
           area identifiers, names, coordinates, exits, commands, and user-data
-          fields. Use a pseudonym and do not include personal data in a report.
+          fields, together with the observation time. Use a pseudonym and do not include personal data in a report.
         </p>
         <p>
           The reporter value is used to distinguish independent confirmations
@@ -93,9 +93,12 @@
       <section class="policy-section">
         <h2>Retention</h2>
         <p>
-          Pending reports are retained until an authorised administrator removes
-          them or they are incorporated into the baseline map. The application
-          does not automatically delete other pending reports. Request logs are
+          Current support for a map property is replaced when the same reporter
+          submits another value. Administrators can discard changes, removing
+          their current support. Observations satisfied by an accepted baseline
+          update are removed from active support. Report definitions and empty observation records may
+          remain stored for stable identification but do not appear as active
+          reports. Incorporated map data remains in the baseline map. Request logs are
           retained for {{privacy-log-retention}}. Sponsorship payment records are
           retained while their credit is needed for a current or future monthly
           goal, then deleted. A hashed event identifier is retained for 30 days

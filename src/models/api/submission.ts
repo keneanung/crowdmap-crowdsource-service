@@ -1,6 +1,7 @@
 import { ChangeType, Direction } from "./common.js";
 
 export interface DeleteChangesSubmission {
+  /** Remove all current support for the selected map changes. */
   changeIds: string[];
 }
 

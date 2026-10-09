@@ -1,388 +1,106 @@
 import { expect, jest, test } from "@jest/globals";
 import { MongoClient, MongoServerError } from "mongodb";
 import { config, type MapProject } from "../src/config/values.js";
-import { ChangeRoomName } from "../src/models/business/change.js";
 import { MongoChangeService } from "../src/services/changeService.js";
 
-test("change reporters are merged with one atomic upsert", async () => {
-  const updateOne = jest.fn<
-    (filter: unknown, update: unknown, options: unknown) => Promise<void>
-  >(async () => Promise.resolve());
-  const createIndexes = jest.fn(async () => Promise.resolve([]));
-  const indexExists = jest.fn(async () => Promise.resolve(false));
-  const dropIndex = jest.fn<(name: string) => Promise<void>>(async () =>
-    Promise.resolve(),
-  );
-  const countDocuments = jest.fn(async () => Promise.resolve(0));
-  const updateMany = jest.fn(async () => Promise.resolve());
-  const mongo = {
-    connect: jest.fn(async () => Promise.resolve()),
-    db: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        createIndexes,
-        indexExists,
-        dropIndex,
-        updateOne,
-        countDocuments,
-        updateMany,
-      })),
-    })),
-  } as unknown as MongoClient;
-  const service = new MongoChangeService(mongo);
-
-  await service.addChange(
-    new ChangeRoomName(42, ["reporter-a"], "A room", "change-id"),
-  );
-
-  expect(createIndexes).toHaveBeenCalledTimes(1);
-  expect(updateOne).toHaveBeenCalledWith(
-    { projectId: "default", type: "room-name", roomNumber: 42, name: "A room" },
-    expect.not.arrayContaining([{ $unset: "upstreamConflict" }]),
-    { upsert: true },
-  );
-});
-
-test("legacy index migration tolerates a concurrent index drop", async () => {
-  const updateOne = jest.fn<
-    (filter: unknown, update: unknown, options: unknown) => Promise<void>
-  >(async () => Promise.resolve());
-  const createIndexes = jest.fn(async () => Promise.resolve([]));
-  const indexExists = jest.fn(async () => Promise.resolve(true));
-  const dropIndex = jest.fn<(name: string) => Promise<void>>(async () =>
-    Promise.reject(
-      new MongoServerError({
-        code: 27,
-        codeName: "IndexNotFound",
-        errmsg: "index not found",
-      }),
+function fixture() {
+  const definitions = {
+    countDocuments: jest.fn(() => Promise.resolve(0)),
+    updateMany: jest.fn((_filter: unknown, _update: unknown) =>
+      Promise.resolve(undefined),
     ),
-  );
-  const countDocuments = jest.fn(async () => Promise.resolve(0));
-  const updateMany = jest.fn(async () => Promise.resolve());
-  const mongo = {
-    connect: jest.fn(async () => Promise.resolve()),
-    db: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        createIndexes,
-        indexExists,
-        dropIndex,
-        updateOne,
-        countDocuments,
-        updateMany,
-      })),
+    indexExists: jest.fn((_name: string) => Promise.resolve(false)),
+    dropIndex: jest.fn((_name: string) => Promise.resolve(undefined)),
+    createIndexes: jest.fn((_indexes: unknown[]) => Promise.resolve([])),
+    find: jest.fn(() => ({
+      async *[Symbol.asyncIterator]() {
+        /* empty migration */
+      },
     })),
-  } as unknown as MongoClient;
-  const service = new MongoChangeService(mongo);
-
-  await expect(
-    service.addChange(
-      new ChangeRoomName(42, ["reporter-a"], "A room", "change-id"),
-    ),
-  ).resolves.toBeUndefined();
-
-  expect(dropIndex).toHaveBeenCalledWith("unique_logical_change");
-  expect(createIndexes).toHaveBeenCalledTimes(1);
-});
-
-test("migrates the prior project logical-change index before extending it", async () => {
-  const createIndexes = jest.fn<(indexes: unknown[]) => Promise<[]>>(async () =>
-    Promise.resolve([]),
-  );
-  const dropIndex = jest.fn<(name: string) => Promise<void>>(async () =>
-    Promise.resolve(),
-  );
+  };
+  const observations = {
+    createIndexes: jest.fn((_indexes: unknown[]) => Promise.resolve([])),
+    aggregate: jest.fn(() => ({ toArray: () => Promise.resolve([]) })),
+  };
   const mongo = {
-    connect: jest.fn(async () => Promise.resolve()),
-    db: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        countDocuments: jest.fn(async () => Promise.resolve(0)),
-        indexExists: jest.fn((name: string) =>
-          Promise.resolve(name === "unique_project_logical_change"),
-        ),
-        dropIndex,
-        createIndexes,
-        find: jest.fn(() => ({
-          sort: () => ({ toArray: () => Promise.resolve([]) }),
-        })),
-      })),
-    })),
+    connect: () => Promise.resolve(undefined),
+    db: () => ({
+      collection: (name: string) =>
+        name === "changes" ? definitions : observations,
+    }),
   } as unknown as MongoClient;
-
-  await new MongoChangeService(mongo).initialize();
-
-  expect(dropIndex).toHaveBeenCalledWith("unique_project_logical_change");
-  expect(dropIndex.mock.invocationCallOrder[0]).toBeLessThan(
-    createIndexes.mock.invocationCallOrder[0] ?? Infinity,
+  return { service: new MongoChangeService(mongo), definitions, observations };
+}
+test("migration drops obsolete indexes and creates unique current observation identities", async () => {
+  const f = fixture();
+  f.definitions.indexExists.mockResolvedValue(true);
+  await f.service.getChanges(0);
+  expect(f.definitions.dropIndex).toHaveBeenCalledWith(
+    "unique_project_logical_change",
   );
-  expect(createIndexes.mock.calls[0]?.[0]).toEqual(
+  expect(f.definitions.createIndexes).toHaveBeenCalledWith(
     expect.arrayContaining([
-      {
+      expect.objectContaining({
         name: "unique_project_logical_change_v2",
         unique: true,
-        key: {
-          projectId: 1,
-          type: 1,
-          roomNumber: 1,
-          name: 1,
-          areaId: 1,
-          direction: 1,
-          destination: 1,
-          exitCommand: 1,
-          x: 1,
-          y: 1,
-          z: 1,
-          weight: 1,
-          environmentId: 1,
-          key: 1,
-          value: 1,
-          symbol: 1,
-          hash: 1,
-          status: 1,
-          labelId: 1,
-          label: 1,
-        },
+      }),
+    ]),
+  );
+  expect(f.observations.createIndexes).toHaveBeenCalledWith(
+    expect.arrayContaining([
+      {
+        key: { projectId: 1, reporter: 1, property: 1 },
+        unique: true,
+        name: "unique_current_observation",
       },
     ]),
   );
 });
-
-test("creates indexes when the changes collection does not yet exist", async () => {
-  const createIndexes = jest.fn(async () => Promise.resolve([]));
-  const indexExists = jest.fn(async () =>
-    Promise.reject(
-      new MongoServerError({
-        code: 26,
-        codeName: "NamespaceNotFound",
-        errmsg: "ns does not exist: crowdmap.changes",
-      }),
-    ),
+test("migration tolerates another instance dropping an obsolete index first", async () => {
+  const f = fixture();
+  f.definitions.indexExists.mockResolvedValue(true);
+  f.definitions.dropIndex.mockRejectedValue(
+    new MongoServerError({
+      code: 27,
+      codeName: "IndexNotFound",
+      errmsg: "index missing",
+    }),
   );
-  const mongo = {
-    connect: jest.fn(async () => Promise.resolve()),
-    db: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        countDocuments: jest.fn(async () => Promise.resolve(0)),
-        indexExists,
-        createIndexes,
-        find: jest.fn(() => ({
-          sort: () => ({ toArray: () => Promise.resolve([]) }),
-        })),
-      })),
-    })),
-  } as unknown as MongoClient;
-
-  await expect(
-    new MongoChangeService(mongo).initialize(),
-  ).resolves.toBeUndefined();
-
-  expect(indexExists).toHaveBeenCalledTimes(1);
-  expect(createIndexes).toHaveBeenCalledTimes(1);
+  await expect(f.service.getChanges(0)).resolves.toEqual([]);
 });
-
-test("baseline reconciliation deletes only resolved changes", async () => {
-  const deleteMany = jest.fn<(filter: unknown) => Promise<void>>(async () =>
-    Promise.resolve(),
+test("a fresh database creates indexes when listIndexes reports NamespaceNotFound", async () => {
+  const f = fixture();
+  f.definitions.indexExists.mockRejectedValue(
+    new MongoServerError({
+      code: 26,
+      codeName: "NamespaceNotFound",
+      errmsg: "namespace missing",
+    }),
   );
-  const mongo = {
-    connect: jest.fn(async () => Promise.resolve()),
-    db: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        deleteMany,
-        countDocuments: jest.fn(async () => Promise.resolve(0)),
-        updateMany: jest.fn(async () => Promise.resolve()),
-        createIndexes: jest.fn(async () => Promise.resolve([])),
-        indexExists: jest.fn(async () => Promise.resolve(false)),
-      })),
-    })),
-  } as unknown as MongoClient;
-  const service = new MongoChangeService(mongo);
-
-  await service.reconcileChanges(["resolved-change"]);
-
-  expect(deleteMany).toHaveBeenCalledWith({
-    projectId: "default",
-    changeId: { $in: ["resolved-change"] },
-  });
+  await expect(f.service.getChanges(0)).resolves.toEqual([]);
+  expect(f.definitions.createIndexes).toHaveBeenCalledTimes(1);
 });
-
-test("manual report deletion is atomic and project-scoped", async () => {
-  const deleteMany = jest.fn<
-    (filter: unknown) => Promise<{ deletedCount: number }>
-  >(() => Promise.resolve({ deletedCount: 2 }));
-  const mongo = {
-    connect: jest.fn(async () => Promise.resolve()),
-    db: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        deleteMany,
-        countDocuments: jest.fn(async () => Promise.resolve(0)),
-        updateMany: jest.fn(async () => Promise.resolve()),
-        createIndexes: jest.fn(async () => Promise.resolve([])),
-        indexExists: jest.fn(async () => Promise.resolve(false)),
-      })),
-    })),
-  } as unknown as MongoClient;
-
-  const deleted = await new MongoChangeService(mongo).deleteChanges(
-    ["wrong-report", "conflicting-report"],
-    "alpha",
-  );
-
-  expect(deleted).toBe(2);
-  expect(deleteMany).toHaveBeenCalledWith({
-    projectId: "alpha",
-    changeId: { $in: ["wrong-report", "conflicting-report"] },
-  });
-});
-
-test("duplicate confirmations retain one logical administrator decision", async () => {
-  const updateOne = jest.fn<
-    (filter: unknown, update: unknown, options: unknown) => Promise<void>
-  >(async () => Promise.resolve());
-  const deleteMany = jest.fn<
-    (filter: unknown) => Promise<{ deletedCount: number }>
-  >(async () => Promise.resolve({ deletedCount: 1 }));
-  const mongo = {
-    connect: jest.fn(async () => Promise.resolve()),
-    db: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        updateOne,
-        deleteMany,
-        countDocuments: jest.fn(async () => Promise.resolve(0)),
-        updateMany: jest.fn(async () => Promise.resolve()),
-        createIndexes: jest.fn(async () => Promise.resolve([])),
-        indexExists: jest.fn(async () => Promise.resolve(false)),
-      })),
-    })),
-  } as unknown as MongoClient;
-  const service = new MongoChangeService(mongo);
-
-  await service.addChange(
-    new ChangeRoomName(42, ["reporter-a"], "Discarded name", "reviewed-id"),
-  );
-  await service.addChange(
-    new ChangeRoomName(42, ["reporter-b"], "Discarded name", "later-id"),
-  );
-  await service.deleteChanges(["reviewed-id"]);
-
-  expect(updateOne).toHaveBeenNthCalledWith(
-    1,
-    {
-      projectId: "default",
-      type: "room-name",
-      roomNumber: 42,
-      name: "Discarded name",
-    },
-    expect.anything(),
-    { upsert: true },
-  );
-  expect(updateOne).toHaveBeenNthCalledWith(
-    2,
-    {
-      projectId: "default",
-      type: "room-name",
-      roomNumber: 42,
-      name: "Discarded name",
-    },
-    expect.anything(),
-    { upsert: true },
-  );
-  expect(deleteMany).toHaveBeenCalledWith({
-    projectId: "default",
-    changeId: { $in: ["reviewed-id"] },
-  });
-});
-
-test("identical logical changes coexist and reads/deletes remain project-scoped", async () => {
-  const updateOne = jest.fn<
-    (filter: unknown, update: unknown, options: unknown) => Promise<void>
-  >(async () => Promise.resolve());
-  const deleteMany = jest.fn<(filter: unknown) => Promise<void>>(async () =>
-    Promise.resolve(),
-  );
-  const find = jest.fn<
-    (query: unknown) => { sort: () => { toArray: () => Promise<[]> } }
-  >(() => ({ sort: () => ({ toArray: () => Promise.resolve([]) }) }));
-  const createIndexes = jest.fn<(indexes: unknown[]) => Promise<[]>>(async () =>
-    Promise.resolve([]),
-  );
-  const collection = {
-    countDocuments: jest.fn(() => Promise.resolve(0)),
-    updateMany: jest.fn(),
-    indexExists: jest.fn(() => Promise.resolve(false)),
-    dropIndex: jest.fn(),
-    createIndexes,
-    updateOne,
-    deleteMany,
-    find,
-  };
-  const mongo = {
-    connect: jest.fn(async () => Promise.resolve()),
-    db: jest.fn(() => ({ collection: jest.fn(() => collection) })),
-  } as unknown as MongoClient;
-  const service = new MongoChangeService(mongo);
-  const change = new ChangeRoomName(42, ["reporter"], "Same", "same-change-id");
-
-  await service.forProject("alpha").addChange(change);
-  await service.forProject("beta").addChange(change);
-  await service.forProject("alpha").getChanges(0);
-  await service.forProject("beta").reconcileChanges(["same-change-id"]);
-
-  expect(updateOne.mock.calls[0]?.[0]).toMatchObject({ projectId: "alpha" });
-  expect(updateOne.mock.calls[1]?.[0]).toMatchObject({ projectId: "beta" });
-  expect(find).toHaveBeenCalledWith(
-    expect.objectContaining({ projectId: "alpha" }),
-  );
-  expect(deleteMany).toHaveBeenCalledWith({
-    projectId: "beta",
-    changeId: { $in: ["same-change-id"] },
-  });
-  expect(createIndexes.mock.calls[0]?.[0]).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        key: expect.objectContaining({ projectId: 1 }),
-        unique: true,
-      }),
-    ]),
-  );
-});
-
-test("legacy changes migrate only when their project assignment is unambiguous", async () => {
-  const originalProjects = config.projects;
-  const updateMany = jest.fn<
-    (filter: unknown, update: unknown) => Promise<void>
-  >(() => Promise.resolve());
-  const collection = {
-    countDocuments: jest.fn(() => Promise.resolve(2)),
-    updateMany,
-    indexExists: jest.fn(() => Promise.resolve(false)),
-    createIndexes: jest.fn(() => Promise.resolve([])),
-    find: jest.fn(() => ({
-      sort: () => ({ toArray: () => Promise.resolve([]) }),
-    })),
-  };
-  const mongo = {
-    connect: jest.fn(() => Promise.resolve()),
-    db: jest.fn(() => ({ collection: jest.fn(() => collection) })),
-  } as unknown as MongoClient;
+test("unscoped legacy data is migrated only under an unambiguous project configuration", async () => {
+  const projects = config.projects;
   try {
-    await new MongoChangeService(mongo).initialize();
-    expect(updateMany).toHaveBeenCalledWith(
+    const single = fixture();
+    single.definitions.countDocuments.mockResolvedValue(2);
+    await single.service.getChanges(0);
+    expect(single.definitions.updateMany).toHaveBeenCalledWith(
       { projectId: { $exists: false } },
-      { $set: { projectId: "default" } },
+      { $set: { projectId: projects[0].id } },
     );
-
-    const secondProject: MapProject = {
-      ...config.projects[0],
-      id: "second",
-      name: "Second",
-      mapFile: "/tmp/second-map",
-      versionFile: "/tmp/second-version",
-    };
-    config.projects = [config.projects[0], secondProject];
-    await expect(new MongoChangeService(mongo).initialize()).rejects.toThrow(
+    config.projects = [
+      { ...projects[0], id: "alpha" },
+      { ...projects[0], id: "beta" },
+    ] as MapProject[];
+    const multi = fixture();
+    multi.definitions.countDocuments.mockResolvedValue(2);
+    await expect(multi.service.getChanges(0, [], [], "alpha")).rejects.toThrow(
       "legacy changes have no projectId",
     );
+    expect(multi.definitions.updateMany).not.toHaveBeenCalled();
   } finally {
-    config.projects = originalProjects;
+    config.projects = projects;
   }
 });

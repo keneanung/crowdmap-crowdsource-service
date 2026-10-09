@@ -19,6 +19,15 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7.0.40-jammy
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      OBSERVATION_TEST_MONGO_URL: mongodb://127.0.0.1:27017
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

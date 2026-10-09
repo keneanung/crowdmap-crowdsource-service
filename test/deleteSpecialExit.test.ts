@@ -205,7 +205,7 @@ test("Should incorporate special exit deletions into the map", async () => {
   await request(app)
     .get("/map?format=json&timesSeen=0")
     .expect(200)
-    .expect("X-Map-Version", "466.AYvP5WgBdSw.2")
+    .expect("X-Map-Version", "466.eb1VKwZSGUDcFCvlVNJxXTAmU6Qs5ot29tZkrm_sexE")
     .expect((res) => {
       const responseText = res.text;
       const map: any = JSON.parse(responseText);

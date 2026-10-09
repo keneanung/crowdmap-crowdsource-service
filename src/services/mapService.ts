@@ -1,6 +1,6 @@
 import { provide } from "@inversifyjs/binding-decorators";
 import { inject } from "inversify";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
   copyFile,
@@ -13,7 +13,6 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
-import { NIL } from "uuid";
 import { config, type MapProject } from "../config/values.js";
 import { downloadMapFile, downloadMapVersion } from "../fileDownloads.js";
 import {
@@ -386,17 +385,10 @@ export class MapService {
   }
 
   private buildVersion(changes: Change[], baseVersion: string): string {
-    const lastChangeId =
-      changes.length > 0 ? changes[changes.length - 1].changeId : NIL;
-    // Number of hex characters representing the first 64 bits (8 bytes) of the UUID
-    const UUID_FIRST_64_BITS_HEX_LENGTH = 16;
-    const idBuffer = Buffer.from(
-      lastChangeId.replace(/-/g, "").slice(0, UUID_FIRST_64_BITS_HEX_LENGTH),
-      "hex",
-    );
-    const top64BitsBase64Url = idBuffer.toString("base64url");
-
-    return `${baseVersion}.${top64BitsBase64Url}.${changes.length.toString()}`;
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify(changes.map((change) => change.changeId)))
+      .digest("base64url");
+    return `${baseVersion}.${fingerprint}`;
   }
 
   public async getChangesSnapshot(
@@ -433,9 +425,8 @@ export class MapService {
     project?: MapProject,
     reporter?: string,
   ): Promise<string> {
-    return (
-      await this.getChangesSnapshot(timesSeen, [], [], project, reporter)
-    ).version;
+    return (await this.getChangesSnapshot(timesSeen, [], [], project, reporter))
+      .version;
   }
 
   public async getRawVersion(projectDefinition?: MapProject) {

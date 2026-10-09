@@ -65,7 +65,7 @@ test("Should incorporate special exit unlocking into the map", async () => {
   await request(app)
     .get("/map?format=json&timesSeen=0")
     .expect(200)
-    .expect("X-Map-Version", "466.AYvP5WgCcYU.3")
+    .expect("X-Map-Version", "466.Z5VQMXiaY25mGWN340_gRgVXzvohW0iSZUFDjZ8Mk_0")
     .expect((res) => {
       const responseText = res.text;
       const map: any = JSON.parse(responseText);
