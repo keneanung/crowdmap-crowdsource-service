@@ -7,7 +7,6 @@ import * as model from "./review-model.js";
     activeId: null,
     busyAction: null,
     changes: [],
-    observations: [],
     filter: "all",
     groups: new Map(),
     loadingChanges: false,
@@ -287,23 +286,6 @@ import * as model from "./review-model.js";
         ));
       badges.appendChild(makeBadge(change.changeId.slice(-8), "badge-id"));
       content.append(heading, summary, badges);
-      var observations = state.observations.filter(function (observation) { return observation.changeId === change.changeId; });
-      if (observations.length) {
-        var observationDetails = document.createElement("details");
-        var observationSummary = document.createElement("summary");
-        observationSummary.textContent = "Current observations · " + observations.length;
-        observationDetails.appendChild(observationSummary);
-        observations.forEach(function (observation) {
-          var row = document.createElement("p");
-          var withdraw = document.createElement("button");
-          withdraw.type = "button";
-          withdraw.textContent = "Withdraw observation " + observation.observationId.slice(-8);
-          withdraw.disabled = Boolean(state.busyAction);
-          withdraw.addEventListener("click", function () { return withdrawObservation(observation.observationId); });
-          row.append(document.createTextNode(new Date(observation.observedAt).toLocaleString() + " "), withdraw);
-          observationDetails.appendChild(row);
-        });
-      }
       if (change.upstreamConflict) {
         var conflict = document.createElement("p");
         conflict.className = "upstream-conflict";
@@ -362,7 +344,6 @@ import * as model from "./review-model.js";
         renderList();
       });
       card.append(checkbox, previewButton);
-      if (observationDetails) card.appendChild(observationDetails);
       if (relationshipDetailsElement)
         card.appendChild(relationshipDetailsElement);
       elements.changeList.appendChild(card);
@@ -646,9 +627,6 @@ import * as model from "./review-model.js";
           "Could not load changes (HTTP " + response.status + ")",
         );
       state.changes = await response.json();
-      var observationsResponse = await fetch("change/observations");
-      if (!observationsResponse.ok) throw new Error("Could not load current observations");
-      state.observations = await observationsResponse.json();
       state.changes.forEach(function (change) {
         var conflict = state.transientConflicts.get(change.changeId);
         if (conflict) change.upstreamConflict = conflict;
@@ -760,33 +738,6 @@ import * as model from "./review-model.js";
     }
   }
 
-  async function withdrawObservation(observationId) {
-    if (state.busyAction) return;
-    if (!elements.apiKey.value) {
-      showNotice("Enter the map administrator API key before withdrawing observations.", true);
-      elements.apiKey.focus();
-      return;
-    }
-    if (!window.confirm("Withdraw this observation? Other mappers' observations and the baseline map will remain.")) return;
-    state.busyAction = "delete";
-    updateActions();
-    try {
-      var response = await fetch("change/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-API-Key": elements.apiKey.value },
-        body: JSON.stringify({ observationIds: [observationId] }),
-      });
-      if (!response.ok) throw new Error("Withdrawal failed (HTTP " + response.status + ")");
-      await loadChanges();
-      showNotice("Observation withdrawn. Other support was preserved.", false);
-    } catch (error) {
-      showNotice(error.message, true);
-    } finally {
-      state.busyAction = null;
-      updateActions();
-    }
-  }
-
   async function deleteSelected() {
     if (!elements.apiKey.value) {
       showNotice("Enter the map administrator API key before deleting reports.", true);
@@ -816,9 +767,7 @@ import * as model from "./review-model.js";
           "Content-Type": "application/json",
           "X-API-Key": elements.apiKey.value,
         },
-        body: JSON.stringify({ observationIds: state.observations.filter(function (observation) {
-          return state.selected.has(observation.changeId);
-        }).map(function (observation) { return observation.observationId; }) }),
+        body: JSON.stringify({ changeIds: Array.from(state.selected) }),
       });
       if (!response.ok) {
         var body = await response.json().catch(function () { return {}; });

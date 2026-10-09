@@ -165,8 +165,6 @@ export class MapService {
         this.changeService.applyChanges(apply, project.id),
       reconcileChanges: (resolved) =>
         this.changeService.reconcileChanges(resolved, project.id),
-      deleteObservations: (ids) =>
-        this.changeService.deleteObservations(ids, project.id),
       deleteChanges: (changeIds) =>
         this.changeService.deleteChanges(changeIds, project.id),
     };
@@ -175,7 +173,6 @@ export class MapService {
   public async deletePendingChanges(
     changeIds: string[],
     projectDefinition?: MapProject,
-    observations = false,
   ): Promise<number> {
     const project = this.project(projectDefinition);
     this.assertAvailable(project);
@@ -183,9 +180,7 @@ export class MapService {
     const repository = this.changes(project);
     const deletion = runtime.baselineUpdateQueue.then(async () => {
       runtime.baselineUpdateRevision += 1;
-      return observations
-        ? repository.deleteObservations(changeIds)
-        : repository.deleteChanges(changeIds);
+      return repository.deleteChanges(changeIds);
     });
     runtime.baselineUpdateQueue = deletion.then(
       () => undefined,

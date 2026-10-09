@@ -407,14 +407,14 @@ Downgrading requires restoring that backup because the old application reads
 the retired reporter arrays. Unreferenced report definitions are retained but
 are absent from the active changelog and map.
 
-`GET /change/observations` lists current observation IDs, report IDs and recency
-without reporter names. Administrators can withdraw individual observations in
-the review page, or submit `observationIds` to `POST /change/delete`. A replaced
-observation has a new ID, so withdrawing an older selection does not delete its
-replacement. Existing `changeIds` deletion requests still withdraw all current
-support for those reports. Baseline reconciliation similarly withdraws the
-observations for reports already satisfied or explicitly discarded by the
-administrator.
+A change is a distinct proposed map operation, identified by its target and
+complete payload. An observation is a reporter's current support for that
+operation. Review operates on changes and their effects on the map. The review
+page shows support counts to inform the administrator's decision; individual observations
+are an internal storage detail. `POST /change/delete` accepts `changeIds` and
+removes all current support for each selected change. Baseline reconciliation
+similarly removes support for changes already satisfied or explicitly discarded
+by the administrator. Independent changes remain pending.
 
 Database regressions run against standalone MongoDB when
 `OBSERVATION_TEST_MONGO_URL` is set, for example:

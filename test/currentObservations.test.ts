@@ -1,4 +1,5 @@
 import { expect, test } from "@jest/globals";
+import { createHash } from "node:crypto";
 import {
   ChangeRoomName,
   CreateRoom,
@@ -7,6 +8,7 @@ import {
   ModifyRoomExit,
   SetRoomCoordinates,
 } from "../src/models/business/change.js";
+import { observedReport } from "../src/models/business/observation.js";
 import { MapService } from "../src/services/mapService.js";
 import { MockChangeService } from "./mocks/mockChangeService.js";
 
@@ -87,4 +89,14 @@ test("identical retries keep map versions stable and ordered changes produce dif
   const forward = await map.getVersion(0);
   service.getChanges = () => Promise.resolve([b, a]);
   expect(await map.getVersion(0)).not.toBe(forward);
+});
+
+test("observation identities do not fingerprint a reporter from public ordering metadata", () => {
+  const first = observedReport("report", "order", new Date(0));
+  const next = observedReport("report", "order", new Date(0));
+  const guessed = createHash("sha256")
+    .update(JSON.stringify(["alpha", "Known mapper", "order"]))
+    .digest("hex");
+  expect(first.observationId).not.toBe(guessed);
+  expect(first.observationId).not.toBe(next.observationId);
 });

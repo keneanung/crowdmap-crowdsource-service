@@ -1,10 +1,8 @@
 import { ChangeType, Direction } from "./common.js";
 
 export interface DeleteChangesSubmission {
-  /** Legacy bulk removal: withdraw all current observations of these reports. */
-  changeIds?: string[];
-  /** Withdraw only these current observations; replacement observations are unaffected. */
-  observationIds?: string[];
+  /** Remove all current support for the selected map changes. */
+  changeIds: string[];
 }
 
 export interface ChangeBaseSubmission {

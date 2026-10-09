@@ -15,10 +15,9 @@ import {
   changeDbToBusiness,
 } from "../models/db/change.js";
 
-export type ObservationResponse = ObservedReport;
+export type ObservationResponse = Omit<ObservedReport, "order">;
 
 export interface ProjectChangeRepository {
-  deleteObservations(ids: string[]): Promise<number>;
   addChange(change: Change): Promise<void>;
   getChanges(
     timesSeen: number,
@@ -67,8 +66,6 @@ export abstract class ChangeService {
   public forProject(projectId: string): ProjectChangeRepository {
     return Object.freeze({
       addChange: (change: Change) => this.addChange(change, projectId),
-      deleteObservations: (ids: string[]) =>
-        this.deleteObservations(ids, projectId),
       getChanges: (
         timesSeen: number,
         include?: string[],
@@ -224,13 +221,15 @@ export class MongoChangeService extends ChangeService {
         const identity = { projectId: legacy.projectId, reporter, property };
         try {
           await observations.updateOne(
-            { ...identity, legacy: { $ne: false } },
+            {
+              ...identity,
+              legacy: { $ne: false },
+              "reports.changeId": { $ne: legacy.changeId },
+            },
             {
               $setOnInsert: { ...identity, legacy: true },
               $addToSet: {
                 reports: observedReport(
-                  legacy.projectId,
-                  reporter,
                   legacy.changeId,
                   legacy.changeId,
                   new Date(Number.isFinite(timestamp) ? timestamp : 0),
@@ -240,7 +239,7 @@ export class MongoChangeService extends ChangeService {
             { upsert: true },
           );
         } catch (error) {
-          // A concurrent fresh observation wins over historical backfill.
+          // Existing migrated support or a concurrent fresh observation wins.
           if (!(error instanceof MongoServerError) || error.code !== 11000)
             throw error;
         }
@@ -296,8 +295,6 @@ export class MongoChangeService extends ChangeService {
     for (const reporter of change.reporters) {
       const identity = { projectId: scope, reporter, property };
       const observation = observedReport(
-        scope,
-        reporter,
         definition.changeId,
         change.changeId,
         observedAt,
@@ -412,6 +409,7 @@ export class MongoChangeService extends ChangeService {
         { $unwind: "$reports" },
         { $replaceWith: "$reports" },
         { $sort: { observedAt: 1, order: 1, observationId: 1 } },
+        { $project: { _id: 0, observationId: 1, changeId: 1, observedAt: 1 } },
       ])
       .toArray();
   }

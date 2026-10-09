@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { changeBusinessToDb } from "../db/change.js";
 import type { Change } from "./change.js";
 
@@ -61,16 +61,12 @@ export interface CurrentObservation {
   legacy: boolean;
 }
 export function observedReport(
-  project: string,
-  reporter: string,
   changeId: string,
   order: string,
   observedAt: Date,
 ): ObservedReport {
   return {
-    observationId: createHash("sha256")
-      .update(JSON.stringify([project, reporter, order]))
-      .digest("hex"),
+    observationId: randomUUID(),
     changeId,
     observedAt,
     order,

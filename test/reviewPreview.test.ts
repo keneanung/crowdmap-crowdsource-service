@@ -27,8 +27,13 @@ class Element {
     this.children = children;
   }
   setAttribute = jest.fn();
-  querySelectorAll() {
-    return [];
+  querySelectorAll(selector: string): Element[] {
+    return this.children.flatMap((child) => [
+      ...(child.className.split(" ").includes(selector.slice(1))
+        ? [child]
+        : []),
+      ...child.querySelectorAll(selector),
+    ]);
   }
   addEventListener(event: string, listener: (event?: unknown) => unknown) {
     this.listeners.set(event, listener);
@@ -55,14 +60,7 @@ const reports = [
   },
 ];
 
-async function review(
-  reportList: model.ReviewChange[] = reports,
-  observations: {
-    observationId: string;
-    changeId: string;
-    observedAt: string;
-  }[] = [],
-) {
+async function review(reportList: model.ReviewChange[] = reports) {
   const source = await readFile(
     new URL("../website/javascripts/review.js", import.meta.url),
     "utf8",
@@ -87,11 +85,9 @@ async function review(
         headers: { get: () => "v1" },
         json: () =>
           Promise.resolve(
-            url === "change/observations"
-              ? observations
-              : url.startsWith("change/review-upstream")
-                ? { id: "review", upstreamVersion: "v2", reconciliation: [] }
-                : reportList.map((report) => ({ ...report })),
+            url.startsWith("change/review-upstream")
+              ? { id: "review", upstreamVersion: "v2", reconciliation: [] }
+              : reportList.map((report) => ({ ...report })),
           ),
       }),
     );
@@ -140,8 +136,8 @@ test("initial preview includes all reports and clicking reports only focuses the
   await card(element, "a").children[1].click();
   expect(focus.mock.calls).toEqual([[2], [1]]);
   expect(show).toHaveBeenCalledTimes(1);
-  expect(fetch).toHaveBeenCalledTimes(2);
-  expect(fetch.mock.calls[1][0]).toBe("change/observations");
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls[0][0]).toBe("change?timesSeen=0");
 });
 
 test("checkboxes do not reload maps; explicit subset and all previews control included reports", async () => {
@@ -248,24 +244,30 @@ test("reports without room targets inspect their values without moving or reload
   expect(show).toHaveBeenCalledTimes(1);
 });
 
-test("review withdraws an individual observation using its loaded identity", async () => {
-  const { element, fetch } = await review(reports, [
-    {
-      observationId: "observation-a",
-      changeId: "a",
-      observedAt: "2026-10-07T10:00:00Z",
-    },
-  ]);
-  element("#api-key").value = "test-api-key";
-  const details = card(element, "a").children.find((child) =>
-    child.children[0]?.textContent.startsWith("Current observations"),
-  );
-  if (!details) throw new Error("Missing observation details");
-  await details.children[1].children[1].click();
+test("review deletes selected changes collectively and shows their support counts", async () => {
+  const supported = [{ ...reports[0], reporters: 2 }, reports[1]];
+  const { element, fetch } = await review(supported);
+  const selected = card(element, "a");
+  const badges = selected.children[1].children[0].children[2];
+  expect(
+    badges.children.some((badge) => badge.textContent === "2 reporters"),
+  ).toBe(true);
+  expect(
+    selected.children.some((child) =>
+      child.children[0]?.textContent.startsWith("Current observations"),
+    ),
+  ).toBe(false);
+  element("#api-key").value = "admin-key";
+  selected.children[0].checked = true;
+  await selected.children[0].click();
+  await element("#delete-selected").click();
   const submission = fetch.mock.calls.find(
     (call) => call[0] === "change/delete",
   );
   expect(JSON.parse(submission?.[1]?.body ?? "{}")).toEqual({
-    observationIds: ["observation-a"],
+    changeIds: ["a"],
   });
+  expect(
+    fetch.mock.calls.some((call) => call[0] === "change/observations"),
+  ).toBe(false);
 });

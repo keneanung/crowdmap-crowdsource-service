@@ -44,13 +44,7 @@ export class MockChangeService extends ChangeService {
         property,
         legacy: false,
         reports: [
-          observedReport(
-            scope,
-            reporter,
-            definition.changeId,
-            change.changeId,
-            new Date(),
-          ),
+          observedReport(definition.changeId, change.changeId, new Date()),
         ],
       });
     }
@@ -112,7 +106,13 @@ export class MockChangeService extends ChangeService {
     return Promise.resolve(
       [...this.observations.values()]
         .filter((o) => o.projectId === (projectId ?? "default"))
-        .flatMap((o) => o.reports),
+        .flatMap((o) =>
+          o.reports.map(({ observationId, changeId, observedAt }) => ({
+            observationId,
+            changeId,
+            observedAt,
+          })),
+        ),
     );
   }
   public override async deleteObservations(ids: string[], projectId?: string) {
