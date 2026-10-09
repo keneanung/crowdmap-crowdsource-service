@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.3.1...v1.4.0) (2026-10-09)
+
+
+### Features
+
+* replace stale map support with current observations ([#328](https://github.com/keneanung/crowdmap-crowdsource-service/issues/328)) ([85f92a1](https://github.com/keneanung/crowdmap-crowdsource-service/commit/85f92a11727f2d91aab27ab65fea307e11691fe4))
+
 ## [1.3.1](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.3.0...v1.3.1) (2026-10-06)
 
 
