@@ -2,9 +2,14 @@ import { expect, jest, test } from "@jest/globals";
 import { transform } from "esbuild";
 import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
+import {
+  groupChangesByLocation,
+  ReviewLocationContext,
+} from "../website/javascripts/review-model.js";
 
 interface Room {
   id: number;
+  name?: string;
   area: number;
   x: number;
   y: number;
@@ -54,6 +59,8 @@ async function preview(
     rawVersions?: [string, string];
     changedRoomIds?: number[];
     onRoomRead?: () => void;
+    stagedRooms?: Room[];
+    skeleton?: boolean;
   } = {},
 ) {
   const source = await readFile(
@@ -62,17 +69,38 @@ async function preview(
   );
   const compiled = await transform(source, { loader: "ts", format: "cjs" });
   const renderers: Renderer[] = [];
-  const snapshots = [baselineRooms, candidateRooms].map((rooms) => ({
-    kind: "plain",
-    map: [
-      {
-        get rooms() {
-          options.onRoomRead?.();
-          return rooms;
+  const snapshots = [
+    baselineRooms,
+    candidateRooms,
+    ...(options.stagedRooms ? [options.stagedRooms, options.stagedRooms] : []),
+  ].map((rooms) =>
+    options.skeleton
+      ? {
+          kind: "skeleton",
+          skeleton: {
+            count: rooms.length,
+            id: Int32Array.from(rooms.map((room) => room.id)),
+            area: Int32Array.from(rooms.map((room) => room.area)),
+            names: rooms.map((room) => room.name ?? ""),
+            areaNames: Object.fromEntries(
+              rooms.map((room) => [room.area, "Area name"]),
+            ),
+          },
+        }
+      : {
+          kind: "plain",
+          map: [
+            {
+              areaId: String(rooms[0]?.area ?? 0),
+              areaName: "Area name",
+              get rooms() {
+                options.onRoomRead?.();
+                return rooms;
+              },
+            },
+          ],
         },
-      },
-    ],
-  }));
+  );
   const elements = new Map<
     string,
     {
@@ -102,7 +130,7 @@ async function preview(
       show: (
         ids: string[],
         changes: unknown[],
-        id: number,
+        id?: number,
         reviewId?: string,
         allReports?: boolean,
         expectedVersion?: string,
@@ -134,9 +162,16 @@ async function preview(
       name.endsWith("/binary")
         ? {
             parseMudletMap: () => snapshots.shift(),
-            readerFromLoadedMap: (snapshot: { map: { rooms: Room[] }[] }) => ({
+            readerFromLoadedMap: (snapshot: {
+              map?: { rooms: Room[] }[];
+              skeleton?: { area: Int32Array };
+            }) => ({
               getArea: (area: number) =>
-                snapshot.map[0].rooms.some((room) => room.area === area)
+                (
+                  snapshot.skeleton
+                    ? snapshot.skeleton.area.some((id) => id === area)
+                    : snapshot.map?.[0]?.rooms.some((room) => room.area === area)
+                )
                   ? {}
                   : undefined,
             }),
@@ -160,7 +195,12 @@ async function preview(
     document: { querySelector: element },
     window,
     URLSearchParams,
-    CustomEvent: jest.fn(),
+    CustomEvent: class {
+      constructor(
+        public type: string,
+        public detailOptions: { detail: unknown },
+      ) {}
+    },
     fetch,
   });
   const ids = options.ids ?? ["report"];
@@ -177,7 +217,21 @@ async function preview(
     options.allReports,
     options.expectedVersion,
   );
-  return { renderers, element, fetch, focus: window.CrowdmapReviewMap.focus };
+  if (options.stagedRooms)
+    await window.CrowdmapReviewMap.show([], [], undefined, "staged");
+  const locationEvents = window.dispatchEvent.mock.calls
+    .map((call) => call[0])
+    .filter(
+      (event: unknown) =>
+        (event as { type: string }).type === "crowdmapreview:locations",
+    );
+  return {
+    renderers,
+    element,
+    fetch,
+    focus: window.CrowdmapReviewMap.focus,
+    locationEvents,
+  };
 }
 
 const existing = { id: 1, area: 7, x: 0, y: 0, z: 0 };
@@ -319,4 +373,84 @@ test("maps from different baseline versions are not compared", async () => {
       rawVersions: ["raw-v1", "raw-v2"],
     }),
   ).rejects.toThrow("The baseline changed while loading the maps");
+});
+
+test("staged upstream retains published locations for removed targets", async () => {
+  const result = await preview(
+    [{ id: 10, area: 7, x: 0, y: 0, z: 0 }],
+    [{ id: 10, area: 7, x: 0, y: 0, z: 0 }],
+    10,
+    { stagedRooms: [] },
+  );
+  const event = result.locationEvents.at(-1) as {
+    detailOptions: {
+      detail: {
+        rooms: Map<number, { areaId: number; absent: boolean }>;
+        areas: Map<number, { name: string; absent: boolean }>;
+      };
+    };
+  };
+  expect(event.detailOptions.detail.rooms.get(10)).toMatchObject({
+    areaId: 7,
+    absent: true,
+  });
+  expect(event.detailOptions.detail.areas.get(7)).toEqual({
+    name: "Area name",
+    absent: true,
+  });
+});
+
+function locationContext(result: Awaited<ReturnType<typeof preview>>) {
+  return (
+    result.locationEvents.at(-1) as {
+      detailOptions: { detail: ReviewLocationContext };
+    }
+  ).detailOptions.detail;
+}
+
+test("plain and skeleton snapshots produce matching named location groups", async () => {
+  const rooms = [{ id: 10, name: "Gate", area: 7, x: 0, y: 0, z: 0 }];
+  const plain = locationContext(await preview(rooms, rooms, 10));
+  const skeleton = locationContext(
+    await preview(rooms, rooms, 10, { skeleton: true }),
+  );
+  expect(skeleton).toEqual(plain);
+  const reports = [{ changeId: "name", type: "room-name", roomNumber: 10 }];
+  expect(groupChangesByLocation(reports, skeleton)).toEqual(
+    groupChangesByLocation(reports, plain),
+  );
+  expect(groupChangesByLocation(reports, skeleton)[0].key).toBe("area:7");
+});
+
+test("skeleton upstream retains former locations and groups existing rooms by area", async () => {
+  const removed = { id: 10, name: "Gate", area: 7, x: 0, y: 0, z: 0 };
+  const existing = { id: 20, name: "Path", area: 8, x: 0, y: 0, z: 0 };
+  const context = locationContext(
+    await preview([removed, existing], [removed, existing], 10, {
+      skeleton: true,
+      stagedRooms: [existing],
+    }),
+  );
+  expect(context.loaded).toBe(true);
+  expect(context.rooms?.get(10)).toEqual({
+    areaId: 7,
+    name: "Gate",
+    absent: true,
+  });
+  expect(context.areas?.get(7)).toEqual({ name: "Area name", absent: true });
+  expect(context.rooms?.get(20)).toEqual({
+    areaId: 8,
+    name: "Path",
+    absent: false,
+  });
+  const groups = groupChangesByLocation(
+    [
+      { changeId: "removed", type: "room-name", roomNumber: 10 },
+      { changeId: "existing", type: "room-name", roomNumber: 20 },
+    ],
+    context,
+  );
+  expect(groups.map((group) => group.key)).toEqual(["area:7", "area:8"]);
+  expect(groups[0].rooms[0].label).toContain("absent from baseline");
+  expect(groups[1].rooms[0].label).toBe("Room 20 · Path");
 });

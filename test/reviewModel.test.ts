@@ -2,12 +2,15 @@ import { describe, expect, test } from "@jest/globals";
 import {
   canApply,
   changeSummary,
+  changeTime,
   filterChanges,
   groupChanges,
+  groupChangesByLocation,
   isRelated,
   relationBetween,
   relationshipDetails,
   ReviewChange,
+  ReviewLocationContext,
   targetKey,
   typeLabel,
   unselectedChangeIds,
@@ -174,4 +177,106 @@ test("map-wide summaries identify the map and preserve proposed values", () => {
       name: "Garden",
     }),
   ).toBe("Area 7 · name: Garden");
+});
+
+describe("review queue location hierarchy", () => {
+  const context: ReviewLocationContext = {
+    loaded: true,
+    rooms: new Map([
+      [10, { areaId: 2, name: "Gate" }],
+      [11, { areaId: 2, name: "Path" }],
+      [20, { areaId: 7, name: "Former room", absent: true }],
+    ]),
+    areas: new Map([
+      [2, { name: "Garden" }],
+      [7, { name: "Former area", absent: true }],
+    ]),
+  };
+  const report = (id: string, fields: Partial<ReviewChange>): ReviewChange => ({
+    changeId: id,
+    type: "room-name",
+    ...fields,
+  });
+
+  test("groups by numeric area and room, then UUIDv7 creation time", () => {
+    const older = report("01990000-0000-7000-8000-000000000001", {
+      roomNumber: 10,
+    });
+    const newer = report("01990000-0001-7000-8000-000000000001", {
+      roomNumber: 10,
+    });
+    const otherRoom = report("other", { roomNumber: 11 });
+    const areaEdit = report("area", { type: "rename-area", areaId: 2 });
+    const mapEdit = report("map", { type: "set-map-user-data" });
+    const grouped = groupChangesByLocation(
+      [newer, otherRoom, mapEdit, areaEdit, older],
+      context,
+    );
+    expect(grouped.map((group) => group.key)).toEqual(["area:2", "map"]);
+    expect(grouped[0].label).toBe("Area 2 · Garden");
+    expect(grouped[0].rooms.map((room) => room.roomId)).toEqual([
+      undefined,
+      10,
+      11,
+    ]);
+    expect(grouped[0].rooms[1].label).toBe("Room 10 · Gate");
+    expect(grouped[0].rooms[1].changes).toEqual([older, newer]);
+    expect(changeTime(older)?.getTime()).toBe(parseInt("019900000000", 16));
+    expect(changeTime(otherRoom)).toBeNull();
+  });
+
+  test("retains deleted target identity and former area, with explicit absence labels", () => {
+    const grouped = groupChangesByLocation(
+      [
+        report("deleted", { roomNumber: 20 }),
+        report("missing-area", { type: "delete-area", areaId: 9 }),
+        report("missing-room", { roomNumber: 30 }),
+      ],
+      context,
+    );
+    expect(grouped[0].label).toBe(
+      "Area 7 · Former area · absent from baseline",
+    );
+    expect(grouped[0].rooms[0].label).toBe(
+      "Room 20 · Former room · absent from baseline",
+    );
+    expect(grouped[1].label).toBe("Area 9 · absent from baseline");
+    expect(grouped[2].label).toBe("Rooms with unknown area");
+    expect(grouped[2].rooms[0].label).toBe("Room 30 · absent from baseline");
+  });
+
+  test("keeps moves with the baseline room and uses unambiguous proposed areas for absent rooms", () => {
+    const move = report("move", {
+      type: "set-room-area",
+      roomNumber: 10,
+      areaId: 7,
+    });
+    const assignment = report("assignment", {
+      type: "set-room-area",
+      roomNumber: 30,
+      areaId: 2,
+    });
+    const name = report("name", { roomNumber: 30 });
+    const all = [move, assignment, name];
+    expect(
+      groupChangesByLocation(all, context)[0].rooms.map((room) => room.roomId),
+    ).toEqual([10, 30]);
+    // A filtered-out area assignment must still place the room consistently.
+    expect(groupChangesByLocation([name], context, all)[0].areaId).toBe(2);
+    const conflicting = report("conflicting", {
+      type: "set-room-area",
+      roomNumber: 30,
+      areaId: 7,
+    });
+    expect(
+      groupChangesByLocation([name], context, [...all, conflicting])[0].key,
+    ).toBe("unknown");
+  });
+
+  test("keeps unknown targets usable before map context is available", () => {
+    expect(
+      groupChangesByLocation([report("room", { roomNumber: 1 })])[0].rooms[0]
+        .label,
+    ).toBe("Room 1");
+  });
 });

@@ -628,3 +628,39 @@ main {
   .map-pane + .map-pane { border-left: 0; border-top: 1px solid var(--border); }
   .property-panel-header { align-items: stretch; flex-direction: column; }
 }
+
+.change-area > summary {
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  margin: 12px 5px 8px;
+  padding: 8px 4px;
+  overflow-wrap: anywhere;
+}
+.change-room > summary {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 12px 9px 4px;
+  overflow-wrap: anywhere;
+}
+.change-time {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  margin-top: 7px;
+}
+
+.change-area > summary,
+.change-room > summary {
+  cursor: pointer;
+}
+.change-area > summary > h3,
+.change-room > summary > h4 {
+  display: inline;
+  font: inherit;
+  margin: 0;
+}
+.change-area > summary:focus-visible,
+.change-room > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}

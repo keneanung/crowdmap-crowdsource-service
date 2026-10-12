@@ -17,6 +17,7 @@ const comparisonElement = document.querySelector<HTMLElement>("#map-comparison")
 
 let baseline: Snapshot | undefined;
 let candidate: Snapshot | undefined;
+let published: Snapshot | undefined;
 let baselineRenderer: MapRenderer | undefined;
 let candidateRenderer: MapRenderer | undefined;
 let currentChanges: ReviewChange[] = [];
@@ -190,6 +191,8 @@ export async function show(ids: string[], changes: ReviewChange[], roomId?: numb
     currentChanges = changes;
     baseline = result[0];
     candidate = result[1];
+    if (!reviewId) published = baseline;
+    window.dispatchEvent(new CustomEvent("crowdmapreview:locations", { detail: getLocationContext() }));
     baselineRenderer?.destroy();
     candidateRenderer?.destroy();
     baselineElement.replaceChildren();
@@ -252,6 +255,40 @@ export function toggleBlink() {
   blinkTimer = window.setInterval(() => candidateElement.parentElement?.classList.toggle("blink-hidden"), 650);
   comparisonElement.classList.add("blinking");
   return true;
+}
+
+// The published snapshot supplies names and former area membership for targets
+// removed by staged upstream. Candidate selection never changes queue grouping.
+export function getLocationContext() {
+  const rooms = new Map<number, { areaId: number; name: string; absent: boolean }>();
+  const areas = new Map<number, { name: string; absent: boolean }>();
+  for (const snapshot of new Set([published, baseline])) {
+    if (!snapshot) continue;
+    const absent = snapshot !== baseline;
+    if (snapshot.loaded.kind === "plain") {
+      for (const area of snapshot.loaded.map) {
+        areas.set(Number(area.areaId), { name: area.areaName, absent });
+        for (const item of area.rooms) {
+          rooms.set(item.id, { areaId: item.area, name: item.name, absent });
+        }
+      }
+    } else {
+      const skeleton = snapshot.loaded.skeleton;
+      for (const [areaId, name] of Object.entries(skeleton.areaNames)) {
+        areas.set(Number(areaId), { name, absent });
+      }
+      for (let index = 0; index < skeleton.count; index++) {
+        const areaId = skeleton.area[index];
+        if (!areas.has(areaId) || (areas.get(areaId)?.absent && !absent)) {
+          areas.set(areaId, { name: skeleton.areaNames[areaId] ?? "", absent });
+        }
+        rooms.set(skeleton.id[index], {
+          areaId, name: skeleton.names?.[index] ?? "", absent,
+        });
+      }
+    }
+  }
+  return { rooms, areas, loaded: Boolean(baseline) };
 }
 
 export function getRoomComparison(roomId: number) {
