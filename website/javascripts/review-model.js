@@ -70,7 +70,9 @@ const model = (() => {
           "room:" + change.roomNumber + ":exit:" + change.direction + ":weight"
         );
       case "set-exit-door":
-        return "room:" + change.roomNumber + ":exit:" + change.direction + ":door";
+        return (
+          "room:" + change.roomNumber + ":exit:" + change.direction + ":door"
+        );
       case "set-map-user-data":
       case "delete-map-user-data":
         return "map:data:" + change.key;
@@ -257,6 +259,120 @@ const model = (() => {
     return relationships;
   }
 
+  // Change IDs are UUIDv7: their leading 48 bits encode report creation time.
+  function changeTime(change) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      change.changeId,
+    )
+      ? new Date(parseInt(change.changeId.slice(0, 13).replace("-", ""), 16))
+      : null;
+  }
+
+  function groupChangesByLocation(changes, context = {}, allChanges = changes) {
+    var rooms = context.rooms || new Map();
+    var areas = context.areas || new Map();
+    var groups = new Map();
+    var roomAssignments = new Map();
+    allChanges.forEach(function (item) {
+      if (item.roomNumber === undefined || typeof item.areaId !== "number")
+        return;
+      if (!roomAssignments.has(item.roomNumber))
+        roomAssignments.set(item.roomNumber, new Set());
+      roomAssignments.get(item.roomNumber).add(item.areaId);
+    });
+    changes.forEach(function (change) {
+      var roomId = change.roomNumber;
+      var target = rooms.get(roomId);
+      // Keep moves with the room's baseline area. Only infer an absent room's
+      // proposed area when every area assignment agrees.
+      var assignments = roomAssignments.get(roomId) || new Set();
+      var areaId =
+        roomId === undefined
+          ? change.areaId
+          : target
+            ? target.areaId
+            : assignments.size === 1
+              ? Array.from(assignments)[0]
+              : undefined;
+      var key =
+        areaId !== undefined
+          ? "area:" + areaId
+          : roomId !== undefined
+            ? "unknown"
+            : "map";
+      var area = areas.get(areaId);
+      if (!groups.has(key))
+        groups.set(key, {
+          key: key,
+          areaId: areaId,
+          label:
+            areaId !== undefined
+              ? "Area " +
+                areaId +
+                (area && area.name ? " · " + area.name : "") +
+                (context.loaded && (!area || area.absent)
+                  ? " · absent from baseline"
+                  : "")
+              : key === "unknown"
+                ? "Rooms with unknown area"
+                : "Map-wide changes",
+          rooms: new Map(),
+        });
+      var group = groups.get(key);
+      var roomKey = roomId === undefined ? "general" : "room:" + roomId;
+      if (!group.rooms.has(roomKey))
+        group.rooms.set(roomKey, {
+          roomId: roomId,
+          label:
+            roomId === undefined
+              ? areaId === undefined
+                ? "Map changes"
+                : "Area-wide changes"
+              : "Room " +
+                roomId +
+                (target && target.name ? " · " + target.name : "") +
+                (context.loaded && (!target || target.absent)
+                  ? " · absent from baseline"
+                  : ""),
+          changes: [],
+        });
+      group.rooms.get(roomKey).changes.push(change);
+    });
+    return Array.from(groups.values())
+      .sort(function (a, b) {
+        return (
+          (a.areaId === undefined) - (b.areaId === undefined) ||
+          (a.areaId !== undefined
+            ? a.areaId - b.areaId
+            : a.key.localeCompare(b.key))
+        );
+      })
+      .map(function (group) {
+        return {
+          ...group,
+          rooms: Array.from(group.rooms.values())
+            .sort(function (a, b) {
+              return (
+                (a.roomId !== undefined) - (b.roomId !== undefined) ||
+                (a.roomId || 0) - (b.roomId || 0)
+              );
+            })
+            .map(function (room) {
+              return {
+                ...room,
+                changes: room.changes.sort(function (a, b) {
+                  var left = changeTime(a),
+                    right = changeTime(b);
+                  return left && right
+                    ? left - right || a.changeId.localeCompare(b.changeId)
+                    : 0;
+                }),
+              };
+            }),
+        };
+      });
+  }
+
   function isRelated(change, groups) {
     return (groups.get(change.changeId) || []).length > 0;
   }
@@ -303,6 +419,8 @@ const model = (() => {
   }
 
   return {
+    changeTime: changeTime,
+    groupChangesByLocation: groupChangesByLocation,
     canApply: canApply,
     changeSummary: changeSummary,
     filterChanges: filterChanges,
@@ -321,6 +439,8 @@ if (typeof window !== "undefined") {
 }
 
 export const {
+  changeTime,
+  groupChangesByLocation,
   canApply,
   changeSummary,
   filterChanges,

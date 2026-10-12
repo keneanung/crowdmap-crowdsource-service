@@ -7,9 +7,11 @@ import * as model from "./review-model.js";
     activeId: null,
     busyAction: null,
     changes: [],
+    collapsedGroups: new Set(),
     filter: "all",
     groups: new Map(),
     loadingChanges: false,
+    locationContext: {},
     previewing: false,
     previewedSelectionKey: null,
     rawVersion: "",
@@ -199,6 +201,12 @@ import * as model from "./review-model.js";
   }
 
   function renderList() {
+    [".change-area", ".change-room"].forEach(function (selector) {
+      elements.changeList.querySelectorAll(selector).forEach(function (group) {
+        if (group.open) state.collapsedGroups.delete(group.dataset.groupKey);
+        else state.collapsedGroups.add(group.dataset.groupKey);
+      });
+    });
     elements.changeList.replaceChildren();
     var changes = visibleChanges();
     elements.queueStatus.textContent =
@@ -214,140 +222,205 @@ import * as model from "./review-model.js";
       return;
     }
 
-    changes.forEach(function (change) {
-      var card = document.createElement("div");
-      card.className =
-        "change-card" + (state.activeId === change.changeId ? " active" : "");
-      card.dataset.changeId = change.changeId;
-
-      var checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.className = "change-select";
-      checkbox.dataset.changeId = change.changeId;
-      checkbox.checked = state.selected.has(change.changeId);
-      checkbox.disabled = Boolean(state.busyAction || state.loadingChanges || state.stagedReview && change.upstreamResolved);
-      checkbox.title = state.stagedReview
-        ? change.upstreamResolved
-          ? "Already present in the staged upstream map; no additional selection is needed."
-          : checkbox.checked
-            ? "Selected to keep in addition to the staged upstream map."
-            : "Not selected; this report will be discarded when the update is applied."
-        : "Select this report for preview or deletion.";
-      checkbox.setAttribute(
-        "aria-label",
-        state.stagedReview
-          ? change.upstreamResolved
-            ? model.typeLabel(change.type) + " is already present in the staged upstream map"
-            : "Keep " + model.typeLabel(change.type) + " in addition to the staged upstream map"
-          : "Select " + model.typeLabel(change.type) + " for preview or deletion",
-      );
-      checkbox.addEventListener("click", function (event) {
-        event.stopPropagation();
-        if (checkbox.checked) state.selected.add(change.changeId);
-        else state.selected.delete(change.changeId);
-        updateActions();
-        updateReportFocus();
-        renderList();
-      });
-
-      var content = document.createElement("div");
-      var heading = document.createElement("div");
-      heading.className = "change-heading";
-      var label = document.createElement("span");
-      label.className = "change-type";
-      label.textContent = model.typeLabel(change.type);
-      heading.appendChild(label);
-      var summary = document.createElement("p");
-      summary.className = "change-summary";
-      summary.textContent = model.changeSummary(change);
-      var badges = document.createElement("div");
-      badges.className = "badges";
-      badges.appendChild(
-        makeBadge(
-          change.reporters +
-            (change.reporters === 1 ? " reporter" : " reporters"),
-        ),
-      );
-      if (isRelated(change))
-        badges.appendChild(makeBadge("Related edits", "badge-warning"));
-      if (change.upstreamConflict)
-        badges.appendChild(
-          makeBadge(
-            "Upstream conflict · " + change.upstreamConflict.baselineVersion,
-            "badge-danger",
-          ),
-        );
-      if (change.upstreamResolved)
-        badges.appendChild(makeBadge("Already upstream", "badge-success"));
-      else if (state.stagedReview)
-        badges.appendChild(makeBadge(
-          state.selected.has(change.changeId) ? "Selected to keep" : "Will be discarded",
-          state.selected.has(change.changeId) ? "badge-success" : "badge-danger",
-        ));
-      badges.appendChild(makeBadge(change.changeId.slice(-8), "badge-id"));
-      content.append(heading, summary, badges);
-      if (change.upstreamConflict) {
-        var conflict = document.createElement("p");
-        conflict.className = "upstream-conflict";
-        conflict.textContent =
-          "Baseline " +
-          change.upstreamConflict.baselineVersion +
-          ": " +
-          change.upstreamConflict.reason;
-        content.appendChild(conflict);
-      }
-      var relationships = model.relationshipDetails(change, state.groups);
-      var relationshipDetailsElement;
-      if (relationships.length > 0) {
-        relationshipDetailsElement = document.createElement("details");
-        relationshipDetailsElement.className = "relationship-details";
-        var detailsSummary = document.createElement("summary");
-        detailsSummary.textContent =
-          "Why related · " +
-          relationships.length +
-          (relationships.length === 1 ? " change" : " changes");
-        var relationshipList = document.createElement("ul");
-        relationships.forEach(function (relationship) {
-          var item = document.createElement("li");
-          var related = relationship.change;
-          item.textContent =
-            model.typeLabel(related.type) +
+    model
+      .groupChangesByLocation(changes, state.locationContext, state.changes)
+      .forEach(function (area) {
+        var section = document.createElement("details");
+        section.className = "change-area";
+        section.dataset.groupKey = area.key;
+        section.open = !state.collapsedGroups.has(area.key);
+        var areaSummary = document.createElement("summary");
+        var areaHeading = document.createElement("h3");
+        areaHeading.textContent = area.label;
+        areaSummary.appendChild(areaHeading);
+        section.appendChild(areaSummary);
+        elements.changeList.appendChild(section);
+        area.rooms.forEach(function (room) {
+          var roomSection = document.createElement("details");
+          roomSection.className = "change-room";
+          roomSection.dataset.groupKey = area.key + "/" + (room.roomId === undefined ? "general" : "room:" + room.roomId);
+          roomSection.open = !state.collapsedGroups.has(roomSection.dataset.groupKey);
+          var roomSummary = document.createElement("summary");
+          var roomHeading = document.createElement("h4");
+          roomHeading.textContent =
+            room.label +
             " · " +
-            model.changeSummary(related) +
-            " · " +
-            related.changeId.slice(-8) +
-            " — " +
-            relationship.reason;
-          relationshipList.appendChild(item);
+            room.changes.length +
+            (room.changes.length === 1 ? " report" : " reports");
+          roomSummary.appendChild(roomHeading);
+          roomSection.appendChild(roomSummary);
+          section.appendChild(roomSection);
+          room.changes.forEach(function (change) {
+            var card = document.createElement("div");
+            card.className =
+              "change-card" +
+              (state.activeId === change.changeId ? " active" : "");
+            card.dataset.changeId = change.changeId;
+
+            var checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.className = "change-select";
+            checkbox.dataset.changeId = change.changeId;
+            checkbox.checked = state.selected.has(change.changeId);
+            checkbox.disabled = Boolean(
+              state.busyAction ||
+              state.loadingChanges ||
+              (state.stagedReview && change.upstreamResolved),
+            );
+            checkbox.title = state.stagedReview
+              ? change.upstreamResolved
+                ? "Already present in the staged upstream map; no additional selection is needed."
+                : checkbox.checked
+                  ? "Selected to keep in addition to the staged upstream map."
+                  : "Not selected; this report will be discarded when the update is applied."
+              : "Select this report for preview or deletion.";
+            checkbox.setAttribute(
+              "aria-label",
+              state.stagedReview
+                ? change.upstreamResolved
+                  ? model.typeLabel(change.type) +
+                    " is already present in the staged upstream map"
+                  : "Keep " +
+                    model.typeLabel(change.type) +
+                    " in addition to the staged upstream map"
+                : "Select " +
+                    model.typeLabel(change.type) +
+                    " for preview or deletion",
+            );
+            checkbox.addEventListener("click", function (event) {
+              event.stopPropagation();
+              if (checkbox.checked) state.selected.add(change.changeId);
+              else state.selected.delete(change.changeId);
+              updateActions();
+              updateReportFocus();
+              renderList();
+            });
+
+            var content = document.createElement("div");
+            var heading = document.createElement("div");
+            heading.className = "change-heading";
+            var label = document.createElement("span");
+            label.className = "change-type";
+            label.textContent = model.typeLabel(change.type);
+            heading.appendChild(label);
+            var summary = document.createElement("p");
+            summary.className = "change-summary";
+            summary.textContent = model.changeSummary(change);
+            var badges = document.createElement("div");
+            badges.className = "badges";
+            badges.appendChild(
+              makeBadge(
+                change.reporters +
+                  (change.reporters === 1 ? " reporter" : " reporters"),
+              ),
+            );
+            if (isRelated(change))
+              badges.appendChild(makeBadge("Related edits", "badge-warning"));
+            if (change.upstreamConflict)
+              badges.appendChild(
+                makeBadge(
+                  "Upstream conflict · " +
+                    change.upstreamConflict.baselineVersion,
+                  "badge-danger",
+                ),
+              );
+            if (change.upstreamResolved)
+              badges.appendChild(
+                makeBadge("Already upstream", "badge-success"),
+              );
+            else if (state.stagedReview)
+              badges.appendChild(
+                makeBadge(
+                  state.selected.has(change.changeId)
+                    ? "Selected to keep"
+                    : "Will be discarded",
+                  state.selected.has(change.changeId)
+                    ? "badge-success"
+                    : "badge-danger",
+                ),
+              );
+            badges.appendChild(
+              makeBadge(change.changeId.slice(-8), "badge-id"),
+            );
+            content.append(heading, summary, badges);
+            var reportedAt = model.changeTime(change);
+            if (reportedAt) {
+              var time = document.createElement("time");
+              time.className = "change-time";
+              time.dateTime = reportedAt.toISOString();
+              time.textContent = reportedAt.toLocaleString();
+              content.appendChild(time);
+            }
+            if (change.upstreamConflict) {
+              var conflict = document.createElement("p");
+              conflict.className = "upstream-conflict";
+              conflict.textContent =
+                "Baseline " +
+                change.upstreamConflict.baselineVersion +
+                ": " +
+                change.upstreamConflict.reason;
+              content.appendChild(conflict);
+            }
+            var relationships = model.relationshipDetails(change, state.groups);
+            var relationshipDetailsElement;
+            if (relationships.length > 0) {
+              relationshipDetailsElement = document.createElement("details");
+              relationshipDetailsElement.className = "relationship-details";
+              var detailsSummary = document.createElement("summary");
+              detailsSummary.textContent =
+                "Why related · " +
+                relationships.length +
+                (relationships.length === 1 ? " change" : " changes");
+              var relationshipList = document.createElement("ul");
+              relationships.forEach(function (relationship) {
+                var item = document.createElement("li");
+                var related = relationship.change;
+                item.textContent =
+                  model.typeLabel(related.type) +
+                  " · " +
+                  model.changeSummary(related) +
+                  " · " +
+                  related.changeId.slice(-8) +
+                  " — " +
+                  relationship.reason;
+                relationshipList.appendChild(item);
+              });
+              relationshipDetailsElement.append(
+                detailsSummary,
+                relationshipList,
+              );
+            }
+            var previewButton = document.createElement("button");
+            previewButton.type = "button";
+            previewButton.className = "change-preview";
+            previewButton.disabled = Boolean(
+              state.busyAction || state.loadingChanges,
+            );
+            previewButton.setAttribute(
+              "aria-label",
+              (typeof change.roomNumber === "number" ? "Focus " : "Inspect ") +
+                model.typeLabel(change.type) +
+                " for " +
+                model.changeSummary(change),
+            );
+            previewButton.appendChild(content);
+            previewButton.addEventListener("click", function () {
+              state.activeId = change.changeId;
+              if (typeof change.roomNumber === "number") {
+                if (focusRoom(change.roomNumber) === false)
+                  inspectReport(change);
+              } else {
+                inspectReport(change);
+              }
+              renderList();
+            });
+            card.append(checkbox, previewButton);
+            if (relationshipDetailsElement)
+              card.appendChild(relationshipDetailsElement);
+            roomSection.appendChild(card);
+          });
         });
-        relationshipDetailsElement.append(detailsSummary, relationshipList);
-      }
-      var previewButton = document.createElement("button");
-      previewButton.type = "button";
-      previewButton.className = "change-preview";
-      previewButton.disabled = Boolean(state.busyAction || state.loadingChanges);
-      previewButton.setAttribute(
-        "aria-label",
-        (typeof change.roomNumber === "number" ? "Focus " : "Inspect ") +
-          model.typeLabel(change.type) +
-          " for " +
-          model.changeSummary(change),
-      );
-      previewButton.appendChild(content);
-      previewButton.addEventListener("click", function () {
-        state.activeId = change.changeId;
-        if (typeof change.roomNumber === "number") {
-          focusRoom(change.roomNumber);
-        } else {
-          inspectReport(change);
-        }
-        renderList();
       });
-      card.append(checkbox, previewButton);
-      if (relationshipDetailsElement)
-        card.appendChild(relationshipDetailsElement);
-      elements.changeList.appendChild(card);
-    });
   }
 
   async function previewChanges(ids, mode) {
@@ -395,14 +468,20 @@ import * as model from "./review-model.js";
   }
 
   function focusRoom(roomNumber) {
-    if (window.CrowdmapReviewMap.focus(roomNumber) === false) {
+    var present = window.CrowdmapReviewMap.focus(roomNumber);
+    if (present === false) {
       showNotice(
         state.stagedReview
-          ? "Room " + roomNumber + " is absent from this preview. Select its creation report and preview the reviewed result to inspect it."
-          : "Room " + roomNumber + " is absent from this preview. Choose Preview all reports, or include its creation report in the selected preview.",
+          ? "Room " +
+              roomNumber +
+              " is absent from both preview maps. A creation report may restore it; reported values can still be inspected."
+          : "Room " +
+              roomNumber +
+              " is absent from both preview maps. Include a creation report to restore it, or inspect its reported values.",
         false,
       );
     }
+    return present;
   }
 
   function inspectReport(change) {
@@ -412,11 +491,23 @@ import * as model from "./review-model.js";
     summary.textContent = model.changeSummary(change);
     var note = document.createElement("p");
     note.className = "property-summary-note";
-    note.textContent = "This report has no room target. Its proposed values are shown below.";
+    note.textContent =
+      typeof change.roomNumber === "number"
+        ? "This room is absent from both preview maps. Its reported values are shown below."
+        : "This report has no room target. Its proposed values are shown below.";
     elements.roomDiffSummary.append(summary, note);
     elements.roomDiffDetails.replaceChildren();
     Object.keys(change).forEach(function (key) {
-      if (["changeId", "type", "reporters", "upstreamConflict", "upstreamResolved"].includes(key)) return;
+      if (
+        [
+          "changeId",
+          "type",
+          "reporters",
+          "upstreamConflict",
+          "upstreamResolved",
+        ].includes(key)
+      )
+        return;
       var row = document.createElement("p");
       row.textContent = key + ": " + displayValue(change[key]);
       elements.roomDiffDetails.appendChild(row);
@@ -626,6 +717,7 @@ import * as model from "./review-model.js";
         throw new Error(
           "Could not load changes (HTTP " + response.status + ")",
         );
+      state.locationContext = {};
       state.changes = await response.json();
       state.changes.forEach(function (change) {
         var conflict = state.transientConflicts.get(change.changeId);
@@ -956,6 +1048,11 @@ import * as model from "./review-model.js";
       ? "Show all details"
       : "Hide details";
   });
+  window.addEventListener("crowdmapreview:locations", function (event) {
+    state.locationContext = event.detail;
+    renderList();
+  });
+
   window.addEventListener("crowdmapreview:roomselect", function (event) {
     renderRoomDiff(event.detail.roomId);
   });

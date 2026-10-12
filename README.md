@@ -281,6 +281,14 @@ allocate donor benefits, or determine access to a service.
 Open `/review.html` to inspect pending reports. The review workspace can search
 and filter changes, highlights changes that touch or depend on the same map
 target, and previews one or more selected changes against the current baseline.
+Reports are grouped by baseline area, then room, with oldest reports first
+within each group. Area and room groups can be collapsed; their expanded state
+is preserved while filtering, selecting, or refreshing reports. Area-wide and map-wide reports have their own groups. Room
+moves stay with their baseline area so changing the preview selection does not
+move reports around. Missing targets are marked as absent from the baseline;
+during upstream review, published names and former areas are retained when
+available. Rooms without a known area stay together under “Rooms with unknown
+area”. An absent room's proposed area is used only when its area reports agree.
 Each related-change hint identifies the other report and explains the shared
 target or dependency. These relationships are review hints rather than
 automatic conflict decisions.
