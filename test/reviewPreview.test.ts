@@ -64,6 +64,7 @@ const reports = [
 async function review(
   reportList: model.ReviewChange[] = reports,
   locationContext?: model.ReviewLocationContext,
+  initialRawVersion = "v1",
 ) {
   const source = await readFile(
     new URL("../website/javascripts/review.js", import.meta.url),
@@ -96,7 +97,7 @@ async function review(
     .mockImplementation((url) =>
       Promise.resolve({
         ok: true,
-        headers: { get: () => "v1" },
+        headers: { get: () => initialRawVersion },
         json: () =>
           Promise.resolve(
             url.startsWith("change/review-upstream")
@@ -336,4 +337,79 @@ test("area and room groups preserve collapsed state across filtering and refresh
   await card(element, "a").children[0].click();
   expect(area().open).toBe(true);
   expect(rooms()[0].open).toBe(true);
+});
+
+function knownLocationContext(): model.ReviewLocationContext {
+  return {
+    loaded: true,
+    areas: new Map([[7, { name: "Garden" }]]),
+    rooms: new Map([
+      [1, { areaId: 7, name: "Gate" }],
+      [2, { areaId: 7, name: "Path" }],
+    ]),
+  };
+}
+
+test("failed same-baseline refresh retains location labels and collapse state", async () => {
+  const { element, show } = await review(reports, knownLocationContext());
+  const area = () =>
+    element("#change-list").querySelectorAll(".change-area")[0];
+  const room = () =>
+    element("#change-list").querySelectorAll(".change-room")[0];
+  area().open = false;
+  room().open = false;
+  show.mockRejectedValueOnce(new Error("Map request failed"));
+  await element("#refresh").click();
+  expect(element("#notice").textContent).toBe("Map request failed");
+  expect(area().children[0].children[0].textContent).toBe("Area 7 · Garden");
+  expect(room().children[0].children[0].textContent).toContain("Room 1 · Gate");
+  expect(area().open).toBe(false);
+  expect(room().open).toBe(false);
+});
+
+test.each([
+  ["v1", "v2"],
+  ["v1", ""],
+  ["", "v1"],
+  ["", ""],
+])(
+  "failed refresh clears stale context when baseline versions are %s → %s",
+  async (previousVersion, nextVersion) => {
+    const { element, fetch, show } = await review(
+      reports,
+      knownLocationContext(),
+      previousVersion,
+    );
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => nextVersion },
+      json: () => Promise.resolve(reports),
+    });
+    show.mockRejectedValueOnce(new Error("Map request failed"));
+    await element("#refresh").click();
+    const area = element("#change-list").querySelectorAll(".change-area")[0];
+    expect(area.children[0].children[0].textContent).toBe(
+      "Rooms with unknown area",
+    );
+    expect(element("#notice").textContent).toBe("Map request failed");
+  },
+);
+
+test("failed refresh exiting staged review clears upstream location context", async () => {
+  const context = knownLocationContext();
+  const { element, show } = await review(reports, context);
+  context.areas?.set(7, { name: "Upstream garden" });
+  element("#api-key").value = "admin-key";
+  await element("#stage-upstream").click();
+  const area = () =>
+    element("#change-list").querySelectorAll(".change-area")[0];
+  expect(area().children[0].children[0].textContent).toBe(
+    "Area 7 · Upstream garden",
+  );
+  show.mockRejectedValueOnce(new Error("Map request failed"));
+  await element("#refresh").click();
+  expect(area().children[0].children[0].textContent).toBe(
+    "Rooms with unknown area",
+  );
+  expect(element("#notice").textContent).toBe("Map request failed");
 });

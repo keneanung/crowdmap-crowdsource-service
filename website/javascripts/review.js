@@ -717,13 +717,17 @@ import * as model from "./review-model.js";
         throw new Error(
           "Could not load changes (HTTP " + response.status + ")",
         );
-      state.locationContext = {};
       state.changes = await response.json();
       state.changes.forEach(function (change) {
         var conflict = state.transientConflicts.get(change.changeId);
         if (conflict) change.upstreamConflict = conflict;
       });
-      state.rawVersion = response.headers.get("X-Map-Version-Raw") || "";
+      var nextRawVersion = response.headers.get("X-Map-Version-Raw") || "";
+      // Retain known locations after a failed preview only for the same
+      // published baseline. Staged or changed maps need fresh context.
+      if (state.stagedReview || !state.rawVersion || state.rawVersion !== nextRawVersion)
+        state.locationContext = {};
+      state.rawVersion = nextRawVersion;
       state.queueVersion = response.headers.get("X-Map-Version") || "";
       state.stagedReview = null;
       state.selected.clear();
