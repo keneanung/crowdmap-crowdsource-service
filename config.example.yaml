@@ -7,6 +7,12 @@ platform:
   mapCache:
     maxBytes: 67108864 # 64 MiB of retained output bytes
     maxEntries: 32
+  # Optional: credentials enable AI changelog notes. Omit for deterministic notes.
+  # Spending and provider policies are configured in OpenRouter itself.
+  # changelog:
+  #   openrouter:
+  #     apiKey: replace-with-a-secret-openrouter-key
+  #     model: openrouter/free # Override with a compatible paid model if desired.
   mongo:
     connectionString: mongodb://mongo:27017
     database: crowdmap

@@ -19,6 +19,8 @@ export interface ServiceConfig {
   dbName?: string;
   initialAdminApiKey?: string;
   trustProxy: number;
+  changelogApiKey?: string;
+  changelogModel: string;
   mapCacheMaxBytes: number;
   mapCacheMaxEntries: number;
   privacyControllerName?: string;
@@ -62,6 +64,7 @@ interface YamlConfig {
     port?: unknown;
     trustProxy?: unknown;
     mapCache?: unknown;
+    changelog?: unknown;
     mongo?: {
       connectionString?: unknown;
       database?: unknown;
@@ -192,7 +195,36 @@ export const loadConfig = (
     throw new Error("platform.mapCache must be an object");
   const mapCache = cacheValue as
     { maxBytes?: unknown; maxEntries?: unknown } | undefined;
+  const objectOption = (
+    name: string,
+    value: unknown,
+  ): Record<string, unknown> => {
+    if (value === undefined) return {};
+    if (typeof value !== "object" || value === null || Array.isArray(value))
+      throw new Error(`${name} must be an object`);
+    return value as Record<string, unknown>;
+  };
+  const changelog = objectOption(
+    "platform.changelog",
+    values.platform?.changelog,
+  );
+  const openrouter = objectOption(
+    "platform.changelog.openrouter",
+    changelog.openrouter,
+  );
+  const nonblankString = (name: string, value: unknown): string | undefined => {
+    const text = optionalString(name, value)?.trim();
+    if (text === "") return undefined;
+    return text;
+  };
   const config: ServiceConfig = {
+    changelogApiKey: nonblankString(
+      "platform.changelog.openrouter.apiKey",
+      openrouter.apiKey,
+    ),
+    changelogModel:
+      nonblankString("platform.changelog.openrouter.model", openrouter.model) ??
+      "openrouter/free",
     mapCacheMaxBytes: numberWithDefault(
       "platform.mapCache.maxBytes",
       mapCache?.maxBytes,

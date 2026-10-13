@@ -402,6 +402,88 @@ result. Obsolete cached entries remain bounded and are evicted as new outputs
 arrive. Prometheus metrics expose cache events (`hit`, `miss`, `coalesced`,
 `eviction`), retained bytes, and entry count under `crowdmap_map_cache_*`.
 
+### Service map changelogs
+
+`GET /map/changelog?timesSeen=N&expectedVersion=VERSION` describes the net
+changes from the current base map to the selected service map. It accepts the
+same `reporter`, `include`, and `exclude` selection parameters as map downloads.
+Obtain `expectedVersion` from `/map/version` with the same selection parameters,
+fetch the changelog, then download
+`/map?format=binary&timesSeen=N&expectedVersion=VERSION` using the same selection.
+A stale version returns HTTP 409; restart the version check in that case.
+Existing map clients can omit `expectedVersion`. Staged upstream review maps do
+not support changelogs or expected-version validation.
+
+JSON is the default. Add `format=lua` to receive UTF-8 Lua 5.1 source defining
+`changelog`, compatible with the mapper's existing loader. Each array item groups
+the current notes for one area with readable line breaks. The final item is the
+short summary used by its “Latest changes” line. This contains only differences
+from the current base map, without historical releases or API metadata. Quotes,
+backslashes, and control characters are safely escaped; angle brackets use
+readable Unicode alternatives to prevent cecho color tags. Both formats reuse the
+same cached generation and version checks. Retrieving service notes in the mapper
+still requires a separate client change.
+
+The JSON response contains `baseVersion`, `mapVersion`, `source`, `summary`, and
+area-grouped `entries` with supporting fact IDs. `source` is `ai`,
+`deterministic`, or `empty`. Responses also carry `X-Map-Version` and
+`X-Map-Version-Raw`. Selection-dependent map and changelog responses use
+`Cache-Control: private, no-store`. Versions are fingerprints of the selected
+changes and baseline version string; replacing baseline contents under the same
+version does not create a distinct public version. Internally, baseline
+generation still invalidates cached notes.
+
+Notes compare final map state, so overwrites and operations that cancel out do
+not appear as separate changes. Facts are aggregated by area and category with
+complete property/room/exit/label counts and at most two examples per category.
+Added rooms carry bounded samples of final scalar properties, and their final
+connections, doors, weights, and locks contribute to routing totals.
+Custom exit-line geometry, arrows, colors, and styles are included in drawing-property totals.
+Room moves are grouped by source/destination pair with complete counts and both
+area names and IDs, independently of the bounded room examples.
+An empty difference returns “No changes from the base map” without an AI call.
+Names are treated as untrusted data. Reporter identities, user-data values, and
+raw hashes are excluded from the AI overview. Metadata and hash mutations are
+summarized as counts. Generated prose is schema-validated but is not proof that
+reported map changes are correct; clients must display it as text, not markup.
+
+To enable AI notes, add credentials to the secret-mounted deployment YAML:
+
+```yaml
+platform:
+  changelog:
+    openrouter:
+      apiKey: "<deployment secret>"
+      model: openrouter/free
+```
+
+A nonblank key enables AI automatically. The model defaults to `openrouter/free`;
+an administrator can choose any compatible OpenRouter model, including paid
+models. Structured output is required. Spending limits and provider policies
+belong in OpenRouter; there is no service budget setting or automatic paid-model
+fallback. Update `platform.privacy.processorsAndTransfers` to describe OpenRouter
+and the providers allowed by your account policies, including the map names and
+change examples sent for processing. Never commit the deployment key.
+
+Missing credentials, provider errors, refusal, truncation, or invalid output
+produce deterministic notes. Requests have a 30-second timeout, no automatic
+retries, a 48,000-byte overview limit, and bounded output. Oversized overviews use
+complete deterministic notes instead of dropping areas. Map downloads do not
+invoke or wait for AI. Changelog requests generate notes on demand.
+
+Changelogs share the existing process-local map cache's byte and entry limits,
+in a separate key namespace. Equivalent ordered selections share one concurrent
+request and reuse notes across reporters, thresholds, and map formats. Keys
+include project, baseline generation, model/router, prompt/schema version,
+language (English initially), and AI/deterministic mode. Provider-failure
+fallbacks expire after 60 seconds to allow recovery. Oversized-input deterministic
+notes remain cached until eviction because retrying cannot enable AI for that input. Successful notes remain
+until eviction. Restart, eviction, another instance, or disabled caching can
+cause another provider request. No historical snapshots or persistent AI store
+are required. Generation logs record outcome, duration, model, and token usage
+when available, plus sanitized failure categories and HTTP status on fallback,
+without credentials, provider error bodies, reporter identities, or prompt content.
+
 ## Contributing
 
 For code setup and contribution guidelines, see [the Contribution file](CONTRIBUTING.md).

@@ -81,11 +81,13 @@ export interface MapWorkerRequest {
   changes: MapWorkerChange[];
   comparisonMapFile?: string;
   mapFile: string;
-  operation: "binary" | "json" | "reconcile" | "renderer" | "validate";
+  operation:
+    "binary" | "json" | "reconcile" | "renderer" | "validate" | "changelog";
   outputFile?: string;
 }
 
 export interface MapWorkerResponse {
+  overview?: import("./changelog.js").ChangelogFact[];
   content?: string;
   reconciliation?: ChangeReconciliation[];
 }
