@@ -903,3 +903,61 @@ test.each(["normal", "special"] as const)(
     );
   },
 );
+
+test("generation uses the default 60-second provider deadline", async () => {
+  const timeout = jest.spyOn(AbortSignal, "timeout");
+  global.fetch = jest
+    .fn<typeof global.fetch>()
+    .mockResolvedValue(new Response("", { status: 503 }));
+  await generateNotes([fact], "key", "openrouter/free");
+  expect(timeout).toHaveBeenCalledWith(60000);
+});
+
+test("service passes the configured deadline and a timeout retains retryable fallback", async () => {
+  jest.replaceProperty(config, "changelogTimeoutMs", 12345);
+  jest.replaceProperty(config, "changelogApiKey", "key");
+  const timeout = jest
+    .spyOn(AbortSignal, "timeout")
+    .mockReturnValue(AbortSignal.abort());
+  global.fetch = jest
+    .fn<typeof global.fetch>()
+    .mockImplementation((_url, options) => {
+      expect(options?.signal?.aborted).toBe(true);
+      return Promise.reject(new Error("Aborted"));
+    });
+  const { service } = serviceFixture();
+  const version = await service.getVersion(2);
+  expect((await service.getChangelog(2, version)).source).toBe("deterministic");
+  expect(timeout).toHaveBeenCalledWith(12345);
+  expect(
+    (await generateNotes([fact], "key", "openrouter/free", 12345))
+      .retryableFailure,
+  ).toBe(true);
+});
+
+test("configured deadline aborts a stalled provider body after headers arrive", async () => {
+  let bodyAborted = false;
+  global.fetch = jest
+    .fn<typeof global.fetch>()
+    .mockImplementation((_url, options) => {
+      const signal = options?.signal;
+      if (!signal) throw new Error("Missing provider deadline");
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          signal.addEventListener(
+            "abort",
+            () => {
+              bodyAborted = true;
+              controller.error(signal.reason);
+            },
+            { once: true },
+          );
+        },
+      });
+      return Promise.resolve(new Response(body, { status: 200 }));
+    });
+  const generated = await generateNotes([fact], "key", "openrouter/free", 25);
+  expect(bodyAborted).toBe(true);
+  expect(generated.notes.source).toBe("deterministic");
+  expect(generated.retryableFailure).toBe(true);
+});

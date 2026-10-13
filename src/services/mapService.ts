@@ -552,6 +552,7 @@ export class MapService {
                 result.overview,
                 config.changelogApiKey,
                 config.changelogModel,
+                config.changelogTimeoutMs,
               ),
             ),
           );

@@ -455,6 +455,7 @@ platform:
     openrouter:
       apiKey: "<deployment secret>"
       model: openrouter/free
+      timeoutMs: 60000
 ```
 
 A nonblank key enables AI automatically. The model defaults to `openrouter/free`;
@@ -466,7 +467,10 @@ and the providers allowed by your account policies, including the map names and
 change examples sent for processing. Never commit the deployment key.
 
 Missing credentials, provider errors, refusal, truncation, or invalid output
-produce deterministic notes. Requests have a 30-second timeout, no automatic
+produce deterministic notes. Requests default to a 60-second timeout covering
+the complete provider request, including reading its response. Configure
+`platform.changelog.openrouter.timeoutMs` with an integer from 1 to 2147483647
+milliseconds and restart the service to apply changes. There are no automatic
 retries, a 48,000-byte overview limit, and bounded output. Oversized overviews use
 complete deterministic notes instead of dropping areas. Map downloads do not
 invoke or wait for AI. Changelog requests generate notes on demand.

@@ -21,6 +21,7 @@ export interface ServiceConfig {
   trustProxy: number;
   changelogApiKey?: string;
   changelogModel: string;
+  changelogTimeoutMs: number;
   mapCacheMaxBytes: number;
   mapCacheMaxEntries: number;
   privacyControllerName?: string;
@@ -225,6 +226,11 @@ export const loadConfig = (
     changelogModel:
       nonblankString("platform.changelog.openrouter.model", openrouter.model) ??
       "openrouter/free",
+    changelogTimeoutMs: numberWithDefault(
+      "platform.changelog.openrouter.timeoutMs",
+      openrouter.timeoutMs,
+      60000,
+    ),
     mapCacheMaxBytes: numberWithDefault(
       "platform.mapCache.maxBytes",
       mapCache?.maxBytes,
@@ -324,6 +330,14 @@ export const validateConfig = (values: ServiceConfig): void => {
     throw new Error("platform.port must be an integer between 1 and 65535");
   if (!Number.isInteger(values.trustProxy) || values.trustProxy < 0)
     throw new Error("platform.trustProxy must be a non-negative integer");
+  if (
+    !Number.isInteger(values.changelogTimeoutMs) ||
+    values.changelogTimeoutMs < 1 ||
+    values.changelogTimeoutMs > 2147483647
+  )
+    throw new Error(
+      "platform.changelog.openrouter.timeoutMs must be an integer between 1 and 2147483647",
+    );
   for (const [name, value] of [
     ["maxBytes", values.mapCacheMaxBytes],
     ["maxEntries", values.mapCacheMaxEntries],
