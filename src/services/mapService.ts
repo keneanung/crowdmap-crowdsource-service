@@ -21,10 +21,7 @@ import {
   ServiceUnavailableError,
 } from "../models/api/error.js";
 import type { Change } from "../models/business/change.js";
-import type {
-  ChangelogNotes,
-  MapChangelog,
-} from "../models/business/changelog.js";
+import type { MapChangelog } from "../models/business/changelog.js";
 import {
   changeBusinessToWorker,
   MapWorkerRequest,
@@ -39,6 +36,7 @@ import {
 import {
   CHANGELOG_PROMPT_VERSION,
   generateNotes,
+  type GeneratedNotes,
 } from "./changelogGenerator.js";
 import {
   ChangeService,
@@ -560,9 +558,7 @@ export class MapService {
         },
         () => revision === runtime.baselineUpdateRevision,
         (data) =>
-          config.changelogApiKey &&
-          (JSON.parse(data.toString()) as ChangelogNotes).source ===
-            "deterministic"
+          (JSON.parse(data.toString()) as GeneratedNotes).retryableFailure
             ? 60000
             : Infinity,
       );
@@ -579,7 +575,7 @@ export class MapService {
         );
       if (revision !== runtime.baselineUpdateRevision) continue;
       return {
-        ...(JSON.parse(data.toString()) as ChangelogNotes),
+        ...(JSON.parse(data.toString()) as GeneratedNotes).notes,
         baseVersion: snapshot.rawVersion,
         mapVersion: snapshot.version,
       };

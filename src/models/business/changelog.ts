@@ -185,6 +185,10 @@ export function buildOverview(
         exitWeights: {},
         doors: {},
         userData: {},
+        customLines: {},
+        customLinesArrow: {},
+        customLinesColor: {},
+        customLinesStyle: {},
       };
       for (const direction of directions) old[direction] = -1;
     }
@@ -259,6 +263,26 @@ export function buildOverview(
             `${label}: ${clean(key)} ${clean(old[property][key])} -> ${clean(current[property][key])}`,
           );
         }
+      }
+    }
+    for (const property of [
+      "customLines",
+      "customLinesArrow",
+      "customLinesColor",
+      "customLinesStyle",
+    ] as const) {
+      for (const key of [
+        ...new Set([
+          ...Object.keys(old[property]),
+          ...Object.keys(current[property]),
+        ]),
+      ].sort()) {
+        if (!same(old[property][key], current[property][key]))
+          add(
+            area,
+            "exit drawing properties changed",
+            `${label}: ${clean(key)} (${property})`,
+          );
       }
     }
     for (const command of [

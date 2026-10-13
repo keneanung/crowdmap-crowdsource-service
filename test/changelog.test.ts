@@ -7,7 +7,11 @@ import request from "supertest";
 import { app } from "../src/app.js";
 import { config } from "../src/config/values.js";
 import { MapController } from "../src/controllers/mapController.js";
-import { ChangeRoomName } from "../src/models/business/change.js";
+import {
+  ChangeRoomName,
+  DeleteSpecialExit,
+  ModifySpecialExit,
+} from "../src/models/business/change.js";
 import {
   buildOverview,
   deterministicNotes,
@@ -122,9 +126,9 @@ test("missing credentials, empty facts and oversized inputs make no provider cal
   const fetch = jest.fn<typeof global.fetch>();
   global.fetch = fetch;
   expect(
-    (await generateNotes([fact], undefined, "openrouter/free")).source,
+    (await generateNotes([fact], undefined, "openrouter/free")).notes.source,
   ).toBe("deterministic");
-  expect((await generateNotes([], "key", "openrouter/free")).source).toBe(
+  expect((await generateNotes([], "key", "openrouter/free")).notes.source).toBe(
     "empty",
   );
   expect(
@@ -137,7 +141,7 @@ test("missing credentials, empty facts and oversized inputs make no provider cal
         "key",
         "openrouter/free",
       )
-    ).source,
+    ).notes.source,
   ).toBe("deterministic");
   expect(fetch).not.toHaveBeenCalled();
 });
@@ -162,9 +166,9 @@ test("provider uses configured model, strict schema and only verified facts", as
     ),
   );
   global.fetch = fetch;
-  expect((await generateNotes([fact], "credential", "paid/model")).source).toBe(
-    "ai",
-  );
+  expect(
+    (await generateNotes([fact], "credential", "paid/model")).notes.source,
+  ).toBe("ai");
   const body = JSON.parse(fetch.mock.calls[0][1]?.body as string) as {
     model: string;
     provider: { require_parameters: boolean };
@@ -189,7 +193,7 @@ test.each([
 ])("provider failures produce deterministic notes", async (response) => {
   global.fetch = jest.fn<typeof global.fetch>().mockResolvedValue(response);
   expect(
-    (await generateNotes([fact], "credential", "openrouter/free")).source,
+    (await generateNotes([fact], "credential", "openrouter/free")).notes.source,
   ).toBe("deterministic");
 });
 
@@ -317,12 +321,12 @@ test("provider network failures and oversized responses fall back without retrie
     .mockRejectedValueOnce(new Error("network error"))
     .mockResolvedValueOnce(new Response("x".repeat(65537)));
   global.fetch = fetch;
-  expect((await generateNotes([fact], "key", "openrouter/free")).source).toBe(
-    "deterministic",
-  );
-  expect((await generateNotes([fact], "key", "openrouter/free")).source).toBe(
-    "deterministic",
-  );
+  expect(
+    (await generateNotes([fact], "key", "openrouter/free")).notes.source,
+  ).toBe("deterministic");
+  expect(
+    (await generateNotes([fact], "key", "openrouter/free")).notes.source,
+  ).toBe("deterministic");
   expect(fetch).toHaveBeenCalledTimes(2);
 });
 
@@ -771,4 +775,50 @@ test("map retries a baseline generation change while enforcing expectedVersion",
   } finally {
     await rm(dirname(snapshot.file), { recursive: true, force: true });
   }
+});
+
+test("delete then restore special exit retains the custom-line difference", () => {
+  const before = baseline();
+  const id = Number(Object.keys(before.rooms)[0]);
+  const room = before.rooms[id];
+  room.mSpecialExits.enter = id;
+  room.mSpecialExitLocks = [];
+  room.customLinesArrow.enter = true;
+  room.customLinesStyle.enter = 1;
+  Reflect.deleteProperty(room.exitWeights, "enter");
+  Reflect.deleteProperty(room.doors, "enter");
+  const after = structuredClone(before);
+  new DeleteSpecialExit(id, [], "enter").apply(after);
+  new ModifySpecialExit(id, [], "enter", id).apply(after);
+  expect(after.rooms[id].mSpecialExits.enter).toBe(id);
+  expect(
+    buildOverview(before, after).some(
+      (fact) => fact.category === "exit drawing properties changed",
+    ),
+  ).toBe(true);
+  expect(deterministicNotes(buildOverview(before, after)).source).toBe(
+    "deterministic",
+  );
+});
+
+test("oversized credential-enabled notes remain cached beyond failure cooldown", async () => {
+  const { service, worker } = serviceFixture();
+  const version = await service.getVersion(2);
+  jest.replaceProperty(config, "changelogApiKey", "key");
+  worker.mockResolvedValue({
+    overview: Array.from({ length: 1000 }, (_, index) => ({
+      ...fact,
+      id: `f${String(index)}`,
+    })),
+  });
+  let now = 100;
+  jest.spyOn(Date, "now").mockImplementation(() => now);
+  const fetch = jest.fn<typeof global.fetch>();
+  global.fetch = fetch;
+  const first = await service.getChangelog(2, version);
+  now += 120000;
+  expect(await service.getChangelog(2, version)).toEqual(first);
+  expect(worker).toHaveBeenCalledTimes(1);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(first).not.toHaveProperty("retryableFailure");
 });

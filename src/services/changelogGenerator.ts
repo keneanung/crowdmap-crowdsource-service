@@ -5,7 +5,7 @@ import type {
 import { deterministicNotes } from "../models/business/changelog.js";
 import { log } from "../observability.js";
 
-export const CHANGELOG_PROMPT_VERSION = "3";
+export const CHANGELOG_PROMPT_VERSION = "4";
 const schema = {
   type: "object",
   additionalProperties: false,
@@ -87,16 +87,23 @@ export function validateNotes(
   return { source: "ai", summary: data.summary, entries };
 }
 
+export interface GeneratedNotes {
+  notes: ChangelogNotes;
+  retryableFailure: boolean;
+}
+
 export async function generateNotes(
   facts: ChangelogFact[],
   apiKey: string | undefined,
   model: string,
-): Promise<ChangelogNotes> {
+): Promise<GeneratedNotes> {
   const fallback = deterministicNotes(facts);
-  if (!apiKey || !facts.length) return fallback;
+  if (!apiKey || !facts.length)
+    return { notes: fallback, retryableFailure: false };
   const overview = JSON.stringify(facts);
   // Preserve every category and total; oversized inputs use the complete deterministic overview.
-  if (Buffer.byteLength(overview) > 48000) return fallback;
+  if (Buffer.byteLength(overview) > 48000)
+    return { notes: fallback, retryableFailure: false };
   const started = Date.now();
   let failureCategory = "network_error";
   let httpStatus: number | undefined;
@@ -196,7 +203,7 @@ export async function generateNotes(
           ? result.usage.completion_tokens
           : undefined,
     });
-    return notes;
+    return { notes, retryableFailure: false };
   } catch {
     // Never log provider error bodies: they can echo credentials or input.
     log("warn", "changelog_generation", {
@@ -206,6 +213,6 @@ export async function generateNotes(
       durationMs: Date.now() - started,
       model,
     });
-    return fallback;
+    return { notes: fallback, retryableFailure: true };
   }
 }

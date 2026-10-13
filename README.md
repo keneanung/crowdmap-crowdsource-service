@@ -428,6 +428,7 @@ not appear as separate changes. Facts are aggregated by area and category with
 complete property/room/exit/label counts and at most two examples per category.
 Added rooms carry bounded samples of final scalar properties, and their final
 connections, doors, weights, and locks contribute to routing totals.
+Custom exit-line geometry, arrows, colors, and styles are included in drawing-property totals.
 Room moves are grouped by source/destination pair with complete counts and both
 area names and IDs, independently of the bounded room examples.
 An empty difference returns “No changes from the base map” without an AI call.
@@ -465,7 +466,8 @@ in a separate key namespace. Equivalent ordered selections share one concurrent
 request and reuse notes across reporters, thresholds, and map formats. Keys
 include project, baseline generation, model/router, prompt/schema version,
 language (English initially), and AI/deterministic mode. Provider-failure
-fallbacks expire after 60 seconds to allow recovery. Successful notes remain
+fallbacks expire after 60 seconds to allow recovery. Oversized-input deterministic
+notes remain cached until eviction because retrying cannot enable AI for that input. Successful notes remain
 until eviction. Restart, eviction, another instance, or disabled caching can
 cause another provider request. No historical snapshots or persistent AI store
 are required. Generation logs record outcome, duration, model, and token usage
