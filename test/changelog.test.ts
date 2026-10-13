@@ -856,3 +856,50 @@ test("exit removals consolidate metadata cleanup while surviving exit edits rema
       ?.count,
   ).toBe(1);
 });
+
+test.each(["normal", "special"] as const)(
+  "removing a %s exit preserves metadata changes shared with a surviving route",
+  (removedRoute) => {
+    const before = baseline();
+    const id = Number(Object.keys(before.rooms)[0]);
+    const room = before.rooms[id];
+    room.north = id;
+    room.mSpecialExits.n = id;
+    room.exitWeights.n = 4;
+    room.doors.n = 2;
+    room.customLinesArrow.n = true;
+    const after = structuredClone(before);
+    if (removedRoute === "normal") after.rooms[id].north = -1;
+    else new DeleteSpecialExit(id, [], "n").apply(after);
+    for (const property of [
+      "exitWeights",
+      "doors",
+      "customLinesArrow",
+    ] as const)
+      Reflect.deleteProperty(after.rooms[id][property], "n");
+    const facts = buildOverview(before, after);
+    const removal =
+      removedRoute === "normal"
+        ? "normal exits removed"
+        : "special exits removed";
+    expect(facts.map((fact) => fact.category)).toEqual(
+      expect.arrayContaining([
+        removal,
+        "exit weights changed",
+        "exit doors changed",
+        "exit drawing properties changed",
+      ]),
+    );
+    for (const category of [
+      removal,
+      "exit weights changed",
+      "exit doors changed",
+      "exit drawing properties changed",
+    ])
+      expect(facts.find((fact) => fact.category === category)?.count).toBe(1);
+    expect(after.rooms[id].north).toBe(removedRoute === "normal" ? -1 : id);
+    expect(Object.hasOwn(after.rooms[id].mSpecialExits, "n")).toBe(
+      removedRoute === "normal",
+    );
+  },
+);
