@@ -822,3 +822,84 @@ test("oversized credential-enabled notes remain cached beyond failure cooldown",
   expect(fetch).not.toHaveBeenCalled();
   expect(first).not.toHaveProperty("retryableFailure");
 });
+
+test("exit removals consolidate metadata cleanup while surviving exit edits remain", () => {
+  const before = baseline();
+  const id = Number(Object.keys(before.rooms)[0]);
+  const room = before.rooms[id];
+  room.north = id;
+  room.mSpecialExits.enter = id;
+  room.mSpecialExits.stay = id;
+  room.mSpecialExitLocks = ["enter", "stay"];
+  room.exitWeights = { n: 4, enter: 6, stay: 3 };
+  room.doors = { n: 2, enter: 2 };
+  room.customLinesArrow = { n: true, enter: true };
+  const after = structuredClone(before);
+  after.rooms[id].north = -1;
+  new DeleteSpecialExit(id, [], "enter").apply(after);
+  Reflect.deleteProperty(after.rooms[id].exitWeights, "n");
+  Reflect.deleteProperty(after.rooms[id].doors, "n");
+  Reflect.deleteProperty(after.rooms[id].customLinesArrow, "n");
+  const removed = buildOverview(before, after);
+  expect(removed.map((fact) => fact.category)).toEqual([
+    "normal exits removed",
+    "special exits removed",
+  ]);
+  after.rooms[id].exitWeights.stay = 5;
+  after.rooms[id].mSpecialExitLocks = [];
+  const edited = buildOverview(before, after);
+  expect(
+    edited.find((fact) => fact.category === "exit weights changed")?.count,
+  ).toBe(1);
+  expect(
+    edited.find((fact) => fact.category === "special exit locks changed")
+      ?.count,
+  ).toBe(1);
+});
+
+test.each(["normal", "special"] as const)(
+  "removing a %s exit preserves metadata changes shared with a surviving route",
+  (removedRoute) => {
+    const before = baseline();
+    const id = Number(Object.keys(before.rooms)[0]);
+    const room = before.rooms[id];
+    room.north = id;
+    room.mSpecialExits.n = id;
+    room.exitWeights.n = 4;
+    room.doors.n = 2;
+    room.customLinesArrow.n = true;
+    const after = structuredClone(before);
+    if (removedRoute === "normal") after.rooms[id].north = -1;
+    else new DeleteSpecialExit(id, [], "n").apply(after);
+    for (const property of [
+      "exitWeights",
+      "doors",
+      "customLinesArrow",
+    ] as const)
+      Reflect.deleteProperty(after.rooms[id][property], "n");
+    const facts = buildOverview(before, after);
+    const removal =
+      removedRoute === "normal"
+        ? "normal exits removed"
+        : "special exits removed";
+    expect(facts.map((fact) => fact.category)).toEqual(
+      expect.arrayContaining([
+        removal,
+        "exit weights changed",
+        "exit doors changed",
+        "exit drawing properties changed",
+      ]),
+    );
+    for (const category of [
+      removal,
+      "exit weights changed",
+      "exit doors changed",
+      "exit drawing properties changed",
+    ])
+      expect(facts.find((fact) => fact.category === category)?.count).toBe(1);
+    expect(after.rooms[id].north).toBe(removedRoute === "normal" ? -1 : id);
+    expect(Object.hasOwn(after.rooms[id].mSpecialExits, "n")).toBe(
+      removedRoute === "normal",
+    );
+  },
+);
