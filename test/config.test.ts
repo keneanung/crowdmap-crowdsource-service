@@ -270,16 +270,18 @@ test("OpenRouter configuration defaults and rejects malformed secrets or section
 `;
   await writeFile(file, base + projects);
   expect(loadConfig(file).changelogModel).toBe("openrouter/free");
+  expect(loadConfig(file).changelogTimeoutMs).toBe(60000);
   expect(loadConfig(file).changelogApiKey).toBeUndefined();
   await writeFile(
     file,
     base +
-      `  changelog:\n    openrouter:\n      apiKey: "  key  "\n      model: paid/model\n` +
+      `  changelog:\n    openrouter:\n      apiKey: "  key  "\n      model: paid/model\n      timeoutMs: 90000\n` +
       projects,
   );
   expect(loadConfig(file)).toMatchObject({
     changelogApiKey: "key",
     changelogModel: "paid/model",
+    changelogTimeoutMs: 90000,
   });
   await writeFile(
     file,
@@ -294,6 +296,17 @@ test("OpenRouter configuration defaults and rejects malformed secrets or section
     "changelog: {openrouter: []}",
     "changelog: {openrouter: {apiKey: 12}}",
     "changelog: {openrouter: {model: false}}",
+    ...[
+      "0",
+      "-1",
+      "1.5",
+      "2147483648",
+      ".inf",
+      ".nan",
+      "null",
+      "true",
+      '"60000"',
+    ].map((value) => `changelog: {openrouter: {timeoutMs: ${value}}}`),
   ]) {
     await writeFile(file, base + `  ${yaml}\n` + projects);
     expect(() => loadConfig(file)).toThrow("platform.changelog");
