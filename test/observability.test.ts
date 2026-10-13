@@ -14,6 +14,30 @@ import {
   requestObservability,
 } from "../src/observability.js";
 
+test.each([
+  "crowdmap_map_cache_events_total",
+  "crowdmap_map_cache_bytes",
+  "crowdmap_map_cache_entries",
+  "crowdmap_mongo_connections",
+])("metric family %s keeps metadata and samples contiguous", (metric) => {
+  const lines = renderMetrics().split("\n");
+  const positions = lines.flatMap((line, index) =>
+    line.startsWith(`# HELP ${metric} `) ||
+    line.startsWith(`# TYPE ${metric} `) ||
+    line.startsWith(`${metric} `) ||
+    line.startsWith(`${metric}{`)
+      ? [index]
+      : [],
+  );
+  expect(positions.length).toBeGreaterThanOrEqual(3);
+  expect(positions).toEqual(
+    Array.from(
+      { length: positions.length },
+      (_, offset) => positions[0] + offset,
+    ),
+  );
+});
+
 test("responses include a generated correlation ID", async () => {
   const response = await request(app)
     .get("/utility/ip")

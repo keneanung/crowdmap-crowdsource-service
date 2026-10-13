@@ -359,7 +359,6 @@ export const renderMetrics = (
     "# HELP crowdmap_map_worker_duration_seconds Cumulative duration of completed map worker threads by operation.",
     "# TYPE crowdmap_map_worker_duration_seconds summary",
     ...workerMetricLines,
-    "# HELP crowdmap_mongo_connections Current MongoDB driver connections.",
     "# HELP crowdmap_map_cache_events_total Map output cache events.",
     "# TYPE crowdmap_map_cache_events_total counter",
     ...Object.entries(mapCacheEvents).map(
@@ -372,6 +371,7 @@ export const renderMetrics = (
     "# HELP crowdmap_map_cache_entries Retained map output cache entries.",
     "# TYPE crowdmap_map_cache_entries gauge",
     `crowdmap_map_cache_entries ${mapCacheEntries.toString()}`,
+    "# HELP crowdmap_mongo_connections Current MongoDB driver connections.",
     "# TYPE crowdmap_mongo_connections gauge",
     `crowdmap_mongo_connections ${mongoConnections.toString()}`,
     "# HELP crowdmap_mongo_connections_checked_out Current MongoDB connections checked out from the driver pool.",
