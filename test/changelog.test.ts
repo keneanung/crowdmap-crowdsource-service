@@ -822,3 +822,37 @@ test("oversized credential-enabled notes remain cached beyond failure cooldown",
   expect(fetch).not.toHaveBeenCalled();
   expect(first).not.toHaveProperty("retryableFailure");
 });
+
+test("exit removals consolidate metadata cleanup while surviving exit edits remain", () => {
+  const before = baseline();
+  const id = Number(Object.keys(before.rooms)[0]);
+  const room = before.rooms[id];
+  room.north = id;
+  room.mSpecialExits.enter = id;
+  room.mSpecialExits.stay = id;
+  room.mSpecialExitLocks = ["enter", "stay"];
+  room.exitWeights = { n: 4, enter: 6, stay: 3 };
+  room.doors = { n: 2, enter: 2 };
+  room.customLinesArrow = { n: true, enter: true };
+  const after = structuredClone(before);
+  after.rooms[id].north = -1;
+  new DeleteSpecialExit(id, [], "enter").apply(after);
+  Reflect.deleteProperty(after.rooms[id].exitWeights, "n");
+  Reflect.deleteProperty(after.rooms[id].doors, "n");
+  Reflect.deleteProperty(after.rooms[id].customLinesArrow, "n");
+  const removed = buildOverview(before, after);
+  expect(removed.map((fact) => fact.category)).toEqual([
+    "normal exits removed",
+    "special exits removed",
+  ]);
+  after.rooms[id].exitWeights.stay = 5;
+  after.rooms[id].mSpecialExitLocks = [];
+  const edited = buildOverview(before, after);
+  expect(
+    edited.find((fact) => fact.category === "exit weights changed")?.count,
+  ).toBe(1);
+  expect(
+    edited.find((fact) => fact.category === "special exit locks changed")
+      ?.count,
+  ).toBe(1);
+});

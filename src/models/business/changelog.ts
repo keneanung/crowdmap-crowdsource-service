@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
+import { mudletExitKey } from "./change.js";
 
 export interface ChangelogFact {
   id: string;
@@ -232,6 +233,26 @@ export function buildOverview(
         );
       }
     }
+    const removedExitKeys = new Set<string>([
+      ...directions
+        .filter(
+          (direction) => old[direction] !== -1 && current[direction] === -1,
+        )
+        .map(mudletExitKey),
+      ...Object.keys(old.mSpecialExits).filter(
+        (command) => !Object.hasOwn(current.mSpecialExits, command),
+      ),
+    ]);
+    // Removed exit metadata is part of the removal, not a separate edit.
+    // Preserve differences on any route that still shares the metadata key.
+    const cleanupOnly = (key: string): boolean =>
+      removedExitKeys.has(key) &&
+      !Object.hasOwn(current.mSpecialExits, key) &&
+      !directions.some(
+        (direction) =>
+          (mudletExitKey(direction) === key || direction === key) &&
+          current[direction] !== -1,
+      );
     for (const property of [
       "mSpecialExits",
       "exitWeights",
@@ -244,6 +265,13 @@ export function buildOverview(
           ...Object.keys(current[property]),
         ]),
       ].sort()) {
+        if (
+          property !== "mSpecialExits" &&
+          property !== "userData" &&
+          !Object.hasOwn(current[property], key) &&
+          cleanupOnly(key)
+        )
+          continue;
         if (isDeepStrictEqual(old[property][key], current[property][key]))
           continue;
         if (property === "userData")
@@ -277,6 +305,8 @@ export function buildOverview(
           ...Object.keys(current[property]),
         ]),
       ].sort()) {
+        if (!Object.hasOwn(current[property], key) && cleanupOnly(key))
+          continue;
         if (!same(old[property][key], current[property][key]))
           add(
             area,
@@ -288,6 +318,12 @@ export function buildOverview(
     for (const command of [
       ...new Set([...old.mSpecialExitLocks, ...current.mSpecialExitLocks]),
     ].sort()) {
+      if (
+        Object.hasOwn(old.mSpecialExits, command) &&
+        !Object.hasOwn(current.mSpecialExits, command) &&
+        !current.mSpecialExitLocks.includes(command)
+      )
+        continue;
       if (
         old.mSpecialExitLocks.includes(command) !==
         current.mSpecialExitLocks.includes(command)
