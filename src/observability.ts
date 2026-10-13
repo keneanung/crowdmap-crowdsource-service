@@ -6,7 +6,7 @@ type LogLevel = "error" | "info" | "warn";
 type LogFields = Record<string, unknown>;
 type ProjectStatus = "ok" | "unavailable";
 type WorkerOperation =
-  "binary" | "json" | "reconcile" | "renderer" | "validate";
+  "binary" | "json" | "reconcile" | "renderer" | "validate" | "changelog";
 type MongoConnectionId = number | "<monitor>";
 
 interface RequestMetrics {

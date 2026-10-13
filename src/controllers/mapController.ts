@@ -5,6 +5,7 @@ import {
   Produces,
   Query,
   Request,
+  Response,
   Route,
   Tags,
   ValidateError,
@@ -13,6 +14,7 @@ import * as fs from "fs";
 import { inject } from "inversify";
 import { dirname } from "path";
 import { Readable } from "stream";
+import type { MapChangelog } from "../models/business/changelog.js";
 import { log } from "../observability.js";
 import {
   type ProjectRequest,
@@ -39,10 +41,12 @@ export class MapController extends Controller {
    * @param include Only include changes with the given changeIds.
    * @param exclude Exclude changes with the given changeIds.
    * @param reporter Also include changes reported by this pseudonym, regardless of their report count.
+   * @param expectedVersion Optionally require the version obtained before changelog retrieval.
    * @returns A map file with all vetted changes applied.
    */
   @Get("/")
   @Produces("application/octet-stream")
+  @Response(409, "The requested map version is no longer current")
   public async getMap(
     @Request() request: ProjectRequest,
     @Query() timesSeen: number,
@@ -51,6 +55,7 @@ export class MapController extends Controller {
     @Query() exclude: string[] = [],
     @Query() reviewId?: string,
     @Query() reporter?: string,
+    @Query() expectedVersion?: string,
   ): Promise<Readable> {
     if (include.length > 0 && exclude.length > 0) {
       throw new ValidateError(
@@ -65,6 +70,15 @@ export class MapController extends Controller {
         "Cannot include and exclude changes at the same time",
       );
     }
+    if (reviewId && expectedVersion !== undefined)
+      throw new ValidateError(
+        {
+          expectedVersion: {
+            message: "Version validation is not supported for staged reviews",
+          },
+        },
+        "Invalid parameters",
+      );
     const staged = reviewId
       ? this.mapService.getStagedUpstreamReview(
           reviewId,
@@ -80,8 +94,10 @@ export class MapController extends Controller {
       staged?.upstreamVersion,
       requireProjectContext(request).project,
       reporter,
+      expectedVersion,
     );
 
+    this.setHeader("Cache-Control", "private, no-store");
     this.setHeader(
       "Content-Type",
       `application/${format === "binary" ? "octet-stream" : "json"}`,
@@ -101,22 +117,67 @@ export class MapController extends Controller {
     return s;
   }
 
+  /** Describe the requested service map's net differences from its baseline. */
+  @Get("/changelog")
+  @Response(409, "The requested map version is no longer current")
+  public async getChangelog(
+    @Request() request: ProjectRequest,
+    @Query() timesSeen: number,
+    @Query() expectedVersion: string,
+    @Query() reporter?: string,
+    @Query() include: string[] = [],
+    @Query() exclude: string[] = [],
+  ): Promise<MapChangelog> {
+    if (!expectedVersion.trim() || (include.length > 0 && exclude.length > 0))
+      throw new ValidateError(
+        {
+          expectedVersion: {
+            message:
+              "A version is required; include and exclude cannot be combined",
+          },
+        },
+        "Invalid parameters",
+      );
+    const notes = await this.mapService.getChangelog(
+      timesSeen,
+      expectedVersion,
+      include,
+      exclude,
+      requireProjectContext(request).project,
+      reporter,
+    );
+    this.setHeader("Cache-Control", "private, no-store");
+    this.setHeader("X-Map-Version", notes.mapVersion);
+    this.setHeader("X-Map-Version-Raw", notes.baseVersion);
+    return notes;
+  }
+
   /**
    * Returns the current map version number of the vetted changes.
    * @param timesSeen How many times a change must have been seen by different people to consider it vetted.
    * @param reporter Also include changes reported by this pseudonym, regardless of their report count.
-   * @returns The current map version number as it would be produced by the vetted changes. The version number is constructed of 3 parts, deliminated by `.`: map base version, the ID of the last change applied, and the number of changes.
+   * @returns The baseline version followed by a fingerprint of the ordered selected changes.
    */
   @Get("/version")
   public async getVersion(
     @Request() request: ProjectRequest,
     @Query() timesSeen: number,
     @Query() reporter?: string,
+    @Query() include: string[] = [],
+    @Query() exclude: string[] = [],
   ): Promise<string> {
+    if (include.length > 0 && exclude.length > 0)
+      throw new ValidateError(
+        { include: { message: "include and exclude cannot be combined" } },
+        "Invalid parameters",
+      );
+    this.setHeader("Cache-Control", "private, no-store");
     return await this.mapService.getVersion(
       timesSeen,
       requireProjectContext(request).project,
       reporter,
+      include,
+      exclude,
     );
   }
 

@@ -242,3 +242,60 @@ test("requires a complete valid Ko-fi configuration when sponsorship is enabled"
     });
   }).not.toThrow();
 });
+
+test("OpenRouter configuration defaults and rejects malformed secrets or sections", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "crowdmap-changelog-config-"));
+  const file = join(directory, "config.yaml");
+  const base = `platform:
+  mongo:
+    connectionString: mongodb://mongo:27017
+    database: crowdmap
+  privacy:
+    controllerName: Example
+    contactUrl: https://example.test/privacy
+    logRetention: 30 days
+    processorsAndTransfers: Example hosting
+`;
+  const projects = `projects:
+  resolver: single
+  definitions:
+    - id: example
+      name: Example
+      baseline:
+        mapFile: /tmp/example/map
+        versionFile: /tmp/example/version
+      upstream:
+        mapUrl: https://example.test/map
+        versionUrl: https://example.test/version
+`;
+  await writeFile(file, base + projects);
+  expect(loadConfig(file).changelogModel).toBe("openrouter/free");
+  expect(loadConfig(file).changelogApiKey).toBeUndefined();
+  await writeFile(
+    file,
+    base +
+      `  changelog:\n    openrouter:\n      apiKey: "  key  "\n      model: paid/model\n` +
+      projects,
+  );
+  expect(loadConfig(file)).toMatchObject({
+    changelogApiKey: "key",
+    changelogModel: "paid/model",
+  });
+  await writeFile(
+    file,
+    base + `  changelog: {openrouter: {apiKey: " ", model: " "}}\n` + projects,
+  );
+  expect(loadConfig(file)).toMatchObject({
+    changelogApiKey: undefined,
+    changelogModel: "openrouter/free",
+  });
+  for (const yaml of [
+    "changelog: []",
+    "changelog: {openrouter: []}",
+    "changelog: {openrouter: {apiKey: 12}}",
+    "changelog: {openrouter: {model: false}}",
+  ]) {
+    await writeFile(file, base + `  ${yaml}\n` + projects);
+    expect(() => loadConfig(file)).toThrow("platform.changelog");
+  }
+});

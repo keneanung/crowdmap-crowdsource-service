@@ -21,6 +21,10 @@ import {
   ServiceUnavailableError,
 } from "../models/api/error.js";
 import type { Change } from "../models/business/change.js";
+import type {
+  ChangelogNotes,
+  MapChangelog,
+} from "../models/business/changelog.js";
 import {
   changeBusinessToWorker,
   MapWorkerRequest,
@@ -32,6 +36,10 @@ import {
   mapWorkerFailed,
   mapWorkerStarted,
 } from "../observability.js";
+import {
+  CHANGELOG_PROMPT_VERSION,
+  generateNotes,
+} from "./changelogGenerator.js";
 import {
   ChangeService,
   type ProjectChangeRepository,
@@ -234,6 +242,7 @@ export class MapService {
     rawVersionOverride?: string,
     projectDefinition?: MapProject,
     reporter?: string,
+    expectedVersion?: string,
   ): Promise<MapFileSnapshot> {
     const project = this.project(projectDefinition);
     this.assertAvailable(project);
@@ -255,6 +264,10 @@ export class MapService {
       ]);
       if (updateRevision !== runtime.baselineUpdateRevision) continue;
       const version = this.buildVersion(changes, rawVersion);
+      if (expectedVersion !== undefined && expectedVersion !== version)
+        throw new ConflictError(
+          "The requested map version is no longer current",
+        );
       const file = await this.getTempMapFileName();
       try {
         const generate = async (): Promise<Buffer> => {
@@ -291,6 +304,19 @@ export class MapService {
             operation: format,
             outputFile: file,
           });
+        }
+        if (expectedVersion !== undefined) {
+          const selected = await this.getChangesSnapshot(
+            timesSeen,
+            include,
+            exclude,
+            project,
+            reporter,
+          );
+          if (selected.version !== expectedVersion)
+            throw new ConflictError(
+              "The requested map version is no longer current",
+            );
         }
         if (updateRevision === runtime.baselineUpdateRevision) {
           return {
@@ -475,13 +501,107 @@ export class MapService {
     }
   }
 
+  public async getChangelog(
+    timesSeen: number,
+    expectedVersion: string,
+    include: string[] = [],
+    exclude: string[] = [],
+    projectDefinition?: MapProject,
+    reporter?: string,
+  ): Promise<MapChangelog> {
+    const project = this.project(projectDefinition);
+    const runtime = this.runtime(project);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      const revision = runtime.baselineUpdateRevision;
+      const snapshot = await this.getChangesSnapshot(
+        timesSeen,
+        include,
+        exclude,
+        project,
+        reporter,
+      );
+      if (revision !== runtime.baselineUpdateRevision) continue;
+      if (snapshot.version !== expectedVersion)
+        throw new ConflictError(
+          "The requested map version is no longer current",
+        );
+      const data = await this.outputCache.get(
+        JSON.stringify([
+          "changelog",
+          project.id,
+          project.mapFile,
+          revision,
+          snapshot.version,
+          config.changelogModel,
+          CHANGELOG_PROMPT_VERSION,
+          "en",
+          Boolean(config.changelogApiKey),
+        ]),
+        async () => {
+          const result =
+            snapshot.changes.length === 0
+              ? { overview: [] }
+              : await this.runMapWorker({
+                  changes: snapshot.changes.map(changeBusinessToWorker),
+                  mapFile: project.mapFile,
+                  operation: "changelog",
+                });
+          if (!result.overview) throw new Error("Missing changelog overview");
+          return Buffer.from(
+            JSON.stringify(
+              await generateNotes(
+                result.overview,
+                config.changelogApiKey,
+                config.changelogModel,
+              ),
+            ),
+          );
+        },
+        () => revision === runtime.baselineUpdateRevision,
+        (data) =>
+          config.changelogApiKey &&
+          (JSON.parse(data.toString()) as ChangelogNotes).source ===
+            "deterministic"
+            ? 60000
+            : Infinity,
+      );
+      const current = await this.getChangesSnapshot(
+        timesSeen,
+        include,
+        exclude,
+        project,
+        reporter,
+      );
+      if (current.version !== expectedVersion)
+        throw new ConflictError(
+          "The requested map version is no longer current",
+        );
+      if (revision !== runtime.baselineUpdateRevision) continue;
+      return {
+        ...(JSON.parse(data.toString()) as ChangelogNotes),
+        baseVersion: snapshot.rawVersion,
+        mapVersion: snapshot.version,
+      };
+    }
+  }
+
   public async getVersion(
     timesSeen: number,
     project?: MapProject,
     reporter?: string,
+    include: string[] = [],
+    exclude: string[] = [],
   ): Promise<string> {
-    return (await this.getChangesSnapshot(timesSeen, [], [], project, reporter))
-      .version;
+    return (
+      await this.getChangesSnapshot(
+        timesSeen,
+        include,
+        exclude,
+        project,
+        reporter,
+      )
+    ).version;
   }
 
   public async getRawVersion(projectDefinition?: MapProject) {

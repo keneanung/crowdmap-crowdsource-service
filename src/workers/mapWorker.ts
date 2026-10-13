@@ -1,6 +1,7 @@
 import { MudletMapReader } from "mudlet-map-binary-reader";
 import { readFileSync, writeFileSync } from "node:fs";
 import { parentPort, workerData } from "node:worker_threads";
+import { buildOverview } from "../models/business/changelog.js";
 import { reconcileChange } from "../models/business/changeReview.js";
 import {
   changeWorkerToBusiness,
@@ -12,6 +13,8 @@ const request = workerData as MapWorkerRequest;
 const map: Mudlet.MudletMap = MudletMapReader.readBuffer(
   readFileSync(request.mapFile),
 );
+const baseline =
+  request.operation === "changelog" ? structuredClone(map) : undefined;
 const changes = request.changes.map(changeWorkerToBusiness);
 if (request.operation !== "reconcile") {
   changes.forEach((change) => {
@@ -21,6 +24,10 @@ if (request.operation !== "reconcile") {
 
 const response: MapWorkerResponse = {};
 switch (request.operation) {
+  case "changelog":
+    if (!baseline) throw new Error("Missing baseline overview");
+    response.overview = buildOverview(baseline, map);
+    break;
   case "binary":
     if (!request.outputFile) {
       throw new Error("Missing worker output file");

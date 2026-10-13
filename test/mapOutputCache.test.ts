@@ -90,3 +90,24 @@ test("equivalent simultaneous requests share generation, including oversized out
   expect(left).toEqual(right);
   expect(generate).toHaveBeenCalledTimes(1);
 });
+
+test("fallback expiry allows recovery while concurrent requests still share generation", async () => {
+  let now = 100;
+  jest.spyOn(Date, "now").mockImplementation(() => now);
+  try {
+    const cache = new MapOutputCache(100, 2);
+    const generate = jest.fn(() => Promise.resolve(Buffer.from("fallback")));
+    await cache.get("notes", generate, current, () => 60000);
+    now += 59999;
+    await cache.get("notes", generate, current, () => 60000);
+    expect(generate).toHaveBeenCalledTimes(1);
+    now++;
+    await Promise.all([
+      cache.get("notes", generate, current, () => 60000),
+      cache.get("notes", generate, current, () => 60000),
+    ]);
+    expect(generate).toHaveBeenCalledTimes(2);
+  } finally {
+    jest.restoreAllMocks();
+  }
+});
