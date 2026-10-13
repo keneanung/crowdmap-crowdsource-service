@@ -934,3 +934,30 @@ test("service passes the configured deadline and a timeout retains retryable fal
       .retryableFailure,
   ).toBe(true);
 });
+
+test("configured deadline aborts a stalled provider body after headers arrive", async () => {
+  let bodyAborted = false;
+  global.fetch = jest
+    .fn<typeof global.fetch>()
+    .mockImplementation((_url, options) => {
+      const signal = options?.signal;
+      if (!signal) throw new Error("Missing provider deadline");
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          signal.addEventListener(
+            "abort",
+            () => {
+              bodyAborted = true;
+              controller.error(signal.reason);
+            },
+            { once: true },
+          );
+        },
+      });
+      return Promise.resolve(new Response(body, { status: 200 }));
+    });
+  const generated = await generateNotes([fact], "key", "openrouter/free", 25);
+  expect(bodyAborted).toBe(true);
+  expect(generated.notes.source).toBe("deterministic");
+  expect(generated.retryableFailure).toBe(true);
+});
