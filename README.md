@@ -378,6 +378,30 @@ The container health check covers required platform dependencies such as MongoDB
 make healthy project hosts unavailable. Unavailable projects are validated again
 every 60 seconds, while detailed validation errors remain in the service logs.
 
+### Map output caching
+
+Map downloads and renderer requests reuse generated output when the project,
+baseline generation, format, and ordered change IDs match. Different `reporter`,
+`timesSeen`, `include`, or `exclude` parameters can share an output when they
+select the same ordered changes. Selection is queried on every request, so
+current support and observation ordering still determine the result. Concurrent
+equivalent requests share one generation. Failed generation is never cached.
+Staged upstream review downloads bypass the cache.
+
+The process-local memory cache defaults to 64 MiB of retained output bytes and
+32 entries across all projects, with least-recently-used eviction. Configure
+`platform.mapCache.maxBytes` and `platform.mapCache.maxEntries` to change these
+limits; setting either to zero disables caching. Oversized outputs are shared
+while generation is in flight but are not retained. These limits exclude active
+workers, in-flight outputs, and response buffers. Each process starts with an
+empty cache. Download files remain request-owned and are removed after streaming.
+
+Baseline mutations use a new generation identity even if the upstream version
+string is unchanged. Requests overlapping a mutation retry before returning a
+result. Obsolete cached entries remain bounded and are evicted as new outputs
+arrive. Prometheus metrics expose cache events (`hit`, `miss`, `coalesced`,
+`eviction`), retained bytes, and entry count under `crowdmap_map_cache_*`.
+
 ## Contributing
 
 For code setup and contribution guidelines, see [the Contribution file](CONTRIBUTING.md).

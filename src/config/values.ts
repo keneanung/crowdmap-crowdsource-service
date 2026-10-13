@@ -19,6 +19,8 @@ export interface ServiceConfig {
   dbName?: string;
   initialAdminApiKey?: string;
   trustProxy: number;
+  mapCacheMaxBytes: number;
+  mapCacheMaxEntries: number;
   privacyControllerName?: string;
   privacyContactUrl?: string;
   privacyLogRetention?: string;
@@ -59,6 +61,7 @@ interface YamlConfig {
   platform?: {
     port?: unknown;
     trustProxy?: unknown;
+    mapCache?: unknown;
     mongo?: {
       connectionString?: unknown;
       database?: unknown;
@@ -179,7 +182,27 @@ export const loadConfig = (
   )
     throw new Error("platform.sponsorship must be an object");
   const sponsorship = sponsorshipValue as YamlSponsorship | undefined;
+  const cacheValue = values.platform?.mapCache;
+  if (
+    cacheValue !== undefined &&
+    (typeof cacheValue !== "object" ||
+      cacheValue === null ||
+      Array.isArray(cacheValue))
+  )
+    throw new Error("platform.mapCache must be an object");
+  const mapCache = cacheValue as
+    { maxBytes?: unknown; maxEntries?: unknown } | undefined;
   const config: ServiceConfig = {
+    mapCacheMaxBytes: numberWithDefault(
+      "platform.mapCache.maxBytes",
+      mapCache?.maxBytes,
+      64 * 1024 * 1024,
+    ),
+    mapCacheMaxEntries: numberWithDefault(
+      "platform.mapCache.maxEntries",
+      mapCache?.maxEntries,
+      32,
+    ),
     port: numberWithDefault("platform.port", values.platform?.port, 3000),
     trustProxy: numberWithDefault(
       "platform.trustProxy",
@@ -269,6 +292,15 @@ export const validateConfig = (values: ServiceConfig): void => {
     throw new Error("platform.port must be an integer between 1 and 65535");
   if (!Number.isInteger(values.trustProxy) || values.trustProxy < 0)
     throw new Error("platform.trustProxy must be a non-negative integer");
+  for (const [name, value] of [
+    ["maxBytes", values.mapCacheMaxBytes],
+    ["maxEntries", values.mapCacheMaxEntries],
+  ] as const) {
+    if (!Number.isSafeInteger(value) || value < 0)
+      throw new Error(
+        `platform.mapCache.${name} must be a non-negative safe integer`,
+      );
+  }
   if (!values.connectionString)
     throw new Error("platform.mongo.connectionString is required");
   if (!values.dbName) throw new Error("platform.mongo.database is required");

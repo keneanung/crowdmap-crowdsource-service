@@ -31,6 +31,16 @@ let serverErrors = 0;
 let requestDurationSeconds = 0;
 const requestMetrics = new Map<string, RequestMetrics>();
 let activeWorkers = 0;
+const mapCacheEvents = { hit: 0, miss: 0, coalesced: 0, eviction: 0 };
+let mapCacheBytes = 0;
+let mapCacheEntries = 0;
+export const mapCacheEvent = (event: keyof typeof mapCacheEvents): void => {
+  mapCacheEvents[event] += 1;
+};
+export const mapCacheSize = (bytes: number, entries: number): void => {
+  mapCacheBytes = bytes;
+  mapCacheEntries = entries;
+};
 const workerMetrics = new Map<WorkerOperation, WorkerMetrics>();
 let mongoConnections = 0;
 const mongoConnectionsCheckedOut = new Set<string>();
@@ -350,6 +360,18 @@ export const renderMetrics = (
     "# TYPE crowdmap_map_worker_duration_seconds summary",
     ...workerMetricLines,
     "# HELP crowdmap_mongo_connections Current MongoDB driver connections.",
+    "# HELP crowdmap_map_cache_events_total Map output cache events.",
+    "# TYPE crowdmap_map_cache_events_total counter",
+    ...Object.entries(mapCacheEvents).map(
+      ([event, count]) =>
+        `crowdmap_map_cache_events_total{event="${event}"} ${count.toString()}`,
+    ),
+    "# HELP crowdmap_map_cache_bytes Retained map output cache bytes.",
+    "# TYPE crowdmap_map_cache_bytes gauge",
+    `crowdmap_map_cache_bytes ${mapCacheBytes.toString()}`,
+    "# HELP crowdmap_map_cache_entries Retained map output cache entries.",
+    "# TYPE crowdmap_map_cache_entries gauge",
+    `crowdmap_map_cache_entries ${mapCacheEntries.toString()}`,
     "# TYPE crowdmap_mongo_connections gauge",
     `crowdmap_mongo_connections ${mongoConnections.toString()}`,
     "# HELP crowdmap_mongo_connections_checked_out Current MongoDB connections checked out from the driver pool.",

@@ -20,6 +20,33 @@ const validConfig: ServiceConfig = {
     "Hosted in the EEA; no transfers outside the EEA.",
 };
 
+test("map cache limits default to bounded memory and can disable caching", () => {
+  expect(config.mapCacheMaxBytes).toBe(64 * 1024 * 1024);
+  expect(config.mapCacheMaxEntries).toBe(32);
+  expect(() => {
+    validateConfig({
+      ...validConfig,
+      mapCacheMaxBytes: 0,
+      mapCacheMaxEntries: 0,
+    });
+  }).not.toThrow();
+});
+
+test.each([
+  -1,
+  0.5,
+  Number.NaN,
+  Number.POSITIVE_INFINITY,
+  Number.MAX_SAFE_INTEGER + 1,
+])("rejects invalid map cache limits: %s", (value) => {
+  expect(() => {
+    validateConfig({ ...validConfig, mapCacheMaxBytes: value });
+  }).toThrow("platform.mapCache.maxBytes");
+  expect(() => {
+    validateConfig({ ...validConfig, mapCacheMaxEntries: value });
+  }).toThrow("platform.mapCache.maxEntries");
+});
+
 test("loads nested YAML and normalizes absolute baseline paths", async () => {
   const directory = await mkdtemp(join(tmpdir(), "crowdmap-config-test-"));
   const configFile = join(directory, "service.yaml");
@@ -29,6 +56,9 @@ test("loads nested YAML and normalizes absolute baseline paths", async () => {
   mongo:
     connectionString: mongodb://mongo:27017
     database: crowdmap
+  mapCache:
+    maxBytes: 1048576
+    maxEntries: 8
   privacy:
     controllerName: Example controller
     contactUrl: https://example.test/privacy
@@ -49,6 +79,8 @@ projects:
   );
 
   const loaded = loadConfig(configFile);
+  expect(loaded.mapCacheMaxBytes).toBe(1048576);
+  expect(loaded.mapCacheMaxEntries).toBe(8);
   expect(loaded.projects[0]).toMatchObject({
     id: "example",
     mapFile: join(directory, "data/map"),
