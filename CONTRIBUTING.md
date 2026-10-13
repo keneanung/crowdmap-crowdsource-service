@@ -16,7 +16,9 @@ requiring a Git workflow for every map change.
 
 ## Development setup
 
-The service requires Node.js 22 or newer and MongoDB. Start with the deployment
+The service requires Node.js 22 or newer and MongoDB.
+The test suite also requires `lua5.1` to verify mapper-compatible serialization
+with the actual Lua runtime; production does not require a Lua installation. Start with the deployment
 and configuration instructions in the [README](README.md), then install the
 project dependencies:
 

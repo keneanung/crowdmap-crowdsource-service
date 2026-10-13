@@ -414,6 +414,16 @@ A stale version returns HTTP 409; restart the version check in that case.
 Existing map clients can omit `expectedVersion`. Staged upstream review maps do
 not support changelogs or expected-version validation.
 
+JSON is the default. Add `format=lua` to receive UTF-8 Lua 5.1 source defining
+`changelog`, compatible with the mapper's existing loader. Each array item groups
+the current notes for one area with readable line breaks. The final item is the
+short summary used by its “Latest changes” line. This contains only differences
+from the current base map, without historical releases or API metadata. Quotes,
+backslashes, and control characters are safely escaped; angle brackets use
+readable Unicode alternatives to prevent cecho color tags. Both formats reuse the
+same cached generation and version checks. Retrieving service notes in the mapper
+still requires a separate client change.
+
 The JSON response contains `baseVersion`, `mapVersion`, `source`, `summary`, and
 area-grouped `entries` with supporting fact IDs. `source` is `ai`,
 `deterministic`, or `empty`. Responses also carry `X-Map-Version` and

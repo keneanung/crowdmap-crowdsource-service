@@ -20,6 +20,7 @@ import {
   type ProjectRequest,
   requireProjectContext,
 } from "../projects/projectContext.js";
+import { serializeLuaChangelog } from "../services/luaChangelog.js";
 import { MapService } from "../services/mapService.js";
 
 @Route("map")
@@ -119,6 +120,8 @@ export class MapController extends Controller {
 
   /** Describe the requested service map's net differences from its baseline. */
   @Get("/changelog")
+  @Produces("application/json")
+  @Produces("text/plain")
   @Response(409, "The requested map version is no longer current")
   public async getChangelog(
     @Request() request: ProjectRequest,
@@ -127,7 +130,8 @@ export class MapController extends Controller {
     @Query() reporter?: string,
     @Query() include: string[] = [],
     @Query() exclude: string[] = [],
-  ): Promise<MapChangelog> {
+    @Query() format: "json" | "lua" = "json",
+  ): Promise<MapChangelog | Readable> {
     if (!expectedVersion.trim() || (include.length > 0 && exclude.length > 0))
       throw new ValidateError(
         {
@@ -149,6 +153,10 @@ export class MapController extends Controller {
     this.setHeader("Cache-Control", "private, no-store");
     this.setHeader("X-Map-Version", notes.mapVersion);
     this.setHeader("X-Map-Version-Raw", notes.baseVersion);
+    if (format === "lua") {
+      this.setHeader("Content-Type", "text/plain; charset=utf-8");
+      return Readable.from([serializeLuaChangelog(notes)]);
+    }
     return notes;
   }
 
