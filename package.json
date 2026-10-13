@@ -5,18 +5,19 @@
   "main": "build/src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "npm run build:review && concurrently \"nodemon\" \"nodemon -x tsoa spec-and-routes\" \"npm run build:review -- --watch\"",
-    "build": "CONFIG_FILE=${CONFIG_FILE:-config.example.yaml} tsoa spec-and-routes && npm run fix:esm-imports && npm run typecheck && npm run build:review && cp -R website/ build/",
+    "dev": "npm run build:review && concurrently \"nodemon\" \"nodemon -x npm run generate:api\" \"npm run build:review -- --watch\"",
+    "build": "npm run generate:api && npm run fix:esm-imports && npm run typecheck && npm run build:review && cp -R website/ build/",
     "fix:esm-imports": "node scripts/fix-esm-imports.mjs",
     "build:review": "esbuild website/javascripts/review-map.ts --bundle --format=iife --target=es2020 --outfile=website/javascripts/review-map.js",
     "start": "node build/src/server.js",
     "typecheck": "node node_modules/typescript-compiler/bin/tsc",
     "audit:production": "npm audit --omit=dev",
-    "prelint": "CONFIG_FILE=${CONFIG_FILE:-config.example.yaml} tsoa spec-and-routes",
+    "prelint": "npm run generate:api",
     "lint": "eslint .",
     "format": "prettier --write src/ test/",
     "pretest": "npm run build",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "generate:api": "CONFIG_FILE=${CONFIG_FILE:-config.example.yaml} tsoa spec-and-routes && node scripts/fix-changelog-openapi.mjs"
   },
   "keywords": [],
   "author": "",

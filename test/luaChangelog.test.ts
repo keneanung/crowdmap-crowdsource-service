@@ -1,5 +1,6 @@
 import { expect, test } from "@jest/globals";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { serializeLuaChangelog } from "../src/services/luaChangelog.js";
@@ -87,4 +88,22 @@ test("Lua format is raw text and shares version validation with default JSON", a
         .query({ timesSeen: 2, expectedVersion: version, format: "invalid" })
     ).status,
   ).toBe(422);
+});
+
+test("OpenAPI describes JSON notes and raw Lua text separately", () => {
+  const spec = JSON.parse(
+    readFileSync(new URL("../generated/swagger.json", import.meta.url), "utf8"),
+  ) as {
+    paths: Record<
+      string,
+      { get: { responses: Record<string, { content: unknown }> } }
+    >;
+  };
+  expect(spec.paths["/map/changelog"].get.responses["200"].content).toEqual({
+    "application/json": {
+      schema: { $ref: "#/components/schemas/MapChangelog" },
+    },
+    "text/plain": { schema: { type: "string" } },
+  });
+  expect(spec.paths["/map/version"]).toBeDefined();
 });
