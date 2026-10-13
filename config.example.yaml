@@ -2,6 +2,11 @@ platform:
   port: 3000
   # Set to 1 when using the optional Traefik proxy profile in compose.yaml.
   trustProxy: 0
+  # Generated map outputs are shared across equivalent requests and authors.
+  # Limits apply per process across all projects; either zero disables caching.
+  mapCache:
+    maxBytes: 67108864 # 64 MiB of retained output bytes
+    maxEntries: 32
   mongo:
     connectionString: mongodb://mongo:27017
     database: crowdmap

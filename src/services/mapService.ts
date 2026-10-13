@@ -36,6 +36,7 @@ import {
   ChangeService,
   type ProjectChangeRepository,
 } from "./changeService.js";
+import { MapOutputCache } from "./mapOutputCache.js";
 
 interface ProjectRuntimeState {
   baselineUpdateQueue: Promise<void>;
@@ -87,6 +88,10 @@ export interface BaselineUpdateResult {
 @provide(MapService, (binding) => binding.inSingletonScope())
 export class MapService {
   private readonly runtimes = new Map<string, ProjectRuntimeState>();
+  private readonly outputCache = new MapOutputCache(
+    config.mapCacheMaxBytes,
+    config.mapCacheMaxEntries,
+  );
   constructor(@inject(ChangeService) private changeService: ChangeService) {}
 
   private project(project?: MapProject): MapProject {
@@ -233,6 +238,11 @@ export class MapService {
     const project = this.project(projectDefinition);
     this.assertAvailable(project);
     const runtime = this.runtime(project);
+    const useCache =
+      mapFile === undefined &&
+      rawVersionOverride === undefined &&
+      config.mapCacheMaxBytes > 0 &&
+      config.mapCacheMaxEntries > 0;
     mapFile ??= project.mapFile;
     // A concurrent baseline update can require regenerating the file.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -243,20 +253,51 @@ export class MapService {
         this.changes(project).getChanges(timesSeen, include, exclude, reporter),
         rawVersionOverride ?? this.readRawVersion(project),
       ]);
+      if (updateRevision !== runtime.baselineUpdateRevision) continue;
+      const version = this.buildVersion(changes, rawVersion);
       const file = await this.getTempMapFileName();
       try {
-        await this.runMapWorker({
-          changes: changes.map(changeBusinessToWorker),
-          mapFile,
-          operation: format,
-          outputFile: file,
-        });
+        const generate = async (): Promise<Buffer> => {
+          const generatedFile = await this.getTempMapFileName();
+          try {
+            await this.runMapWorker({
+              changes: changes.map(changeBusinessToWorker),
+              mapFile,
+              operation: format,
+              outputFile: generatedFile,
+            });
+            return await readFile(generatedFile);
+          } finally {
+            await rm(dirname(generatedFile), { recursive: true, force: true });
+          }
+        };
+        if (useCache) {
+          const data = await this.outputCache.get(
+            JSON.stringify([
+              project.id,
+              project.mapFile,
+              updateRevision,
+              version,
+              format,
+            ]),
+            generate,
+            () => updateRevision === runtime.baselineUpdateRevision,
+          );
+          await writeFile(file, data);
+        } else {
+          await this.runMapWorker({
+            changes: changes.map(changeBusinessToWorker),
+            mapFile,
+            operation: format,
+            outputFile: file,
+          });
+        }
         if (updateRevision === runtime.baselineUpdateRevision) {
           return {
             changes,
             file,
             rawVersion,
-            version: this.buildVersion(changes, rawVersion),
+            version,
           };
         }
       } catch (error) {
@@ -365,20 +406,34 @@ export class MapService {
         this.changes(project).getChanges(timesSeen, include, exclude, reporter),
         this.readRawVersion(project),
       ]);
-      const response = await this.runMapWorker({
-        changes: changes.map(changeBusinessToWorker),
-        mapFile: project.mapFile,
-        operation: "renderer",
-      });
+      if (updateRevision !== runtime.baselineUpdateRevision) continue;
+      const version = this.buildVersion(changes, rawVersion);
+      const data = await this.outputCache.get(
+        JSON.stringify([
+          project.id,
+          project.mapFile,
+          updateRevision,
+          version,
+          "renderer",
+        ]),
+        async () => {
+          const response = await this.runMapWorker({
+            changes: changes.map(changeBusinessToWorker),
+            mapFile: project.mapFile,
+            operation: "renderer",
+          });
+          if (!response.content)
+            throw new Error("Map worker returned no renderer content");
+          return Buffer.from(response.content);
+        },
+        () => updateRevision === runtime.baselineUpdateRevision,
+      );
       if (updateRevision === runtime.baselineUpdateRevision) {
-        if (!response.content) {
-          throw new Error("Map worker returned no renderer content");
-        }
         return {
           changes,
-          content: response.content,
+          content: data.toString(),
           rawVersion,
-          version: this.buildVersion(changes, rawVersion),
+          version,
         };
       }
     }
