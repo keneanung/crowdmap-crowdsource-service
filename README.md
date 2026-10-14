@@ -418,8 +418,8 @@ The response is UTF-8 plain text (`text/plain`), with natural paragraphs rather
 than JSON or a structured list of entries. Add `format=lua` for Lua 5.1 source
 defining the mapper-compatible `changelog` array. The first sentence becomes a
 short title in the final item for the mapper’s “Latest changes” line. The
-remaining prose forms the body, with each sentence or nonempty line in its own
-array entry, so the full-changelog view does not repeat the title or the whole
+remaining prose forms the body, with each nonempty line in its own array
+entry, so the full-changelog view does not repeat the title or the whole
 paragraph.
 A title-only note appears once.
 That final item is limited to 600 Unicode code points; if the opening sentence
