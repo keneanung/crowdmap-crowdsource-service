@@ -472,7 +472,10 @@ models. No JSON-schema or JSON-output support is required. Spending limits and p
 belong in OpenRouter; there is no service budget setting or automatic paid-model
 fallback. Update `platform.privacy.processorsAndTransfers` to describe OpenRouter
 and the providers allowed by your account policies, including the map names and
-change examples sent for processing. Never commit the deployment key.
+change examples sent for processing. See the
+[OpenRouter privacy deployment guide](docs/openrouter-privacy.md) for the data
+sent, account settings to check, and suggested disclosure wording. Never commit
+the deployment key.
 
 Missing credentials, provider errors, refusal, truncation, or invalid output
 produce deterministic prose. Requests default to a 60-second timeout covering

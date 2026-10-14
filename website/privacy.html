@@ -107,6 +107,32 @@
       </section>
 
       <section class="policy-section">
+        <h2>AI-generated map changelogs</h2>
+        <p>
+          Where the operator enables AI notes, the service sends a structured
+          overview of the selected map changes to OpenRouter, which forwards it
+          to a model provider to write the changelog. This includes game and map
+          names, room and area names, changed map properties, exit commands and
+          connections, and counts of changes. It does not include reporter
+          identities, individual observation records, room/map metadata values,
+          or raw room hashes. Names and commands are free text and may still
+          contain personal information if someone puts it into map content.
+        </p>
+        <p>
+          Generated notes are returned to clients and may be cached by this
+          service. OpenRouter and model providers have their own data handling
+          policies, including retention and possible use for training, depending
+          on the provider and the operator’s account settings. Processing may
+          occur outside your country, including outside the EEA. The
+          deployment-specific recipients and transfer arrangements are described
+          below. See
+          <a href="https://openrouter.ai/privacy/">OpenRouter’s Privacy Policy</a>
+          and its
+          <a href="https://openrouter.ai/docs/guides/privacy/provider-logging">provider data policies</a>.
+        </p>
+      </section>
+
+      <section class="policy-section">
         <h2>Recipients and international transfers</h2>
         <p>
           Authorised map administrators can access report details. The operator
