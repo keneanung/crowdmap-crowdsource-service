@@ -124,7 +124,7 @@ test("single-paragraph prose uses its first sentence as a title without repeatin
     text: sentences.join(" "),
   });
   expect(lua.split("\n").filter((line) => line.startsWith('  "'))).toHaveLength(
-    2,
+    sentences.length,
   );
   expect(lua.match(/In Aster Keep/g)).toHaveLength(1);
 });
@@ -136,4 +136,15 @@ test("one short note appears only once", () => {
       text: "No changes from the base map.",
     }),
   ).toBe('changelog = {\n  "No changes from the base map.",\n}\n');
+});
+
+test("each nonempty body line gets its own Lua array entry", () => {
+  expect(
+    serializeLuaChangelog({
+      source: "ai",
+      text: "New rooms added.\nFirst line without punctuation\r\n\r\nSecond line without punctuation\nFinal update.",
+    }),
+  ).toBe(
+    'changelog = {\n  "First line without punctuation",\n  "Second line without punctuation",\n  "Final update.",\n  "New rooms added.",\n}\n',
+  );
 });

@@ -32,8 +32,12 @@ export function serializeLuaChangelog(notes: ChangelogNotes): string {
     characters.length > 600
       ? characters.slice(0, 597).join("") + "..."
       : summary;
-  const body = sentences.join("\n");
-  const entries = body ? [body] : [];
+  const entries = sentences.flatMap((sentence) =>
+    sentence
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
   // The last item is the mapper's title. Preserve an unusually long title in
   // full as well, since the Latest changes line needs a bounded excerpt.
   if (characters.length > 600) entries.push(headline);
