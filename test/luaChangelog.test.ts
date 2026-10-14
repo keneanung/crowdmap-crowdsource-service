@@ -73,3 +73,22 @@ test("OpenAPI describes changelog output as ordinary text", () => {
     "text/plain": { schema: { type: "string" } },
   });
 });
+
+test("Lua excerpt preserves an emoji at the truncation boundary", () => {
+  const text = "x".repeat(596) + "😀" + "y".repeat(10);
+  const result = spawnSync(
+    "lua5.1",
+    [
+      "-e",
+      "local f=assert(loadstring(io.read('*a'))); local env={}; setfenv(f,env); f(); io.write(env.changelog[2]);",
+    ],
+    {
+      input: serializeLuaChangelog({ source: "ai", text }),
+      encoding: "utf8",
+    },
+  );
+  expect(result.error).toBeUndefined();
+  expect(result.status).toBe(0);
+  expect(result.stdout).toBe("x".repeat(596) + "😀...");
+  expect(Array.from(result.stdout)).toHaveLength(600);
+});

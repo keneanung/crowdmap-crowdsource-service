@@ -596,20 +596,30 @@ export function buildOverview(
 export function deterministicNotes(facts: ChangelogFact[]): ChangelogNotes {
   if (facts.length === 0)
     return { source: "empty", text: "No changes from the base map." };
-  const groups = new Map<string, string[]>();
+  const groups = new Map<number | null, { name: string; lines: string[] }>();
   for (const fact of facts) {
-    const lines = groups.get(fact.areaName) ?? [];
+    const group = groups.get(fact.areaId) ?? { name: fact.areaName, lines: [] };
+    const lines = group.lines;
     lines.push(
       fact.movement
         ? `Moved ${String(fact.count)} ${fact.count === 1 ? "room" : "rooms"} from ${fact.movement.fromAreaName} (area ${String(fact.movement.fromAreaId)}) to ${fact.movement.toAreaName} (area ${String(fact.movement.toAreaId)}).`
         : `${String(fact.count)} ${fact.category}.`,
     );
-    groups.set(fact.areaName, lines);
+    groups.set(fact.areaId, group);
   }
+  const headingCounts = new Map<string, number>();
+  for (const { name } of groups.values())
+    headingCounts.set(name, (headingCounts.get(name) ?? 0) + 1);
   return {
     source: "deterministic",
     text: [...groups]
-      .map(([area, lines]) => `${area}: ${lines.join(" ")}`)
+      .map(([id, { name, lines }]) => {
+        const heading =
+          (headingCounts.get(name) ?? 0) > 1
+            ? `${name} (${id === null ? "map-wide" : `area ${String(id)}`})`
+            : name;
+        return `${heading}: ${lines.join(" ")}`;
+      })
       .join("\n\n"),
   };
 }

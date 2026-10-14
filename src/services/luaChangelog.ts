@@ -25,6 +25,10 @@ export function serializeLuaChangelog(notes: ChangelogNotes): string {
     .split(/\n\s*\n/u)[0]
     .replace(/[\r\n\t]+/g, " ")
     .trim();
-  const latest = summary.length > 600 ? summary.slice(0, 597) + "..." : summary;
+  const characters = Array.from(summary);
+  const latest =
+    characters.length > 600
+      ? characters.slice(0, 597).join("") + "..."
+      : summary;
   return `changelog = {\n  ${luaString(prose)},\n  ${luaString(latest)},\n}\n`;
 }

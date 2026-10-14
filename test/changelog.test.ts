@@ -109,6 +109,13 @@ test.each([
   "   ",
   "bad\u0000text",
   "bad\u001btext",
+  "bad\u0080text",
+  "bad\u0085text",
+  "bad\u009ftext",
+  "bad\u2028text",
+  "bad\u2029text",
+  "\u2028text",
+  "text\u2029",
   "x".repeat(12001),
   null,
   {},
@@ -966,17 +973,15 @@ test("custom prompts replace editorial instructions, preserve typed data and iso
     "changelogPrompt",
     "Write a brief French changelog.",
   );
-  const fetch = jest
-    .fn<typeof global.fetch>()
-    .mockImplementation(() =>
-      Promise.resolve(
-        Response.json({
-          choices: [
-            { finish_reason: "stop", message: { content: "Des changements." } },
-          ],
-        }),
-      ),
-    );
+  const fetch = jest.fn<typeof global.fetch>().mockImplementation(() =>
+    Promise.resolve(
+      Response.json({
+        choices: [
+          { finish_reason: "stop", message: { content: "Des changements." } },
+        ],
+      }),
+    ),
+  );
   global.fetch = fetch;
   const { service } = serviceFixture();
   const version = await service.getVersion(2);
@@ -1004,4 +1009,56 @@ test("custom prompts replace editorial instructions, preserve typed data and iso
   ) as typeof body;
   expect(nextBody.messages[0].content).toBe("Write a brief German changelog.");
   expect(nextBody.messages[1].content).toBe(body.messages[1].content);
+});
+
+test("deterministic notes keep duplicate area names and map-wide General separate", () => {
+  const notes = deterministicNotes([
+    {
+      ...fact,
+      areaId: 1,
+      areaName: "General",
+      category: "rooms added",
+      count: 2,
+    },
+    {
+      ...fact,
+      areaId: 2,
+      areaName: "General",
+      category: "normal exits removed",
+      count: 3,
+    },
+    {
+      ...fact,
+      areaId: null,
+      areaName: "General",
+      category: "map metadata properties changed",
+      count: 4,
+    },
+    {
+      ...fact,
+      areaId: 1,
+      areaName: "General",
+      category: "room name changed",
+      count: 1,
+    },
+    {
+      ...fact,
+      areaId: 3,
+      areaName: "Aster Keep",
+      category: "rooms added",
+      count: 5,
+    },
+  ]);
+  expect(notes.text.split("\n\n")).toEqual([
+    "General (area 1): 2 rooms added. 1 room name changed.",
+    "General (area 2): 3 normal exits removed.",
+    "General (map-wide): 4 map metadata properties changed.",
+    "Aster Keep: 5 rooms added.",
+  ]);
+});
+
+test("prose continues to allow tabs, newlines and non-ASCII names", () => {
+  expect(validateNotes("  Château\t😀\nNew rooms.  ").text).toBe(
+    "Château\t😀\nNew rooms.",
+  );
 });
