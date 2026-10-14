@@ -18,23 +18,17 @@ const luaString = (text: string): string =>
   }).join("") +
   '"';
 
-/** One current-map entry per area; the last item is the mapper's Latest changes summary. */
+/** Preserve the mapper's full-notes array and final Latest changes item. */
 export function serializeLuaChangelog(notes: ChangelogNotes): string {
-  const groups = new Map<string, { heading: string; lines: string[] }>();
-  for (const entry of notes.entries) {
-    const key = JSON.stringify([entry.areaId, entry.areaName]);
-    let group = groups.get(key);
-    if (!group) {
-      group = { heading: displayText(entry.areaName), lines: [] };
-      groups.set(key, group);
-    }
-    group.lines.push(
-      `    • ${displayText(entry.text).replaceAll("\n", "\n      ")}`,
-    );
-  }
-  const entries = [...groups.values()].map(
-    (group) => `${group.heading}\n${group.lines.join("\n")}`,
-  );
-  entries.push(displayText(notes.summary).replace(/[\r\n\t]+/g, " "));
-  return `changelog = {\n${entries.map((entry) => `  ${luaString(entry)},`).join("\n")}\n}\n`;
+  const prose = displayText(notes.text);
+  const summary = prose
+    .split(/\n\s*\n/u)[0]
+    .replace(/[\r\n\t]+/g, " ")
+    .trim();
+  const characters = Array.from(summary);
+  const latest =
+    characters.length > 600
+      ? characters.slice(0, 597).join("") + "..."
+      : summary;
+  return `changelog = {\n  ${luaString(prose)},\n  ${luaString(latest)},\n}\n`;
 }

@@ -42,6 +42,11 @@ const fact: ChangelogFact = {
   category: "rooms added",
   count: 3,
   examples: [],
+  details: [1, 2, 3].map((roomId) => ({
+    kind: "room",
+    operation: "added",
+    room: { roomId, roomName: "", newlyAdded: true },
+  })),
 };
 function baseline() {
   return MudletMapReader.readBuffer(readFileSync(config.projects[0].mapFile));
@@ -90,36 +95,32 @@ test("new rooms consolidate initialization and samples remain bounded without lo
   );
 });
 
-test("AI output must cover every supplied fact once and keep areas separate", () => {
+test("prose accepts paragraphs and normalizes line endings", () => {
   expect(
-    validateNotes(
-      {
-        summary: "Changes",
-        entries: [{ text: "Added rooms", factIds: ["f1"] }],
-      },
-      [fact],
-    ).source,
-  ).toBe("ai");
-  for (const ids of [["invented"], ["f1", "f1"], ["f1", "f2"]]) {
-    expect(() =>
-      validateNotes(
-        {
-          summary: "Changes",
-          entries: [{ text: "Added rooms", factIds: ids }],
-        },
-        [fact, { ...fact, id: "f2", areaId: 56 }],
-      ),
-    ).toThrow();
-  }
-  expect(() =>
-    validateNotes(
-      {
-        summary: "Changes",
-        entries: [{ text: "Added rooms", factIds: ["f1"] }],
-      },
-      [fact, { ...fact, id: "f2" }],
-    ),
-  ).toThrow();
+    validateNotes("  Aster Keep grows.\r\n\r\nHashan has new names.  "),
+  ).toEqual({
+    source: "ai",
+    text: "Aster Keep grows.\n\nHashan has new names.",
+  });
+});
+
+test.each([
+  "",
+  "   ",
+  "bad\u0000text",
+  "bad\u001btext",
+  "bad\u0080text",
+  "bad\u0085text",
+  "bad\u009ftext",
+  "bad\u2028text",
+  "bad\u2029text",
+  "\u2028text",
+  "text\u2029",
+  "x".repeat(12001),
+  null,
+  {},
+])("invalid prose is rejected", (value) => {
+  expect(() => validateNotes(value)).toThrow();
 });
 
 test("missing credentials, empty facts and oversized inputs make no provider call", async () => {
@@ -146,7 +147,7 @@ test("missing credentials, empty facts and oversized inputs make no provider cal
   expect(fetch).not.toHaveBeenCalled();
 });
 
-test("provider uses configured model, strict schema and only verified facts", async () => {
+test("provider uses configured model and prose without schema requirements", async () => {
   const fetch = jest.fn<typeof global.fetch>().mockResolvedValue(
     new Response(
       JSON.stringify({
@@ -155,10 +156,7 @@ test("provider uses configured model, strict schema and only verified facts", as
           {
             finish_reason: "stop",
             message: {
-              content: JSON.stringify({
-                summary: "Updated Hashan",
-                entries: [{ text: "Added three rooms.", factIds: ["f1"] }],
-              }),
+              content: "Hashan has three new rooms.",
             },
           },
         ],
@@ -171,13 +169,12 @@ test("provider uses configured model, strict schema and only verified facts", as
   ).toBe("ai");
   const body = JSON.parse(fetch.mock.calls[0][1]?.body as string) as {
     model: string;
-    provider: { require_parameters: boolean };
-    response_format: { json_schema: { strict: boolean } };
     messages: { content: string }[];
   };
   expect(body.model).toBe("paid/model");
-  expect(body.provider.require_parameters).toBe(true);
-  expect(body.response_format.json_schema.strict).toBe(true);
+  expect(body).not.toHaveProperty("reasoning");
+  expect(body).not.toHaveProperty("provider");
+  expect(body).not.toHaveProperty("response_format");
   expect(body.messages[1].content).not.toContain("credential");
 });
 
@@ -339,11 +336,9 @@ test("HTTP changelog follows version-first flow, rejects stale versions, and doe
     .get("/map/changelog")
     .query({ timesSeen: 2, expectedVersion: version });
   expect(notes.status).toBe(200);
-  expect(notes.body).toMatchObject({
-    mapVersion: version,
-    source: "empty",
-    entries: [],
-  });
+  expect(notes.text).toBe("No changes from the base map.");
+  expect(notes.headers["content-type"]).toContain("text/plain");
+  expect(notes.headers["x-changelog-source"]).toBe("empty");
   expect(notes.headers["cache-control"]).toBe("private, no-store");
   expect(notes.headers["x-map-version"]).toBe(version);
   expect((await request(app).get("/map/changelog?timesSeen=2")).status).toBe(
@@ -447,10 +442,9 @@ test.each(["include", "exclude"] as const)(
       .get("/map/changelog")
       .query({ ...selection, expectedVersion: version });
     expect(notes.status).toBe(200);
-    expect(notes.body).toMatchObject({
-      mapVersion: version,
-      source: "deterministic",
-    });
+    expect(notes.text.trim()).not.toBe("");
+    expect(notes.headers["x-map-version"]).toBe(version);
+    expect(notes.headers["x-changelog-source"]).toBe("deterministic");
     expect(
       (
         await request(app)
@@ -544,7 +538,7 @@ test("provider diagnostics distinguish safe failure categories without logging s
             {
               finish_reason: "stop",
               message: {
-                content: JSON.stringify({ summary: "Invalid", entries: [] }),
+                content: "\u0000",
               },
             },
           ],
@@ -598,10 +592,7 @@ test("credential-enabled failures coalesce, expire after 60 seconds, and retain 
             {
               finish_reason: "stop",
               message: {
-                content: JSON.stringify({
-                  summary: "Added rooms",
-                  entries: [{ text: "Added three rooms.", factIds: ["f1"] }],
-                }),
+                content: "Added three rooms.",
               },
             },
           ],
@@ -668,14 +659,10 @@ test("moves preserve every source/destination pair beyond the two-example limit"
   ]);
   const notes = deterministicNotes(facts);
   for (const source of [1000000, 1000001, 1000002]) {
-    expect(
-      notes.entries.some(
-        (entry) =>
-          entry.text.includes(
-            `Origin ${String(source)} (area ${String(source)})`,
-          ) && entry.text.includes("Destination (area 1000003)"),
-      ),
-    ).toBe(true);
+    expect(notes.text).toContain(
+      `Origin ${String(source)} (area ${String(source)})`,
+    );
+    expect(notes.text).toContain("Destination (area 1000003)");
   }
   expect(moves.reduce((sum, fact) => sum + fact.count, 0)).toBe(5);
   expect(moves.every((fact) => fact.examples.length <= 2)).toBe(true);
@@ -960,4 +947,118 @@ test("configured deadline aborts a stalled provider body after headers arrive", 
   expect(bodyAborted).toBe(true);
   expect(generated.notes.source).toBe("deterministic");
   expect(generated.retryableFailure).toBe(true);
+});
+
+test("service forwards an explicit reasoning setting without making it mandatory", async () => {
+  jest.replaceProperty(config, "changelogApiKey", "key");
+  // The optional config property is present even when omitted from YAML.
+  jest.replaceProperty(config, "changelogReasoningEnabled", false);
+  const fetch = jest
+    .fn<typeof global.fetch>()
+    .mockResolvedValue(new Response("", { status: 503 }));
+  global.fetch = fetch;
+  const { service } = serviceFixture();
+  const version = await service.getVersion(2);
+  await service.getChangelog(2, version);
+  const body = JSON.parse(fetch.mock.calls[0][1]?.body as string) as {
+    reasoning: { enabled: boolean };
+  };
+  expect(body.reasoning).toEqual({ enabled: false });
+});
+
+test("custom prompts replace editorial instructions, preserve typed data and isolate cached notes", async () => {
+  jest.replaceProperty(config, "changelogApiKey", "key");
+  jest.replaceProperty(
+    config,
+    "changelogPrompt",
+    "Write a brief French changelog.",
+  );
+  const fetch = jest.fn<typeof global.fetch>().mockImplementation(() =>
+    Promise.resolve(
+      Response.json({
+        choices: [
+          { finish_reason: "stop", message: { content: "Des changements." } },
+        ],
+      }),
+    ),
+  );
+  global.fetch = fetch;
+  const { service } = serviceFixture();
+  const version = await service.getVersion(2);
+  await service.getChangelog(2, version);
+  const body = JSON.parse(fetch.mock.calls[0][1]?.body as string) as {
+    messages: { role: string; content: string }[];
+  };
+  expect(body.messages[0]).toEqual({
+    role: "system",
+    content: "Write a brief French changelog.",
+  });
+  const input = JSON.parse(body.messages[1].content) as { areas: unknown[] };
+  expect(input.areas.length).toBeGreaterThan(0);
+  await service.getChangelog(2, version);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  jest.replaceProperty(
+    config,
+    "changelogPrompt",
+    "Write a brief German changelog.",
+  );
+  await service.getChangelog(2, version);
+  expect(fetch).toHaveBeenCalledTimes(2);
+  const nextBody = JSON.parse(
+    fetch.mock.calls[1][1]?.body as string,
+  ) as typeof body;
+  expect(nextBody.messages[0].content).toBe("Write a brief German changelog.");
+  expect(nextBody.messages[1].content).toBe(body.messages[1].content);
+});
+
+test("deterministic notes keep duplicate area names and map-wide General separate", () => {
+  const notes = deterministicNotes([
+    {
+      ...fact,
+      areaId: 1,
+      areaName: "General",
+      category: "rooms added",
+      count: 2,
+    },
+    {
+      ...fact,
+      areaId: 2,
+      areaName: "General",
+      category: "normal exits removed",
+      count: 3,
+    },
+    {
+      ...fact,
+      areaId: null,
+      areaName: "General",
+      category: "map metadata properties changed",
+      count: 4,
+    },
+    {
+      ...fact,
+      areaId: 1,
+      areaName: "General",
+      category: "room name changed",
+      count: 1,
+    },
+    {
+      ...fact,
+      areaId: 3,
+      areaName: "Aster Keep",
+      category: "rooms added",
+      count: 5,
+    },
+  ]);
+  expect(notes.text.split("\n\n")).toEqual([
+    "General (area 1): 2 rooms added. 1 room name changed.",
+    "General (area 2): 3 normal exits removed.",
+    "General (map-wide): 4 map metadata properties changed.",
+    "Aster Keep: 5 rooms added.",
+  ]);
+});
+
+test("prose continues to allow tabs, newlines and non-ASCII names", () => {
+  expect(validateNotes("  Château\t😀\nNew rooms.  ").text).toBe(
+    "Château\t😀\nNew rooms.",
+  );
 });

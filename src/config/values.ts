@@ -5,6 +5,7 @@ import { parse } from "yaml";
 export interface MapProject {
   readonly id: string;
   readonly name: string;
+  readonly game?: string;
   readonly mapFile: string;
   readonly versionFile: string;
   readonly mapDownloadUrl: string;
@@ -22,6 +23,8 @@ export interface ServiceConfig {
   changelogApiKey?: string;
   changelogModel: string;
   changelogTimeoutMs: number;
+  changelogReasoningEnabled?: boolean;
+  changelogPrompt?: string;
   mapCacheMaxBytes: number;
   mapCacheMaxEntries: number;
   privacyControllerName?: string;
@@ -40,6 +43,7 @@ export interface ServiceConfig {
 }
 
 interface YamlProject {
+  game?: unknown;
   id?: unknown;
   name?: unknown;
   baseline?: {
@@ -144,9 +148,14 @@ export const loadConfig = (
     )
       throw new Error("Every projects.definitions entry must be an object");
     const project = rawProject as YamlProject;
+    const game = optionalString(
+      "projects.definitions[].game",
+      project.game,
+    )?.trim();
     return Object.freeze({
       id: optionalString("projects.definitions[].id", project.id) ?? "",
       name: optionalString("projects.definitions[].name", project.name) ?? "",
+      game: game === "" ? undefined : game,
       mapFile: normalizeDataFile(project.baseline?.mapFile),
       versionFile: normalizeDataFile(project.baseline?.versionFile),
       mapDownloadUrl:
@@ -218,6 +227,13 @@ export const loadConfig = (
     if (text === "") return undefined;
     return text;
   };
+  if (
+    openrouter.reasoningEnabled !== undefined &&
+    typeof openrouter.reasoningEnabled !== "boolean"
+  )
+    throw new Error(
+      "platform.changelog.openrouter.reasoningEnabled must be a boolean",
+    );
   const config: ServiceConfig = {
     changelogApiKey: nonblankString(
       "platform.changelog.openrouter.apiKey",
@@ -226,6 +242,11 @@ export const loadConfig = (
     changelogModel:
       nonblankString("platform.changelog.openrouter.model", openrouter.model) ??
       "openrouter/free",
+    changelogReasoningEnabled: openrouter.reasoningEnabled,
+    changelogPrompt: nonblankString(
+      "platform.changelog.prompt",
+      changelog.prompt,
+    ),
     changelogTimeoutMs: numberWithDefault(
       "platform.changelog.openrouter.timeoutMs",
       openrouter.timeoutMs,

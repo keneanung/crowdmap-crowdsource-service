@@ -58,6 +58,48 @@
         </ul>
       </section>
 
+      <section class="policy-section" aria-labelledby="changelog-heading">
+        <h2 id="changelog-heading">What changed in this map?</h2>
+        <p>
+          The service can describe the differences between your selected live
+          map and its published baseline. These notes cover the current set of
+          changes, rather than the difference since your last download or a
+          history of earlier releases. Changes that cancel each other out do
+          not appear as separate updates.
+        </p>
+        <p>
+          Notes match the map selection you request, including its confirmation
+          threshold and your own reports. Clients can retrieve plain text or a
+          Lua format for mapping-script integration. Equivalent selections
+          reuse cached notes, so requesting the same map does not normally
+          require another generation.
+        </p>
+      </section>
+
+      <section class="policy-section" aria-labelledby="ai-heading">
+        <h2 id="ai-heading">AI-written notes can make mistakes</h2>
+        <p>
+          When the operator enables AI generation, a language model turns a
+          structured overview of map changes into a short changelog. It can
+          miss details, mix up counts or routes, or describe a change
+          inaccurately. Treat the notes as a reading aid and check the map or
+          reported changes when a detail matters.
+        </p>
+        <p>
+          AI writes only the description. It does not choose which reports are
+          included, edit the map, or approve baseline updates. Without AI, or
+          when generation fails, the service provides a factual count-based
+          description instead.
+        </p>
+        <p>
+          AI generation sends map-change information to OpenRouter and a model
+          provider. Reporter identities and room/map metadata values are
+          excluded, but room and area names and exit commands are included.
+          Do not put personal information in map content. See the
+          <a href="privacy.html">Privacy Policy</a> for data handling details.
+        </p>
+      </section>
+
       <section class="policy-section" aria-labelledby="client-heading">
         <h2 id="client-heading">Connect a mapping script</h2>
         <p>
@@ -77,6 +119,10 @@
             <dd><code>GET /map/version?timesSeen=2&amp;reporter=river-scout</code></dd>
           </div>
           <div>
+            <dt>Read the selected map’s changelog</dt>
+            <dd><code>GET /map/changelog?timesSeen=2&amp;reporter=river-scout&amp;expectedVersion=VERSION</code> (add <code>&amp;format=lua</code> for mapping-script integration)</dd>
+          </div>
+          <div>
             <dt>Submit an observation</dt>
             <dd><code>POST /change</code> with a JSON change object including <code>type</code> and <code>reporter</code></dd>
           </div>
@@ -91,7 +137,15 @@
           to a map download also includes an <code>X-Map-Version</code> header.
         </p>
         <p>
-          The IRE Mapping Script handles these requests for you. Other mapping
+          For changelog integration, check the version first, then request the
+          notes and map with that value as <code>expectedVersion</code> and the
+          same selection parameters. If either request returns HTTP 409, check
+          the version again and restart the sequence. A map download does not
+          wait for AI generation.
+        </p>
+        <p>
+          The IRE Mapping Script handles map retrieval and reporting for you;
+          displaying service changelogs requires client support. Other mapping
           clients and adapters can use the endpoints above directly. The
           interactive API reference documents the accepted change shapes.
         </p>
