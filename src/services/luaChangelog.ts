@@ -18,17 +18,25 @@ const luaString = (text: string): string =>
   }).join("") +
   '"';
 
-/** Preserve the mapper's full-notes array and final Latest changes item. */
+/** The mapper displays every item and uses the final one as Latest changes. */
 export function serializeLuaChangelog(notes: ChangelogNotes): string {
   const prose = displayText(notes.text);
-  const summary = prose
-    .split(/\n\s*\n/u)[0]
-    .replace(/[\r\n\t]+/g, " ")
-    .trim();
+  const sentences = Array.from(
+    new Intl.Segmenter("en", { granularity: "sentence" }).segment(prose),
+    ({ segment }) => segment.trim(),
+  ).filter(Boolean);
+  const headline = sentences.shift() ?? "";
+  const summary = headline.replace(/[\r\n\t]+/g, " ").trim();
   const characters = Array.from(summary);
   const latest =
     characters.length > 600
       ? characters.slice(0, 597).join("") + "..."
       : summary;
-  return `changelog = {\n  ${luaString(prose)},\n  ${luaString(latest)},\n}\n`;
+  const body = sentences.join("\n");
+  const entries = body ? [body] : [];
+  // The last item is the mapper's title. Preserve an unusually long title in
+  // full as well, since the Latest changes line needs a bounded excerpt.
+  if (characters.length > 600) entries.push(headline);
+  entries.push(latest);
+  return `changelog = {\n${entries.map((entry) => `  ${luaString(entry)},`).join("\n")}\n}\n`;
 }

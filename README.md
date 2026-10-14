@@ -416,9 +416,13 @@ not support changelogs or expected-version validation.
 
 The response is UTF-8 plain text (`text/plain`), with natural paragraphs rather
 than JSON or a structured list of entries. Add `format=lua` for Lua 5.1 source
-defining the mapper-compatible `changelog` array. The first item is the complete
-prose, with escaped paragraph breaks; the final item is a bounded excerpt of the
-opening paragraph for the mapper’s “Latest changes” line. Lua color tags are
+defining the mapper-compatible `changelog` array. The first sentence becomes a
+short title in the final item for the mapper’s “Latest changes” line. The
+remaining prose forms the body, with sentence breaks rendered as newlines,
+so the full-changelog view does not repeat the title or the whole paragraph.
+A title-only note appears once.
+That final item is limited to 600 Unicode code points; if the opening sentence
+exceeds that limit, its full text is also retained as a separate item. Lua color tags are
 neutralized. Both formats share the same cached generation. `X-Changelog-Source` is `ai`,
 `deterministic`, or `empty`. Version metadata is carried in `X-Map-Version` and
 `X-Map-Version-Raw`. Selection-dependent map and changelog responses use

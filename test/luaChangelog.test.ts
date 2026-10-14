@@ -6,7 +6,7 @@ import { app } from "../src/app.js";
 import { serializeLuaChangelog } from "../src/services/luaChangelog.js";
 import { setupChangeServiceMock } from "./setup/iocSetup.js";
 
-test("Lua 5.1 loads prose paragraphs safely and exposes an opening summary", () => {
+test("Lua 5.1 loads separate notes safely and puts the opening headline last", () => {
   const text =
     'Aster Keep grows.\n\nChanged \\paths, ]], quotes " and \u00001; <red>.';
   const result = spawnSync(
@@ -19,7 +19,9 @@ test("Lua 5.1 loads prose paragraphs safely and exposes an opening summary", () 
   );
   expect(result.error).toBeUndefined();
   expect(result.status).toBe(0);
-  expect(result.stdout).toBe(text.replaceAll("<", "‹").replaceAll(">", "›"));
+  expect(result.stdout).toBe(
+    text.split("\n\n")[1].replaceAll("<", "‹").replaceAll(">", "›"),
+  );
 });
 
 test("Lua Latest changes excerpt is bounded", () => {
@@ -91,4 +93,47 @@ test("Lua excerpt preserves an emoji at the truncation boundary", () => {
   expect(result.status).toBe(0);
   expect(result.stdout).toBe("x".repeat(596) + "😀...");
   expect(Array.from(result.stdout)).toHaveLength(600);
+});
+
+test("single-paragraph prose uses its first sentence as a title without repeating it", () => {
+  const sentences = [
+    "In Aster Keep, sixteen new rooms were added along with twelve new normal exits.",
+    "Worm warp special exits were removed from Central Wilderness and Cyrene Road.",
+    "Three rooms in Hashan were renamed to Parallax, The Phaestean Forge, and The Sun's Surface.",
+    "Housekeeping updates were applied to the new rooms in Aster Keep.",
+  ];
+  const result = spawnSync(
+    "lua5.1",
+    [
+      "-e",
+      "local env={}; local f=assert(loadstring(io.read('*a'))); setfenv(f,env); f(); for _,v in ipairs(env.changelog) do io.write(v, '\\n') end",
+    ],
+    {
+      input: serializeLuaChangelog({ source: "ai", text: sentences.join(" ") }),
+      encoding: "utf8",
+    },
+  );
+  expect(result.error).toBeUndefined();
+  expect(result.status).toBe(0);
+  expect(result.stdout.trim().split("\n")).toEqual([
+    ...sentences.slice(1),
+    sentences[0],
+  ]);
+  const lua = serializeLuaChangelog({
+    source: "ai",
+    text: sentences.join(" "),
+  });
+  expect(lua.split("\n").filter((line) => line.startsWith('  "'))).toHaveLength(
+    2,
+  );
+  expect(lua.match(/In Aster Keep/g)).toHaveLength(1);
+});
+
+test("one short note appears only once", () => {
+  expect(
+    serializeLuaChangelog({
+      source: "empty",
+      text: "No changes from the base map.",
+    }),
+  ).toBe('changelog = {\n  "No changes from the base map.",\n}\n');
 });
