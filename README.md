@@ -414,19 +414,13 @@ A stale version returns HTTP 409; restart the version check in that case.
 Existing map clients can omit `expectedVersion`. Staged upstream review maps do
 not support changelogs or expected-version validation.
 
-JSON is the default. Add `format=lua` to receive UTF-8 Lua 5.1 source defining
-`changelog`, compatible with the mapper's existing loader. Each array item groups
-the current notes for one area with readable line breaks. The final item is the
-short summary used by its “Latest changes” line. This contains only differences
-from the current base map, without historical releases or API metadata. Quotes,
-backslashes, and control characters are safely escaped; angle brackets use
-readable Unicode alternatives to prevent cecho color tags. Both formats reuse the
-same cached generation and version checks. Retrieving service notes in the mapper
-still requires a separate client change.
-
-The JSON response contains `baseVersion`, `mapVersion`, `source`, `summary`, and
-area-grouped `entries` with supporting fact IDs. `source` is `ai`,
-`deterministic`, or `empty`. Responses also carry `X-Map-Version` and
+The response is UTF-8 plain text (`text/plain`), with natural paragraphs rather
+than JSON or a structured list of entries. Add `format=lua` for Lua 5.1 source
+defining the mapper-compatible `changelog` array. The first item is the complete
+prose, with escaped paragraph breaks; the final item is a bounded excerpt of the
+opening paragraph for the mapper’s “Latest changes” line. Lua color tags are
+neutralized. Both formats share the same cached generation. `X-Changelog-Source` is `ai`,
+`deterministic`, or `empty`. Version metadata is carried in `X-Map-Version` and
 `X-Map-Version-Raw`. Selection-dependent map and changelog responses use
 `Cache-Control: private, no-store`. Versions are fingerprints of the selected
 changes and baseline version string; replacing baseline contents under the same
@@ -434,18 +428,26 @@ version does not create a distinct public version. Internally, baseline
 generation still invalidates cached notes.
 
 Notes compare final map state, so overwrites and operations that cancel out do
-not appear as separate changes. Facts are aggregated by area and category with
-complete property/room/exit/label counts and at most two examples per category.
-Added rooms carry bounded samples of final scalar properties, and their final
-connections, doors, weights, and locks contribute to routing totals.
-Custom exit-line geometry, arrows, colors, and styles are included in drawing-property totals.
-Room moves are grouped by source/destination pair with complete counts and both
-area names and IDs, independently of the bounded room examples.
+not appear as separate changes. The model receives complete typed changes grouped by area, with explicit count
+units. Every changed route and room rename is included, not just examples.
+Special exits are grouped by exact command and operation, with every source and
+before/after destination; normal exits have explicit directions. Metadata totals
+separate properties, distinct affected rooms, existing rooms, and initialization
+on newly added rooms. Raw metadata values and hashes remain excluded.
+Added rooms and deleted rooms are listed explicitly. Exit drawing changes retain
+the affected room, exit key, and property, without sending full drawing geometry.
+Room moves include source/destination areas. Set optional
+`projects.definitions[].game` to supply the game name as model context. Command
+importance is left to the model; there are no game-specific priority rules.
+If the complete overview exceeds the input byte limit, the service uses
+complete deterministic notes instead of silently sampling or dropping changes.
 An empty difference returns “No changes from the base map” without an AI call.
 Names are treated as untrusted data. Reporter identities, user-data values, and
 raw hashes are excluded from the AI overview. Metadata and hash mutations are
-summarized as counts. Generated prose is schema-validated but is not proof that
-reported map changes are correct; clients must display it as text, not markup.
+summarized as counts. Generated prose is checked for nonempty text, size, and control characters, but is not proof that
+reported map changes or generated descriptions are correct. Prose validation does
+not establish factual accuracy or complete coverage; clients must display it as
+text, not markup.
 
 To enable AI notes, add credentials to the secret-mounted deployment YAML:
 
@@ -458,19 +460,29 @@ platform:
       timeoutMs: 60000
 ```
 
+The exact current prompt and customization instructions are documented in
+[Changelog generation prompt](docs/changelog-prompt.md). Optional
+`platform.changelog.prompt` replaces the default editorial instructions; omit
+it or leave it blank to keep the built-in prompt. Map data is supplied separately.
+Restart after changing the setting. The prompt is included in the notes cache key.
+
 A nonblank key enables AI automatically. The model defaults to `openrouter/free`;
 an administrator can choose any compatible OpenRouter model, including paid
-models. Structured output is required. Spending limits and provider policies
+models. No JSON-schema or JSON-output support is required. Spending limits and provider policies
 belong in OpenRouter; there is no service budget setting or automatic paid-model
 fallback. Update `platform.privacy.processorsAndTransfers` to describe OpenRouter
 and the providers allowed by your account policies, including the map names and
 change examples sent for processing. Never commit the deployment key.
 
 Missing credentials, provider errors, refusal, truncation, or invalid output
-produce deterministic notes. Requests default to a 60-second timeout covering
+produce deterministic prose. Requests default to a 60-second timeout covering
 the complete provider request, including reading its response. Configure
 `platform.changelog.openrouter.timeoutMs` with an integer from 1 to 2147483647
-milliseconds and restart the service to apply changes. There are no automatic
+milliseconds and restart the service to apply changes. Optional
+`platform.changelog.openrouter.reasoningEnabled` controls reasoning for models
+that support it; omit the setting to preserve the provider default. Disabling
+optional reasoning can reduce latency and leave more tokens for the changelog.
+Models with mandatory reasoning may reject an explicit disabled setting. There are no automatic
 retries, a 48,000-byte overview limit, and bounded output. Oversized overviews use
 complete deterministic notes instead of dropping areas. Map downloads do not
 invoke or wait for AI. Changelog requests generate notes on demand.
@@ -478,7 +490,7 @@ invoke or wait for AI. Changelog requests generate notes on demand.
 Changelogs share the existing process-local map cache's byte and entry limits,
 in a separate key namespace. Equivalent ordered selections share one concurrent
 request and reuse notes across reporters, thresholds, and map formats. Keys
-include project, baseline generation, model/router, prompt/schema version,
+include project, baseline generation, model/router, prompt version,
 language (English initially), and AI/deterministic mode. Provider-failure
 fallbacks expire after 60 seconds to allow recovery. Oversized-input deterministic
 notes remain cached until eviction because retrying cannot enable AI for that input. Successful notes remain

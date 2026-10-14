@@ -1,6 +1,71 @@
 import { isDeepStrictEqual } from "node:util";
 import { mudletExitKey } from "./change.js";
 
+export interface ChangelogRoom {
+  roomId: number;
+  roomName: string;
+  newlyAdded: boolean;
+}
+
+export interface ChangelogDestination {
+  roomId: number;
+  roomName: string | null;
+  areaId: number | null;
+  areaName: string | null;
+}
+
+type ExitOperation = "added" | "removed" | "changed";
+export type ChangelogDetail =
+  | { kind: "room"; operation: "added" | "removed"; room: ChangelogRoom }
+  | {
+      kind: "roomProperty";
+      room: ChangelogRoom;
+      property: string;
+      before: string | number;
+      after: string | number;
+    }
+  | { kind: "roomMove"; room: ChangelogRoom }
+  | {
+      kind: "normalExit";
+      room: ChangelogRoom;
+      operation: ExitOperation;
+      direction: string;
+      destinationBefore: ChangelogDestination | null;
+      destinationAfter: ChangelogDestination | null;
+    }
+  | {
+      kind: "specialExit";
+      room: ChangelogRoom;
+      operation: ExitOperation;
+      command: string;
+      destinationBefore: ChangelogDestination | null;
+      destinationAfter: ChangelogDestination | null;
+    }
+  | {
+      kind: "exitProperty";
+      room: ChangelogRoom;
+      exitKey: string;
+      property: string;
+      before?: number | null;
+      after?: number | null;
+    }
+  | {
+      kind: "specialExitLock";
+      room: ChangelogRoom;
+      command: string;
+      locked: boolean;
+    }
+  | { kind: "roomMetadata"; room: ChangelogRoom }
+  | { kind: "mapMetadata" | "hashMapping" }
+  | {
+      kind: "area";
+      operation: ExitOperation;
+      areaId: number;
+      nameBefore: string | null;
+      nameAfter: string | null;
+    }
+  | { kind: "label"; operation: ExitOperation; labelId: number };
+
 export interface ChangelogFact {
   id: string;
   areaId: number | null;
@@ -8,6 +73,7 @@ export interface ChangelogFact {
   category: string;
   count: number;
   examples: string[];
+  details: ChangelogDetail[];
   movement?: {
     fromAreaId: number;
     fromAreaName: string;
@@ -25,17 +91,9 @@ export interface ChangelogFact {
   }[];
 }
 
-export interface ChangelogEntry {
-  areaId: number | null;
-  areaName: string;
-  text: string;
-  factIds: string[];
-}
-
 export interface ChangelogNotes {
   source: "ai" | "deterministic" | "empty";
-  summary: string;
-  entries: ChangelogEntry[];
+  text: string;
 }
 
 export interface MapChangelog extends ChangelogNotes {
@@ -87,26 +145,42 @@ const properties = [
   "environment",
 ] as const;
 // Map names may contain terminal control characters; remove them from samples.
-const clean = (value: unknown): string =>
+const clean = (value: unknown, limit = 160): string =>
   String(value)
     .split("")
     .map((char) =>
       char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127 ? " " : char,
     )
     .join("")
-    .slice(0, 160);
+    .slice(0, limit);
 
 /** Compare final map state, including side effects, rather than report payloads. */
 export function buildOverview(
   before: Mudlet.MudletMap,
   after: Mudlet.MudletMap,
 ): ChangelogFact[] {
+  const destination = (
+    map: Mudlet.MudletMap,
+    id: number | undefined,
+  ): ChangelogDestination | null => {
+    if (id === undefined || id === -1) return null;
+    const room = Object.hasOwn(map.rooms, id) ? map.rooms[id] : undefined;
+    return {
+      roomId: id,
+      roomName: room ? clean(room.name) : null,
+      areaId: room?.area ?? null,
+      areaName: room
+        ? clean(areaName(map, room.area) ?? `Area ${String(room.area)}`)
+        : null,
+    };
+  };
   const groups = new Map<string, Omit<ChangelogFact, "id">>();
   const add = (
     areaId: number | null,
     category: string,
     example: string,
-    movement?: ChangelogFact["movement"],
+    movement: ChangelogFact["movement"],
+    detail: ChangelogDetail,
   ) => {
     const key = JSON.stringify([
       areaId,
@@ -129,11 +203,13 @@ export function buildOverview(
         category,
         count: 0,
         examples: [],
+        details: [],
         ...(movement ? { movement } : {}),
       };
       groups.set(key, group);
     }
     group.count++;
+    group.details.push(detail);
     if (group.examples.length < 2) group.examples.push(clean(example));
     return group;
   };
@@ -143,14 +219,34 @@ export function buildOverview(
     .map(Number)
     .sort((a, b) => a - b)) {
     if (!Object.hasOwn(before.areas, id))
-      add(id, "areas added", `Area ${String(id)}`);
+      add(id, "areas added", `Area ${String(id)}`, undefined, {
+        kind: "area",
+        operation: "added",
+        areaId: id,
+        nameBefore: null,
+        nameAfter: clean(after.areaNames[id] ?? ""),
+      });
     else if (!Object.hasOwn(after.areas, id))
-      add(id, "areas deleted", `Area ${String(id)}`);
+      add(id, "areas deleted", `Area ${String(id)}`, undefined, {
+        kind: "area",
+        operation: "removed",
+        areaId: id,
+        nameBefore: clean(before.areaNames[id] ?? ""),
+        nameAfter: null,
+      });
     else if (before.areaNames[id] !== after.areaNames[id])
       add(
         id,
         "area names changed",
         `${clean(before.areaNames[id])} -> ${clean(after.areaNames[id])}`,
+        undefined,
+        {
+          kind: "area",
+          operation: "changed",
+          areaId: id,
+          nameBefore: clean(before.areaNames[id] ?? ""),
+          nameAfter: clean(after.areaNames[id] ?? ""),
+        },
       );
   }
   for (const id of [
@@ -163,9 +259,18 @@ export function buildOverview(
       ? after.rooms[id]
       : undefined;
     const area = current?.area ?? old?.area ?? null;
+    const room: ChangelogRoom = {
+      roomId: id,
+      roomName: clean(current?.name ?? old?.name ?? ""),
+      newlyAdded: !old && !!current,
+    };
     const label = `Room ${String(id)} (${clean(current?.name ?? old?.name ?? "unknown")})`;
     if (!old && current) {
-      const added = add(area, "rooms added", label);
+      const added = add(area, "rooms added", label, undefined, {
+        kind: "room",
+        operation: "added",
+        room,
+      });
       const samples = (added.finalRooms ??= []);
       if (samples.length < 2)
         samples.push({
@@ -194,27 +299,51 @@ export function buildOverview(
       for (const direction of directions) old[direction] = -1;
     }
     if (!current || !old) {
-      add(area, "rooms deleted", label);
+      add(area, "rooms deleted", label, undefined, {
+        kind: "room",
+        operation: "removed",
+        room,
+      });
       continue;
     }
     for (const property of properties) {
       if (same(old[property], current[property])) continue;
       if (property === "area") {
-        add(area, "rooms moved", label, {
-          fromAreaId: old.area,
-          fromAreaName: clean(
-            areaName(before, old.area) ?? `Area ${String(old.area)}`,
-          ),
-          toAreaId: current.area,
-          toAreaName: clean(
-            areaName(after, current.area) ?? `Area ${String(current.area)}`,
-          ),
-        });
+        add(
+          area,
+          "rooms moved",
+          label,
+          {
+            fromAreaId: old.area,
+            fromAreaName: clean(
+              areaName(before, old.area) ?? `Area ${String(old.area)}`,
+            ),
+            toAreaId: current.area,
+            toAreaName: clean(
+              areaName(after, current.area) ?? `Area ${String(current.area)}`,
+            ),
+          },
+          { kind: "roomMove", room },
+        );
       } else {
         add(
           area,
           `room ${property} changed`,
           `${label}: ${clean(old[property])} -> ${clean(current[property])}`,
+          undefined,
+          {
+            kind: "roomProperty",
+            room,
+            property,
+            before:
+              typeof old[property] === "string"
+                ? clean(old[property])
+                : old[property],
+            after:
+              typeof current[property] === "string"
+                ? clean(current[property])
+                : current[property],
+          },
         );
       }
     }
@@ -230,6 +359,20 @@ export function buildOverview(
           area,
           category,
           `${label}: ${direction} ${String(old[direction])} -> ${String(current[direction])}`,
+          undefined,
+          {
+            kind: "normalExit",
+            room,
+            operation:
+              current[direction] === -1
+                ? "removed"
+                : old[direction] === -1
+                  ? "added"
+                  : "changed",
+            direction,
+            destinationBefore: destination(before, old[direction]),
+            destinationAfter: destination(after, current[direction]),
+          },
         );
       }
     }
@@ -275,7 +418,10 @@ export function buildOverview(
         if (isDeepStrictEqual(old[property][key], current[property][key]))
           continue;
         if (property === "userData")
-          add(area, "room metadata properties changed", label);
+          add(area, "room metadata properties changed", label, undefined, {
+            kind: "roomMetadata",
+            room,
+          });
         else {
           const category =
             property === "mSpecialExits"
@@ -289,6 +435,28 @@ export function buildOverview(
             area,
             category,
             `${label}: ${clean(key)} ${clean(old[property][key])} -> ${clean(current[property][key])}`,
+            undefined,
+            property === "mSpecialExits"
+              ? {
+                  kind: "specialExit",
+                  room,
+                  operation: !Object.hasOwn(current[property], key)
+                    ? "removed"
+                    : !Object.hasOwn(old[property], key)
+                      ? "added"
+                      : "changed",
+                  command: clean(key, Infinity),
+                  destinationBefore: destination(before, old[property][key]),
+                  destinationAfter: destination(after, current[property][key]),
+                }
+              : {
+                  kind: "exitProperty",
+                  room,
+                  exitKey: clean(key, Infinity),
+                  property,
+                  before: old[property][key] ?? null,
+                  after: current[property][key] ?? null,
+                },
           );
         }
       }
@@ -312,6 +480,13 @@ export function buildOverview(
             area,
             "exit drawing properties changed",
             `${label}: ${clean(key)} (${property})`,
+            undefined,
+            {
+              kind: "exitProperty",
+              room,
+              exitKey: clean(key, Infinity),
+              property,
+            },
           );
       }
     }
@@ -332,6 +507,13 @@ export function buildOverview(
           area,
           "special exit locks changed",
           `${label}: ${clean(command)} ${current.mSpecialExitLocks.includes(command) ? "locked" : "unlocked"}`,
+          undefined,
+          {
+            kind: "specialExitLock",
+            room,
+            command: clean(command, Infinity),
+            locked: current.mSpecialExitLocks.includes(command),
+          },
         );
     }
   }
@@ -342,7 +524,13 @@ export function buildOverview(
     ]),
   ].sort()) {
     if (!same(before.mUserData[key], after.mUserData[key]))
-      add(null, "map metadata properties changed", "Metadata property changed");
+      add(
+        null,
+        "map metadata properties changed",
+        "Metadata property changed",
+        undefined,
+        { kind: "mapMetadata" },
+      );
   }
   for (const hash of [
     ...new Set([
@@ -351,7 +539,13 @@ export function buildOverview(
     ]),
   ].sort()) {
     if (before.mpRoomDbHashToRoomId[hash] !== after.mpRoomDbHashToRoomId[hash])
-      add(null, "room hash mappings changed", "Room hash mapping changed");
+      add(
+        null,
+        "room hash mappings changed",
+        "Room hash mapping changed",
+        undefined,
+        { kind: "hashMapping" },
+      );
   }
   for (const area of [
     ...new Set([...Object.keys(before.labels), ...Object.keys(after.labels)]),
@@ -376,6 +570,16 @@ export function buildOverview(
               ? "labels removed"
               : "labels changed",
           `Label ${String(id)}`,
+          undefined,
+          {
+            kind: "label",
+            operation: !old.has(id)
+              ? "added"
+              : !current.has(id)
+                ? "removed"
+                : "changed",
+            labelId: id,
+          },
         );
     }
   }
@@ -391,21 +595,21 @@ export function buildOverview(
 
 export function deterministicNotes(facts: ChangelogFact[]): ChangelogNotes {
   if (facts.length === 0)
-    return {
-      source: "empty",
-      summary: "No changes from the base map.",
-      entries: [],
-    };
-  return {
-    source: "deterministic",
-    summary: "Changes from the base map, grouped by area.",
-    entries: facts.map((fact) => ({
-      areaId: fact.areaId,
-      areaName: fact.areaName,
-      text: fact.movement
+    return { source: "empty", text: "No changes from the base map." };
+  const groups = new Map<string, string[]>();
+  for (const fact of facts) {
+    const lines = groups.get(fact.areaName) ?? [];
+    lines.push(
+      fact.movement
         ? `Moved ${String(fact.count)} ${fact.count === 1 ? "room" : "rooms"} from ${fact.movement.fromAreaName} (area ${String(fact.movement.fromAreaId)}) to ${fact.movement.toAreaName} (area ${String(fact.movement.toAreaId)}).`
         : `${String(fact.count)} ${fact.category}.`,
-      factIds: [fact.id],
-    })),
+    );
+    groups.set(fact.areaName, lines);
+  }
+  return {
+    source: "deterministic",
+    text: [...groups]
+      .map(([area, lines]) => `${area}: ${lines.join(" ")}`)
+      .join("\n\n"),
   };
 }
