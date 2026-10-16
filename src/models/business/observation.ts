@@ -52,6 +52,8 @@ export interface ObservedReport {
   order: string;
 }
 export interface CurrentObservation {
+  // Monotonic project write fence; absent on records stored before fencing.
+  writeFence?: number;
   projectId: string;
   reporter: string;
   property: string;

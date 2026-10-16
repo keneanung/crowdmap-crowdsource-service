@@ -651,4 +651,148 @@ suite("current observations on standalone MongoDB", () => {
       change.changeId,
     );
   });
+  test("stale orphan deletion cannot remove support accepted after lease takeover", async () => {
+    await service.getChanges(0, [], [], "alpha");
+    const other = new MongoChangeService(client);
+    await other.getChanges(0, [], [], "alpha");
+    const orphan = new ChangeRoomName(8, [], "Previously unsupported");
+    await client
+      .db(config.dbName)
+      .collection("changes")
+      .insertOne({ ...changeBusinessToDb(orphan), projectId: "alpha" });
+    let started!: () => void;
+    let release!: () => void;
+    const deleting = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // Pause after both orphan selection and the ownership check, before MongoDB executes the delete.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const deleteOne = Collection.prototype.deleteOne;
+    const write = jest
+      .spyOn(Collection.prototype, "deleteOne")
+      .mockImplementationOnce(async function (this: Collection, ...args) {
+        started();
+        await gate;
+        return deleteOne.apply(this, args);
+      });
+    const submission = service.addChange(
+      new ChangeRoomName(2, ["A"], "Trigger cleanup"),
+      "alpha",
+    );
+    const rejected = expect(submission).rejects.toThrow(
+      "Change storage lease was lost",
+    );
+    await deleting;
+    try {
+      await client
+        .db(config.dbName)
+        .collection<{ _id: string; expiresAt: Date }>("change_write_locks")
+        .updateOne({ _id: "alpha" }, { $set: { expiresAt: new Date(0) } });
+      await other.addChange(
+        new ChangeRoomName(8, ["B"], "Previously unsupported"),
+        "alpha",
+      );
+      expect(
+        (await other.getChanges(0, [], [], "alpha")).find(
+          (c) => c.changeId === orphan.changeId,
+        )?.reporters.size,
+      ).toBe(1);
+    } finally {
+      release();
+      await rejected;
+      write.mockRestore();
+    }
+    expect(
+      (await other.getChanges(0, [], [], "alpha")).find(
+        (c) => c.changeId === orphan.changeId,
+      )?.reporters.size,
+    ).toBe(1);
+    expect(
+      (await other.getObservations("alpha")).filter(
+        (o) => o.changeId === orphan.changeId,
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("stale observation writes cannot replace support accepted after lease takeover", async () => {
+    await service.addChange(new ChangeRoomName(1, ["A"], "Original"), "alpha");
+    const other = new MongoChangeService(client);
+    await other.getChanges(0, [], [], "alpha");
+    let started!: () => void;
+    let release!: () => void;
+    const writing = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const updateOne = Collection.prototype.updateOne;
+    const write = jest
+      .spyOn(Collection.prototype, "updateOne")
+      .mockImplementationOnce(async function (this: Collection, ...args) {
+        started();
+        await gate;
+        return updateOne.apply(this, args);
+      });
+    const submission = service.addChange(
+      new ChangeRoomName(1, ["A"], "Stale"),
+      "alpha",
+    );
+    const rejected = expect(submission).rejects.toThrow(
+      "Change storage lease was lost",
+    );
+    await writing;
+    const accepted = new ChangeRoomName(1, ["A"], "Accepted");
+    try {
+      await client
+        .db(config.dbName)
+        .collection<{ _id: string; expiresAt: Date }>("change_write_locks")
+        .updateOne({ _id: "alpha" }, { $set: { expiresAt: new Date(0) } });
+      await other.addChange(accepted, "alpha");
+    } finally {
+      release();
+      await rejected;
+      write.mockRestore();
+    }
+    expect(
+      (await other.getChanges(0, [], [], "alpha")).map((c) => c.changeId),
+    ).toEqual([accepted.changeId]);
+    expect(
+      (await other.getObservations("alpha")).map((o) => o.changeId),
+    ).toEqual([accepted.changeId]);
+  });
+
+  test("deleting one migrated parent preserves its sibling observation across restart", async () => {
+    const first = new ChangeRoomName(1, ["A"], "First");
+    const sibling = new ChangeRoomName(1, ["A"], "Sibling");
+    await client
+      .db(config.dbName)
+      .collection("changes")
+      .insertMany(
+        [first, sibling].map((change) => ({
+          ...changeBusinessToDb(change),
+          projectId: "alpha",
+        })),
+      );
+    const before = await service.getObservations("alpha");
+    const retained = before.find((o) => o.changeId === sibling.changeId);
+    expect(retained).toBeDefined();
+    expect(await service.deleteChanges([first.changeId], "alpha")).toBe(1);
+    expect(await service.getObservations("alpha")).toEqual([retained]);
+    expect(
+      (await service.getChanges(0, [], [], "alpha")).map((c) => ({
+        changeId: c.changeId,
+        reporters: [...c.reporters],
+      })),
+    ).toEqual([{ changeId: sibling.changeId, reporters: ["A"] }]);
+    service = new MongoChangeService(client);
+    expect(await service.getObservations("alpha")).toEqual([retained]);
+    expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+      sibling.changeId,
+    );
+  });
 });

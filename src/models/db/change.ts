@@ -33,6 +33,8 @@ import {
 } from "../business/change.js";
 
 export interface ChangeBase {
+  // Monotonic project write fence; absent on records stored before fencing.
+  writeFence?: number;
   _id?: ObjectId;
   projectId?: string;
   type: ChangeType;
