@@ -5,6 +5,7 @@ import { MongoChangeService } from "../src/services/changeService.js";
 
 function fixture() {
   const definitions = {
+    distinct: jest.fn(() => Promise.resolve([])),
     countDocuments: jest.fn(() => Promise.resolve(0)),
     updateMany: jest.fn((_filter: unknown, _update: unknown) =>
       Promise.resolve(undefined),
@@ -19,6 +20,7 @@ function fixture() {
     })),
   };
   const observations = {
+    distinct: jest.fn(() => Promise.resolve([])),
     createIndexes: jest.fn((_indexes: unknown[]) => Promise.resolve([])),
     aggregate: jest.fn(() => ({ toArray: () => Promise.resolve([]) })),
   };
