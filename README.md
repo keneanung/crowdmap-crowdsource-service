@@ -537,7 +537,10 @@ collection stores current support, with a unique project/reporter/property key.
 Support replacement is a single atomic MongoDB write, including its database
 timestamp; reads aggregate support counts from observations. Mutations and
 orphan cleanup share a renewable MongoDB lease per project, coordinating
-concurrent requests and application instances. No replica set, transaction
+concurrent requests and application instances. Each acquisition advances a
+persistent write fence; definitions and observations record that fence so
+stale writes or deletes cannot overwrite work accepted under a newer lease.
+Writers stop issuing further operations once they detect lease loss. No replica set, transaction
 coordinator, event log, or background projector is required.
 
 On first startup, legacy support is copied into observation records before its
