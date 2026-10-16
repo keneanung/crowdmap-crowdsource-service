@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.4.0](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.3.1...v1.4.0) (2026-10-16)
+
+
+### Features
+
+* **changelog:** generate configurable prose from typed map changes ([#344](https://github.com/keneanung/crowdmap-crowdsource-service/issues/344)) ([04743b9](https://github.com/keneanung/crowdmap-crowdsource-service/commit/04743b9b01894c70863e432d78e4523b77102596))
+* **map:** cache equivalent generated map outputs ([#340](https://github.com/keneanung/crowdmap-crowdsource-service/issues/340)) ([29ca9fb](https://github.com/keneanung/crowdmap-crowdsource-service/commit/29ca9fb7da2e15d0a01874e8d74bc0ae3181f12b))
+* **map:** generate cached AI-assisted changelogs ([#341](https://github.com/keneanung/crowdmap-crowdsource-service/issues/341)) ([83f4311](https://github.com/keneanung/crowdmap-crowdsource-service/commit/83f4311301746d49fcb35ba6333bcaba921c9331))
+* replace stale map support with current observations ([#328](https://github.com/keneanung/crowdmap-crowdsource-service/issues/328)) ([85f92a1](https://github.com/keneanung/crowdmap-crowdsource-service/commit/85f92a11727f2d91aab27ab65fea307e11691fe4))
+* **review:** group reports by area and room ([#331](https://github.com/keneanung/crowdmap-crowdsource-service/issues/331)) ([5ae8fd5](https://github.com/keneanung/crowdmap-crowdsource-service/commit/5ae8fd5ab066fc3ef00b9f4cb553c74a91102ccc))
+
+
+### Bug Fixes
+
+* **changelog:** configure the provider request timeout ([#343](https://github.com/keneanung/crowdmap-crowdsource-service/issues/343)) ([fec0b43](https://github.com/keneanung/crowdmap-crowdsource-service/commit/fec0b434c81e113007314f63cb7394c344642ae2))
+* **changelog:** consolidate exit removal cleanup ([#342](https://github.com/keneanung/crowdmap-crowdsource-service/issues/342)) ([ae0c2cf](https://github.com/keneanung/crowdmap-crowdsource-service/commit/ae0c2cf864ea79f51b370ab1d7c61d5ef0c9e2b9))
+* **changelog:** preserve source lines in Lua entries ([#346](https://github.com/keneanung/crowdmap-crowdsource-service/issues/346)) ([7e684b5](https://github.com/keneanung/crowdmap-crowdsource-service/commit/7e684b5849df8819929ff4b622fe339f4380edcb))
+* **changelog:** use the opening sentence as the Lua title ([#345](https://github.com/keneanung/crowdmap-crowdsource-service/issues/345)) ([acbba76](https://github.com/keneanung/crowdmap-crowdsource-service/commit/acbba76d686a618157e1329e016f5b4c1f7fa84f))
+* **deps:** bump express-rate-limit from 8.7.0 to 8.7.1 ([#333](https://github.com/keneanung/crowdmap-crowdsource-service/issues/333)) ([31943d8](https://github.com/keneanung/crowdmap-crowdsource-service/commit/31943d8c70027b30a07f45818103b3ed2ae4ea23))
+* **deps:** bump the npm_and_yarn group across 1 directory with 2 updates ([#330](https://github.com/keneanung/crowdmap-crowdsource-service/issues/330)) ([ccd1edf](https://github.com/keneanung/crowdmap-crowdsource-service/commit/ccd1edf6c1c3f3918347253578f02591ece4a1b1))
+
+
+### Other
+
+* **deps-dev:** bump @types/node from 26.6.4 to 26.6.5 ([#334](https://github.com/keneanung/crowdmap-crowdsource-service/issues/334)) ([6039639](https://github.com/keneanung/crowdmap-crowdsource-service/commit/60396399e9e2817b7af1e6abc8f94eaa2cdb21e6))
+* **deps-dev:** bump @typescript-eslint/eslint-plugin from 8.71.0 to 8.71.1 ([#336](https://github.com/keneanung/crowdmap-crowdsource-service/issues/336)) ([9f5a539](https://github.com/keneanung/crowdmap-crowdsource-service/commit/9f5a53904b23c644f3968b4c744042a46eae7b2b))
+* **deps-dev:** bump eslint from 10.11.0 to 10.12.0 ([#338](https://github.com/keneanung/crowdmap-crowdsource-service/issues/338)) ([147f323](https://github.com/keneanung/crowdmap-crowdsource-service/commit/147f32320b65778b609918962a32da3919c34896))
+* **deps-dev:** bump supertest from 7.3.0 to 7.3.1 ([#332](https://github.com/keneanung/crowdmap-crowdsource-service/issues/332)) ([931bc4a](https://github.com/keneanung/crowdmap-crowdsource-service/commit/931bc4a8051f4033101445d56679b57aa8b9b5aa))
+* **deps:** bump actions/setup-node from 7.0.0 to 7.1.0 ([#339](https://github.com/keneanung/crowdmap-crowdsource-service/issues/339)) ([d6b28e9](https://github.com/keneanung/crowdmap-crowdsource-service/commit/d6b28e93c5e229c6874414d2bee41abed1beb5cd))
+
 ## [1.3.1](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.3.0...v1.3.1) (2026-10-06)
 
 
