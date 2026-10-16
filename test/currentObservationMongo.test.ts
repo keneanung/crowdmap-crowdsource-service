@@ -467,8 +467,14 @@ suite("current observations on standalone MongoDB", () => {
       await client
         .db(config.dbName)
         .collection("observations")
-        .countDocuments(),
+        .countDocuments({ "reports.0": { $exists: true } }),
     ).toBe(0);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("observations")
+        .countDocuments({ reports: { $size: 0 } }),
+    ).toBe(2);
   });
 
   test.each(["applyChanges", "reconcileChanges"] as const)(
@@ -522,7 +528,7 @@ suite("current observations on standalone MongoDB", () => {
       await client
         .db(config.dbName)
         .collection("observations")
-        .countDocuments(),
+        .countDocuments({ "reports.0": { $exists: true } }),
     ).toBe(1);
   });
 
@@ -795,4 +801,88 @@ suite("current observations on standalone MongoDB", () => {
       sibling.changeId,
     );
   });
+  test.each(["withdrawal", "deletion", "reconciliation"] as const)(
+    "stale observation writes cannot resurrect support after %s",
+    async (removal) => {
+      const change = new ChangeRoomName(1, ["A", "B"], "Shared");
+      await service.addChange(change, "alpha");
+      const other = new MongoChangeService(client);
+      await other.getChanges(0, [], [], "alpha");
+      const observation = await client
+        .db(config.dbName)
+        .collection<CurrentObservation>("observations")
+        .findOne({ projectId: "alpha", reporter: "A" });
+      if (!observation) throw new Error("Missing reporter A's observation");
+      let started!: () => void;
+      let release!: () => void;
+      const writing = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      // Pause an already-issued write after its ownership check. A later check
+      // cannot cancel this MongoDB operation; the identity fence must reject it.
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const updateOne = Collection.prototype.updateOne;
+      const write = jest
+        .spyOn(Collection.prototype, "updateOne")
+        .mockImplementationOnce(async function (this: Collection, ...args) {
+          started();
+          await gate;
+          return updateOne.apply(this, args);
+        });
+      const submission = service.addChange(
+        new ChangeRoomName(1, ["A"], "Shared"),
+        "alpha",
+      );
+      const rejected = expect(submission).rejects.toThrow(
+        "Change storage lease was lost",
+      );
+      await writing;
+      try {
+        await client
+          .db(config.dbName)
+          .collection<{ _id: string; expiresAt: Date }>("change_write_locks")
+          .updateOne({ _id: "alpha" }, { $set: { expiresAt: new Date(0) } });
+        if (removal === "withdrawal") {
+          expect(
+            await other.deleteObservations(
+              [observation.reports[0].observationId],
+              "alpha",
+            ),
+          ).toBe(1);
+        } else if (removal === "deletion") {
+          expect(await other.deleteChanges([change.changeId], "alpha")).toBe(1);
+        } else {
+          await other.reconcileChanges([change.changeId], "alpha");
+        }
+      } finally {
+        release();
+        await rejected;
+        write.mockRestore();
+      }
+      const expectedSupport = removal === "withdrawal" ? 1 : 0;
+      expect(await other.getObservations("alpha")).toHaveLength(
+        expectedSupport,
+      );
+      expect(await other.getChanges(2, [], [], "alpha")).toEqual([]);
+      const active = await other.getChanges(0, [], [], "alpha");
+      expect(active).toHaveLength(expectedSupport);
+      if (removal === "withdrawal")
+        expect([...active[0].reporters]).toEqual(["B"]);
+      // A tombstone permits a fresh lease to reuse the identity normally.
+      service = new MongoChangeService(client);
+      expect(await service.getObservations("alpha")).toHaveLength(
+        expectedSupport,
+      );
+      const fresh = new ChangeRoomName(1, ["A"], "Fresh");
+      await service.addChange(fresh, "alpha");
+      expect(
+        (await service.getChanges(0, [], [], "alpha")).find(
+          (c) => c.changeId === fresh.changeId,
+        )?.reporters.size,
+      ).toBe(1);
+    },
+  );
 });

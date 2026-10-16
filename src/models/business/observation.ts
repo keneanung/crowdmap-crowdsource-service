@@ -58,7 +58,8 @@ export interface CurrentObservation {
   reporter: string;
   property: string;
   // Migration preserves ambiguous legacy support until a fresh observation
-  // replaces the whole list. New documents always have exactly one entry.
+  // replaces the whole list. Current support has one entry; an empty list
+  // retains the identity's fence as a tombstone against stale upserts.
   reports: ObservedReport[];
   legacy: boolean;
 }

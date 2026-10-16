@@ -582,8 +582,12 @@ export class MongoChangeService extends ChangeService {
       );
     }
     await lease.assertHeld();
-    await observations.deleteMany(
+    // Keep the identity's fence even after its last report is removed. A
+    // delayed upsert from an expired holder must encounter this tombstone,
+    // rather than insert withdrawn support into a now-vacant identity.
+    await observations.updateMany(
       lease.filter({ projectId: scope, reports: { $size: 0 } }),
+      { $set: { writeFence: lease.fence, legacy: false } },
     );
 
     const orphaned = collection.aggregate<{ changeId: string }>([
