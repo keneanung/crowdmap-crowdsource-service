@@ -116,7 +116,7 @@ test("single-paragraph prose uses its first sentence as a title without repeatin
   expect(result.error).toBeUndefined();
   expect(result.status).toBe(0);
   expect(result.stdout.trim().split("\n")).toEqual([
-    ...sentences.slice(1),
+    sentences.slice(1).join(" "),
     sentences[0],
   ]);
   const lua = serializeLuaChangelog({
@@ -136,4 +136,15 @@ test("one short note appears only once", () => {
       text: "No changes from the base map.",
     }),
   ).toBe('changelog = {\n  "No changes from the base map.",\n}\n');
+});
+
+test("each nonempty body line gets its own Lua array entry", () => {
+  expect(
+    serializeLuaChangelog({
+      source: "ai",
+      text: "New rooms added.\nFirst line. Another sentence on the same line.\r\n\r\nSecond line without punctuation\nFinal update.",
+    }),
+  ).toBe(
+    'changelog = {\n  "First line. Another sentence on the same line.",\n  "Second line without punctuation",\n  "Final update.",\n  "New rooms added.",\n}\n',
+  );
 });

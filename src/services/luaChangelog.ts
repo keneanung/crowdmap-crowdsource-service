@@ -21,19 +21,22 @@ const luaString = (text: string): string =>
 /** The mapper displays every item and uses the final one as Latest changes. */
 export function serializeLuaChangelog(notes: ChangelogNotes): string {
   const prose = displayText(notes.text);
-  const sentences = Array.from(
-    new Intl.Segmenter("en", { granularity: "sentence" }).segment(prose),
-    ({ segment }) => segment.trim(),
-  ).filter(Boolean);
-  const headline = sentences.shift() ?? "";
+  const opening = new Intl.Segmenter("en", { granularity: "sentence" })
+    .segment(prose)
+    [Symbol.iterator]()
+    .next().value;
+  const headline = opening?.segment.trim() ?? "";
+  const body = prose.slice(opening?.segment.length ?? 0);
   const summary = headline.replace(/[\r\n\t]+/g, " ").trim();
   const characters = Array.from(summary);
   const latest =
     characters.length > 600
       ? characters.slice(0, 597).join("") + "..."
       : summary;
-  const body = sentences.join("\n");
-  const entries = body ? [body] : [];
+  const entries = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   // The last item is the mapper's title. Preserve an unusually long title in
   // full as well, since the Latest changes line needs a bounded excerpt.
   if (characters.length > 600) entries.push(headline);
