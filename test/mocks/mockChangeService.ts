@@ -53,12 +53,12 @@ export class MockChangeService extends ChangeService {
   }
   private cleanupOrphans(scope: string): void {
     const definitions = this.scoped(scope);
-    for (const [key, observation] of this.observations) {
+    for (const observation of this.observations.values()) {
       if (observation.projectId !== scope) continue;
       observation.reports = observation.reports.filter((report) =>
         definitions.some((change) => change.changeId === report.changeId),
       );
-      if (!observation.reports.length) this.observations.delete(key);
+      if (!observation.reports.length) observation.legacy = false;
     }
     const supported = new Set(
       [...this.observations.values()]

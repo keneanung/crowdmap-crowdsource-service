@@ -554,7 +554,10 @@ the retired reporter arrays. Startup cleans existing unreferenced definitions
 and dangling observations after migration, including records left by interrupted
 writes. The same cleanup runs after support replacement, withdrawal, deletion,
 and baseline reconciliation. Cleanup preserves changes with remaining support
-and removes empty observation records.
+and retains empty observation identities as fence tombstones. They contain no
+reports and contribute no support, but prevent expired writers from recreating
+withdrawn observations. A later valid submission reuses the identity with a
+newer fence.
 
 A change is a distinct proposed map operation, identified by its target and
 complete payload. An observation is a reporter's current support for that
