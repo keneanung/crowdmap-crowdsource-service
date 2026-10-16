@@ -112,3 +112,13 @@ test("review APIs expose changes rather than individual observations", async () 
     .send({})
     .expect(422);
 });
+
+test("recreating a deleted change gets a fresh identity", async () => {
+  const originalId = await addReport();
+  await request(app)
+    .post("/change/delete")
+    .set("x-api-key", "abc123456")
+    .send({ changeIds: [originalId] })
+    .expect(200);
+  expect(await addReport()).not.toBe(originalId);
+});

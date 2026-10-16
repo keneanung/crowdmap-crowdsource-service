@@ -525,15 +525,20 @@ no automatic conflict quarantine or dependency cleanup.
 The existing `POST /change` payload is unchanged. Arrival order is treated as
 intent: a late retry can replace a more recent opinion. Eligible reports are
 applied in the order of their newest remaining observation, with deterministic
-tie-breaking. Each logical report retains its immutable change ID. Map versions
-combine the baseline version with a SHA-256 hash of the complete ordered list
+tie-breaking. Each logical report retains its change ID while observations
+still support it.
+After its last observation is removed or replaced, the report is deleted; a
+later submission of that value receives a new change ID and timestamp. Map
+versions combine the baseline version with a SHA-256 hash of the complete ordered list
 of included change IDs; vote-count changes alone do not change that version.
 
 The `changes` collection stores report definitions. The new `observations`
 collection stores current support, with a unique project/reporter/property key.
 Support replacement is a single atomic MongoDB write, including its database
-timestamp; reads aggregate support counts from observations. No replica set,
-transaction coordinator, event log, or background projector is required.
+timestamp; reads aggregate support counts from observations. Mutations and
+orphan cleanup share a renewable MongoDB lease per project, coordinating
+concurrent requests and application instances. No replica set, transaction
+coordinator, event log, or background projector is required.
 
 On first startup, legacy support is copied into observation records before its
 old reporter arrays are cleared. Conflicting historical votes are preserved
@@ -542,16 +547,19 @@ submission for that property replaces those legacy votes. The migration is
 resumable. Back up MongoDB before upgrading, stop older application instances,
 and complete the initial migration with one instance before scaling out.
 Downgrading requires restoring that backup because the old application reads
-the retired reporter arrays. Unreferenced report definitions are retained but
-are absent from the active changelog and map.
+the retired reporter arrays. Startup cleans existing unreferenced definitions
+and dangling observations after migration, including records left by interrupted
+writes. The same cleanup runs after support replacement, withdrawal, deletion,
+and baseline reconciliation. Cleanup preserves changes with remaining support
+and removes empty observation records.
 
 A change is a distinct proposed map operation, identified by its target and
 complete payload. An observation is a reporter's current support for that
 operation. Review operates on changes and their effects on the map. The review
 page shows support counts to inform the administrator's decision; individual observations
 are an internal storage detail. `POST /change/delete` accepts `changeIds` and
-removes all current support for each selected change. Baseline reconciliation
-similarly removes support for changes already satisfied or explicitly discarded
+deletes each selected change, then cleans up its observations. Baseline
+reconciliation similarly deletes changes already satisfied or explicitly discarded
 by the administrator. Independent changes remain pending.
 
 Database regressions run against standalone MongoDB when

@@ -614,7 +614,7 @@ export class ChangeController extends Controller {
     return await this.mapService.stageUpstreamReview(version, project);
   }
 
-  /** Permanently deletes pending reports without changing the baseline map. */
+  /** Permanently deletes pending changes and their observations without changing the baseline map. */
   @Post("/delete")
   @Security("api_key")
   @Response<AuthorizationError>(403, "Authorization Error")

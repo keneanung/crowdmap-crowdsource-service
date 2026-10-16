@@ -48,7 +48,27 @@ export class MockChangeService extends ChangeService {
         ],
       });
     }
+    this.cleanupOrphans(scope);
     return Promise.resolve();
+  }
+  private cleanupOrphans(scope: string): void {
+    const definitions = this.scoped(scope);
+    for (const [key, observation] of this.observations) {
+      if (observation.projectId !== scope) continue;
+      observation.reports = observation.reports.filter((report) =>
+        definitions.some((change) => change.changeId === report.changeId),
+      );
+      if (!observation.reports.length) this.observations.delete(key);
+    }
+    const supported = new Set(
+      [...this.observations.values()]
+        .filter((o) => o.projectId === scope)
+        .flatMap((o) => o.reports.map((r) => r.changeId)),
+    );
+    this.changes.set(
+      scope,
+      definitions.filter((c) => supported.has(c.changeId)),
+    );
   }
   public getChanges(
     timesSeen: number,
@@ -122,6 +142,7 @@ export class MockChangeService extends ChangeService {
     for (const o of this.observations.values())
       if (o.projectId === (projectId ?? "default"))
         o.reports = o.reports.filter((r) => !ids.includes(r.observationId));
+    this.cleanupOrphans(projectId ?? "default");
     return selected.length;
   }
   public applyChanges(apply: string[], projectId?: string): Promise<void> {
@@ -138,9 +159,11 @@ export class MockChangeService extends ChangeService {
     projectId?: string,
   ): Promise<number> {
     const active = await this.getChanges(0, changeIds, [], projectId);
-    for (const o of this.observations.values())
-      if (o.projectId === (projectId ?? "default"))
-        o.reports = o.reports.filter((r) => !changeIds.includes(r.changeId));
+    this.changes.set(
+      projectId ?? "default",
+      this.scoped(projectId).filter((c) => !changeIds.includes(c.changeId)),
+    );
+    this.cleanupOrphans(projectId ?? "default");
     return active.length;
   }
 }

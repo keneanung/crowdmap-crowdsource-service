@@ -196,11 +196,13 @@ suite("current observations on standalone MongoDB", () => {
         ]),
       );
       expect(await support()).toHaveLength(unrelated.length + 1);
-      await service.addChange(set(["A"], "Updated"), "alpha");
+      const renewed = set(["A"], "Updated");
+      await service.addChange(renewed, "alpha");
+      expect(renewed.changeId).not.toBe(updated.changeId);
       expect(await support()).toEqual(
         expect.arrayContaining([
           { id: deletion.changeId, reporters: ["B"] },
-          { id: updated.changeId, reporters: ["A"] },
+          { id: renewed.changeId, reporters: ["A"] },
           ...independentSupport,
         ]),
       );
@@ -223,7 +225,7 @@ suite("current observations on standalone MongoDB", () => {
         .countDocuments(),
     ).toBe(1);
   });
-  test("projects, properties, personal visibility and unsupported definitions stay isolated", async () => {
+  test("cleanup preserves other projects, properties and personal visibility", async () => {
     await service.addChange(new ChangeRoomName(1, ["A"], "First"), "alpha");
     await service.addChange(new ChangeRoomName(1, ["A"], "Latest"), "alpha");
     await service.addChange(new SetRoomCoordinates(1, ["A"], 1, 0, 0), "alpha");
@@ -233,7 +235,7 @@ suite("current observations on standalone MongoDB", () => {
     expect(await service.getChanges(0, [], [], "beta")).toHaveLength(1);
     expect(
       await client.db(config.dbName).collection("changes").countDocuments(),
-    ).toBe(4);
+    ).toBe(3);
   });
   test("legacy conflicting support is preserved until fresh observation and never resurrected", async () => {
     const first = new ChangeRoomName(1, ["A", "B"], "First");
@@ -351,15 +353,21 @@ suite("current observations on standalone MongoDB", () => {
       expect.arrayContaining(fresh),
     );
   });
-  test("moderation withdraws support without deleting immutable definitions", async () => {
+  test("moderation deletes definitions and recreates changes with fresh IDs", async () => {
     const change = new ChangeRoomName(1, ["A"], "First");
     await service.addChange(change, "alpha");
     expect(await service.deleteChanges([change.changeId], "alpha")).toBe(1);
     expect(await service.getChanges(0, [], [], "alpha")).toHaveLength(0);
-    await service.addChange(new ChangeRoomName(1, ["A"], "First"), "alpha");
+    expect(await service.getObservations("alpha")).toEqual([]);
+    expect(
+      await client.db(config.dbName).collection("changes").countDocuments(),
+    ).toBe(0);
+    const recreated = new ChangeRoomName(1, ["A"], "First");
+    await service.addChange(recreated, "alpha");
     expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
-      change.changeId,
+      recreated.changeId,
     );
+    expect(recreated.changeId).not.toBe(change.changeId);
   });
   test("concurrent confirmations share one immutable definition", async () => {
     await Promise.all(
@@ -377,7 +385,7 @@ suite("current observations on standalone MongoDB", () => {
       await client.db(config.dbName).collection("changes").countDocuments(),
     ).toBe(1);
   });
-  test("a failed observation write leaves old support intact and an inactive definition", async () => {
+  test("a failed observation write leaves old support intact and cleans up the new definition", async () => {
     await service.addChange(new ChangeRoomName(1, ["A"], "First"), "alpha");
     const write = jest
       .spyOn(Collection.prototype, "updateOne")
@@ -394,7 +402,7 @@ suite("current observations on standalone MongoDB", () => {
     expect(active[0].getIdentifyingParts()).toMatchObject({ name: "First" });
     expect(
       await client.db(config.dbName).collection("changes").countDocuments(),
-    ).toBe(2);
+    ).toBe(1);
     await service.addChange(new ChangeRoomName(1, ["A"], "New"), "alpha");
     expect(
       (await service.getChanges(0, [], [], "alpha"))[0].getIdentifyingParts(),
@@ -421,5 +429,226 @@ suite("current observations on standalone MongoDB", () => {
     expect(
       (await service.getChanges(0, [], [], "alpha"))[0].getIdentifyingParts(),
     ).toMatchObject({ name: "Better" });
+  });
+  test("last-support replacement removes the old definition and rejoining gets a fresh ID", async () => {
+    const original = new ChangeRoomName(1, ["A"], "Original");
+    await service.addChange(original, "alpha");
+    await service.addChange(new ChangeRoomName(1, ["A"], "Other"), "alpha");
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .findOne({ changeId: original.changeId }),
+    ).toBeNull();
+    const renewed = new ChangeRoomName(1, ["A"], "Original");
+    await service.addChange(renewed, "alpha");
+    expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+      renewed.changeId,
+    );
+    expect(renewed.changeId).not.toBe(original.changeId);
+    expect(
+      await client.db(config.dbName).collection("changes").countDocuments(),
+    ).toBe(1);
+  });
+
+  test("individual withdrawal keeps a supported change and deletes it after its final observation", async () => {
+    const change = new ChangeRoomName(1, ["A", "B"], "Same");
+    await service.addChange(change, "alpha");
+    const reports = await service.getObservations("alpha");
+    await service.deleteObservations([reports[0].observationId], "alpha");
+    expect(
+      await client.db(config.dbName).collection("changes").countDocuments(),
+    ).toBe(1);
+    await service.deleteObservations([reports[1].observationId], "alpha");
+    expect(
+      await client.db(config.dbName).collection("changes").countDocuments(),
+    ).toBe(0);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("observations")
+        .countDocuments(),
+    ).toBe(0);
+  });
+
+  test.each(["applyChanges", "reconcileChanges"] as const)(
+    "%s deletes the parent and its support",
+    async (method) => {
+      const change = new ChangeRoomName(1, ["A", "B"], "Same");
+      await service.addChange(change, "alpha");
+      await service[method]([change.changeId], "alpha");
+      expect(
+        await client.db(config.dbName).collection("changes").countDocuments(),
+      ).toBe(0);
+      expect(await service.getObservations("alpha")).toEqual([]);
+    },
+  );
+
+  test("startup cleans old orphans and dangling observations across projects after migration", async () => {
+    const supported = new ChangeRoomName(1, ["A"], "Supported");
+    const unsupported = new ChangeRoomName(2, [], "Orphan");
+    await service.addChange(supported, "alpha");
+    await client
+      .db(config.dbName)
+      .collection("changes")
+      .insertOne({ ...changeBusinessToDb(unsupported), projectId: "beta" });
+    await client
+      .db(config.dbName)
+      .collection<CurrentObservation>("observations")
+      .insertOne({
+        projectId: "gamma",
+        reporter: "B",
+        property: "missing",
+        legacy: false,
+        reports: [
+          {
+            observationId: "dangling",
+            changeId: "missing",
+            observedAt: new Date(),
+            order: "missing",
+          },
+        ],
+      });
+    service = new MongoChangeService(client);
+    await service.initialize();
+    expect(
+      await client.db(config.dbName).collection("changes").countDocuments(),
+    ).toBe(1);
+    expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+      supported.changeId,
+    );
+    expect(await service.getObservations("gamma")).toEqual([]);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("observations")
+        .countDocuments(),
+    ).toBe(1);
+  });
+
+  test("cleanup cannot remove an in-flight definition in another service instance", async () => {
+    await service.getChanges(0, [], [], "alpha");
+    const other = new MongoChangeService(client);
+    await other.getChanges(0, [], [], "alpha");
+    // Alternate instances and replacement/support writes on the same project.
+    await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        (i % 2 ? service : other).addChange(
+          new ChangeRoomName(
+            1,
+            [`Mapper${i.toString()}`],
+            i % 3 ? "Same" : "Other",
+          ),
+          "alpha",
+        ),
+      ),
+    );
+    const changes = await service.getChanges(0, [], [], "alpha");
+    expect(changes).toHaveLength(2);
+    expect(
+      changes.reduce((sum, change) => sum + change.reporters.size, 0),
+    ).toBe(20);
+    expect(
+      await client.db(config.dbName).collection("changes").countDocuments(),
+    ).toBe(2);
+    expect(await service.getObservations("alpha")).toHaveLength(20);
+  });
+  test("an interrupted parent deletion is repaired automatically on startup", async () => {
+    const change = new ChangeRoomName(1, ["A"], "Remove");
+    const independent = new ChangeRoomName(2, ["B"], "Keep");
+    await service.addChange(change, "alpha");
+    await service.addChange(independent, "alpha");
+    const cleanup = jest
+      .spyOn(Collection.prototype, "updateMany")
+      .mockRejectedValueOnce(new Error("interrupted cleanup"));
+    try {
+      await expect(
+        service.deleteChanges([change.changeId], "alpha"),
+      ).rejects.toThrow("interrupted cleanup");
+    } finally {
+      cleanup.mockRestore();
+    }
+    // The change was removed first; its support is temporarily dangling.
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .findOne({ changeId: change.changeId }),
+    ).toBeNull();
+    expect(await service.getObservations("alpha")).toHaveLength(2);
+    service = new MongoChangeService(client);
+    expect(
+      (await service.getChanges(0, [], [], "alpha")).map((c) => c.changeId),
+    ).toEqual([independent.changeId]);
+    expect(
+      (await service.getObservations("alpha")).map((o) => o.changeId),
+    ).toEqual([independent.changeId]);
+  });
+
+  test("cleanup waits for a definition whose observation write is in flight", async () => {
+    const original = new ChangeRoomName(1, ["A"], "Original");
+    await service.addChange(original, "alpha");
+    const other = new MongoChangeService(client);
+    await other.getChanges(0, [], [], "alpha");
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const writing = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const updateOne = Collection.prototype.updateOne;
+    const write = jest
+      .spyOn(Collection.prototype, "updateOne")
+      .mockImplementationOnce(async function (this: Collection, ...args) {
+        started();
+        await gate;
+        return updateOne.apply(this, args);
+      });
+    const incoming = new ChangeRoomName(2, ["B"], "Incoming");
+    const submission = service.addChange(incoming, "alpha");
+    await writing;
+    let cleaned = false;
+    const cleanup = other
+      .deleteChanges([original.changeId], "alpha")
+      .then(() => {
+        cleaned = true;
+      });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(cleaned).toBe(false);
+      expect(
+        await client
+          .db(config.dbName)
+          .collection("changes")
+          .findOne({ changeId: incoming.changeId }),
+      ).not.toBeNull();
+    } finally {
+      release();
+      await Promise.all([submission, cleanup]);
+      write.mockRestore();
+    }
+    expect(
+      (await service.getChanges(0, [], [], "alpha")).map((c) => c.changeId),
+    ).toEqual([incoming.changeId]);
+    expect(
+      (await service.getObservations("alpha")).map((o) => o.changeId),
+    ).toEqual([incoming.changeId]);
+  });
+
+  test("an expired lease from a stopped instance does not block cleanup", async () => {
+    await client
+      .db(config.dbName)
+      .collection<{ _id: string; owner: string; expiresAt: Date }>(
+        "change_write_locks",
+      )
+      .insertOne({ _id: "alpha", owner: "stopped", expiresAt: new Date(0) });
+    const change = new ChangeRoomName(1, ["A"], "Fresh");
+    await service.addChange(change, "alpha");
+    expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+      change.changeId,
+    );
   });
 });
