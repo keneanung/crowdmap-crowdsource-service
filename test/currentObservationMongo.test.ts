@@ -196,11 +196,13 @@ suite("current observations on standalone MongoDB", () => {
         ]),
       );
       expect(await support()).toHaveLength(unrelated.length + 1);
-      await service.addChange(set(["A"], "Updated"), "alpha");
+      const renewed = set(["A"], "Updated");
+      await service.addChange(renewed, "alpha");
+      expect(renewed.changeId).not.toBe(updated.changeId);
       expect(await support()).toEqual(
         expect.arrayContaining([
           { id: deletion.changeId, reporters: ["B"] },
-          { id: updated.changeId, reporters: ["A"] },
+          { id: renewed.changeId, reporters: ["A"] },
           ...independentSupport,
         ]),
       );
@@ -223,7 +225,7 @@ suite("current observations on standalone MongoDB", () => {
         .countDocuments(),
     ).toBe(1);
   });
-  test("projects, properties, personal visibility and unsupported definitions stay isolated", async () => {
+  test("cleanup preserves other projects, properties and personal visibility", async () => {
     await service.addChange(new ChangeRoomName(1, ["A"], "First"), "alpha");
     await service.addChange(new ChangeRoomName(1, ["A"], "Latest"), "alpha");
     await service.addChange(new SetRoomCoordinates(1, ["A"], 1, 0, 0), "alpha");
@@ -232,8 +234,11 @@ suite("current observations on standalone MongoDB", () => {
     expect(await service.getChanges(2, [], [], "alpha", "B")).toHaveLength(0);
     expect(await service.getChanges(0, [], [], "beta")).toHaveLength(1);
     expect(
-      await client.db(config.dbName).collection("changes").countDocuments(),
-    ).toBe(4);
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
+    ).toBe(3);
   });
   test("legacy conflicting support is preserved until fresh observation and never resurrected", async () => {
     const first = new ChangeRoomName(1, ["A", "B"], "First");
@@ -351,15 +356,24 @@ suite("current observations on standalone MongoDB", () => {
       expect.arrayContaining(fresh),
     );
   });
-  test("moderation withdraws support without deleting immutable definitions", async () => {
+  test("moderation deletes definitions and recreates changes with fresh IDs", async () => {
     const change = new ChangeRoomName(1, ["A"], "First");
     await service.addChange(change, "alpha");
     expect(await service.deleteChanges([change.changeId], "alpha")).toBe(1);
     expect(await service.getChanges(0, [], [], "alpha")).toHaveLength(0);
-    await service.addChange(new ChangeRoomName(1, ["A"], "First"), "alpha");
+    expect(await service.getObservations("alpha")).toEqual([]);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
+    ).toBe(0);
+    const recreated = new ChangeRoomName(1, ["A"], "First");
+    await service.addChange(recreated, "alpha");
     expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
-      change.changeId,
+      recreated.changeId,
     );
+    expect(recreated.changeId).not.toBe(change.changeId);
   });
   test("concurrent confirmations share one immutable definition", async () => {
     await Promise.all(
@@ -374,10 +388,13 @@ suite("current observations on standalone MongoDB", () => {
     expect(active).toHaveLength(1);
     expect(active[0].reporters.size).toBe(20);
     expect(
-      await client.db(config.dbName).collection("changes").countDocuments(),
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
     ).toBe(1);
   });
-  test("a failed observation write leaves old support intact and an inactive definition", async () => {
+  test("a failed observation write leaves old support intact and cleans up the new definition", async () => {
     await service.addChange(new ChangeRoomName(1, ["A"], "First"), "alpha");
     const write = jest
       .spyOn(Collection.prototype, "updateOne")
@@ -393,8 +410,11 @@ suite("current observations on standalone MongoDB", () => {
     expect(active).toHaveLength(1);
     expect(active[0].getIdentifyingParts()).toMatchObject({ name: "First" });
     expect(
-      await client.db(config.dbName).collection("changes").countDocuments(),
-    ).toBe(2);
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
+    ).toBe(1);
     await service.addChange(new ChangeRoomName(1, ["A"], "New"), "alpha");
     expect(
       (await service.getChanges(0, [], [], "alpha"))[0].getIdentifyingParts(),
@@ -421,5 +441,646 @@ suite("current observations on standalone MongoDB", () => {
     expect(
       (await service.getChanges(0, [], [], "alpha"))[0].getIdentifyingParts(),
     ).toMatchObject({ name: "Better" });
+  });
+  test("last-support replacement removes the old definition and rejoining gets a fresh ID", async () => {
+    const original = new ChangeRoomName(1, ["A"], "Original");
+    await service.addChange(original, "alpha");
+    await service.addChange(new ChangeRoomName(1, ["A"], "Other"), "alpha");
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .findOne({ changeId: original.changeId, deleted: { $ne: true } }),
+    ).toBeNull();
+    const renewed = new ChangeRoomName(1, ["A"], "Original");
+    await service.addChange(renewed, "alpha");
+    expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+      renewed.changeId,
+    );
+    expect(renewed.changeId).not.toBe(original.changeId);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
+    ).toBe(1);
+  });
+
+  test("individual withdrawal keeps a supported change and deletes it after its final observation", async () => {
+    const change = new ChangeRoomName(1, ["A", "B"], "Same");
+    await service.addChange(change, "alpha");
+    const reports = await service.getObservations("alpha");
+    await service.deleteObservations([reports[0].observationId], "alpha");
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
+    ).toBe(1);
+    await service.deleteObservations([reports[1].observationId], "alpha");
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
+    ).toBe(0);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("observations")
+        .countDocuments({ "reports.0": { $exists: true } }),
+    ).toBe(0);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("observations")
+        .countDocuments({ reports: { $size: 0 } }),
+    ).toBe(2);
+  });
+
+  test.each(["applyChanges", "reconcileChanges"] as const)(
+    "%s deletes the parent and its support",
+    async (method) => {
+      const change = new ChangeRoomName(1, ["A", "B"], "Same");
+      await service.addChange(change, "alpha");
+      await service[method]([change.changeId], "alpha");
+      expect(
+        await client
+          .db(config.dbName)
+          .collection("changes")
+          .countDocuments({ deleted: { $ne: true } }),
+      ).toBe(0);
+      expect(await service.getObservations("alpha")).toEqual([]);
+    },
+  );
+
+  test("startup cleans old orphans and dangling observations across projects after migration", async () => {
+    const supported = new ChangeRoomName(1, ["A"], "Supported");
+    const unsupported = new ChangeRoomName(2, [], "Orphan");
+    await service.addChange(supported, "alpha");
+    await client
+      .db(config.dbName)
+      .collection("changes")
+      .insertOne({ ...changeBusinessToDb(unsupported), projectId: "beta" });
+    await client
+      .db(config.dbName)
+      .collection<CurrentObservation>("observations")
+      .insertOne({
+        projectId: "gamma",
+        reporter: "B",
+        property: "missing",
+        legacy: false,
+        reports: [
+          {
+            observationId: "dangling",
+            changeId: "missing",
+            observedAt: new Date(),
+            order: "missing",
+          },
+        ],
+      });
+    service = new MongoChangeService(client);
+    await service.initialize();
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
+    ).toBe(1);
+    expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+      supported.changeId,
+    );
+    expect(await service.getObservations("gamma")).toEqual([]);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("observations")
+        .countDocuments({ "reports.0": { $exists: true } }),
+    ).toBe(1);
+  });
+
+  test("cleanup cannot remove an in-flight definition in another service instance", async () => {
+    await service.getChanges(0, [], [], "alpha");
+    const other = new MongoChangeService(client);
+    await other.getChanges(0, [], [], "alpha");
+    // Alternate instances and replacement/support writes on the same project.
+    await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        (i % 2 ? service : other).addChange(
+          new ChangeRoomName(
+            1,
+            [`Mapper${i.toString()}`],
+            i % 3 ? "Same" : "Other",
+          ),
+          "alpha",
+        ),
+      ),
+    );
+    const changes = await service.getChanges(0, [], [], "alpha");
+    expect(changes).toHaveLength(2);
+    expect(
+      changes.reduce((sum, change) => sum + change.reporters.size, 0),
+    ).toBe(20);
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .countDocuments({ deleted: { $ne: true } }),
+    ).toBe(2);
+    expect(await service.getObservations("alpha")).toHaveLength(20);
+  });
+  test("an interrupted parent deletion is repaired automatically on startup", async () => {
+    const change = new ChangeRoomName(1, ["A"], "Remove");
+    const independent = new ChangeRoomName(2, ["B"], "Keep");
+    await service.addChange(change, "alpha");
+    await service.addChange(independent, "alpha");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const updateMany = Collection.prototype.updateMany;
+    const cleanup = jest
+      .spyOn(Collection.prototype, "updateMany")
+      .mockImplementationOnce(function (this: Collection, ...args) {
+        return updateMany.apply(this, args);
+      })
+      .mockRejectedValueOnce(new Error("interrupted cleanup"));
+    try {
+      await expect(
+        service.deleteChanges([change.changeId], "alpha"),
+      ).rejects.toThrow("interrupted cleanup");
+    } finally {
+      cleanup.mockRestore();
+    }
+    // The change was removed first; its support is temporarily dangling.
+    expect(
+      await client
+        .db(config.dbName)
+        .collection("changes")
+        .findOne({ changeId: change.changeId, deleted: { $ne: true } }),
+    ).toBeNull();
+    expect(await service.getObservations("alpha")).toHaveLength(2);
+    service = new MongoChangeService(client);
+    expect(
+      (await service.getChanges(0, [], [], "alpha")).map((c) => c.changeId),
+    ).toEqual([independent.changeId]);
+    expect(
+      (await service.getObservations("alpha")).map((o) => o.changeId),
+    ).toEqual([independent.changeId]);
+  });
+
+  test("cleanup waits for a definition whose observation write is in flight", async () => {
+    const original = new ChangeRoomName(1, ["A"], "Original");
+    await service.addChange(original, "alpha");
+    const other = new MongoChangeService(client);
+    await other.getChanges(0, [], [], "alpha");
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const writing = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const updateOne = Collection.prototype.updateOne;
+    const write = jest
+      .spyOn(Collection.prototype, "updateOne")
+      .mockImplementationOnce(async function (this: Collection, ...args) {
+        started();
+        await gate;
+        return updateOne.apply(this, args);
+      });
+    const incoming = new ChangeRoomName(2, ["B"], "Incoming");
+    const submission = service.addChange(incoming, "alpha");
+    await writing;
+    let cleaned = false;
+    const cleanup = other
+      .deleteChanges([original.changeId], "alpha")
+      .then(() => {
+        cleaned = true;
+      });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(cleaned).toBe(false);
+      expect(
+        await client
+          .db(config.dbName)
+          .collection("changes")
+          .findOne({ changeId: incoming.changeId }),
+      ).not.toBeNull();
+    } finally {
+      release();
+      await Promise.all([submission, cleanup]);
+      write.mockRestore();
+    }
+    expect(
+      (await service.getChanges(0, [], [], "alpha")).map((c) => c.changeId),
+    ).toEqual([incoming.changeId]);
+    expect(
+      (await service.getObservations("alpha")).map((o) => o.changeId),
+    ).toEqual([incoming.changeId]);
+  });
+
+  test("an expired lease from a stopped instance does not block cleanup", async () => {
+    await client
+      .db(config.dbName)
+      .collection<{ _id: string; owner: string; expiresAt: Date }>(
+        "change_write_locks",
+      )
+      .insertOne({ _id: "alpha", owner: "stopped", expiresAt: new Date(0) });
+    const change = new ChangeRoomName(1, ["A"], "Fresh");
+    await service.addChange(change, "alpha");
+    expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+      change.changeId,
+    );
+  });
+  test("stale startup orphan retirement cannot remove support accepted after lease takeover", async () => {
+    await service.getChanges(0, [], [], "alpha");
+    const other = new MongoChangeService(client);
+    await other.getChanges(0, [], [], "alpha");
+    const orphan = new ChangeRoomName(8, [], "Previously unsupported");
+    await client
+      .db(config.dbName)
+      .collection("changes")
+      .insertOne({ ...changeBusinessToDb(orphan), projectId: "alpha" });
+    let started!: () => void;
+    let release!: () => void;
+    const deleting = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // Pause after both orphan selection and the ownership check, before MongoDB executes the delete.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const retire = Collection.prototype.updateOne;
+    const write = jest
+      .spyOn(Collection.prototype, "updateOne")
+      .mockImplementationOnce(async function (this: Collection, ...args) {
+        started();
+        await gate;
+        return retire.apply(this, args);
+      });
+    service = new MongoChangeService(client);
+    const submission = service.initialize();
+    const rejected = expect(submission).rejects.toThrow(
+      "Change storage lease was lost",
+    );
+    await deleting;
+    try {
+      await client
+        .db(config.dbName)
+        .collection<{ _id: string; expiresAt: Date }>("change_write_locks")
+        .updateOne({ _id: "alpha" }, { $set: { expiresAt: new Date(0) } });
+      await other.addChange(
+        new ChangeRoomName(8, ["B"], "Previously unsupported"),
+        "alpha",
+      );
+      expect(
+        (await other.getChanges(0, [], [], "alpha")).find(
+          (c) => c.changeId === orphan.changeId,
+        )?.reporters.size,
+      ).toBe(1);
+    } finally {
+      release();
+      await rejected;
+      write.mockRestore();
+    }
+    expect(
+      (await other.getChanges(0, [], [], "alpha")).find(
+        (c) => c.changeId === orphan.changeId,
+      )?.reporters.size,
+    ).toBe(1);
+    expect(
+      (await other.getObservations("alpha")).filter(
+        (o) => o.changeId === orphan.changeId,
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("stale observation writes cannot replace support accepted after lease takeover", async () => {
+    await service.addChange(new ChangeRoomName(1, ["A"], "Original"), "alpha");
+    const other = new MongoChangeService(client);
+    await other.getChanges(0, [], [], "alpha");
+    let started!: () => void;
+    let release!: () => void;
+    const writing = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const updateOne = Collection.prototype.updateOne;
+    const write = jest
+      .spyOn(Collection.prototype, "updateOne")
+      .mockImplementationOnce(async function (this: Collection, ...args) {
+        started();
+        await gate;
+        return updateOne.apply(this, args);
+      });
+    const submission = service.addChange(
+      new ChangeRoomName(1, ["A"], "Stale"),
+      "alpha",
+    );
+    const rejected = expect(submission).rejects.toThrow(
+      "Change storage lease was lost",
+    );
+    await writing;
+    const accepted = new ChangeRoomName(1, ["A"], "Accepted");
+    try {
+      await client
+        .db(config.dbName)
+        .collection<{ _id: string; expiresAt: Date }>("change_write_locks")
+        .updateOne({ _id: "alpha" }, { $set: { expiresAt: new Date(0) } });
+      await other.addChange(accepted, "alpha");
+    } finally {
+      release();
+      await rejected;
+      write.mockRestore();
+    }
+    expect(
+      (await other.getChanges(0, [], [], "alpha")).map((c) => c.changeId),
+    ).toEqual([accepted.changeId]);
+    expect(
+      (await other.getObservations("alpha")).map((o) => o.changeId),
+    ).toEqual([accepted.changeId]);
+  });
+
+  test("deleting one migrated parent preserves its sibling observation across restart", async () => {
+    const first = new ChangeRoomName(1, ["A"], "First");
+    const sibling = new ChangeRoomName(1, ["A"], "Sibling");
+    await client
+      .db(config.dbName)
+      .collection("changes")
+      .insertMany(
+        [first, sibling].map((change) => ({
+          ...changeBusinessToDb(change),
+          projectId: "alpha",
+        })),
+      );
+    const before = await service.getObservations("alpha");
+    const retained = before.find((o) => o.changeId === sibling.changeId);
+    expect(retained).toBeDefined();
+    expect(await service.deleteChanges([first.changeId], "alpha")).toBe(1);
+    expect(await service.getObservations("alpha")).toEqual([retained]);
+    expect(
+      (await service.getChanges(0, [], [], "alpha")).map((c) => ({
+        changeId: c.changeId,
+        reporters: [...c.reporters],
+      })),
+    ).toEqual([{ changeId: sibling.changeId, reporters: ["A"] }]);
+    service = new MongoChangeService(client);
+    expect(await service.getObservations("alpha")).toEqual([retained]);
+    expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+      sibling.changeId,
+    );
+  });
+  test.each(["withdrawal", "deletion", "reconciliation"] as const)(
+    "stale observation writes cannot resurrect support after %s",
+    async (removal) => {
+      const change = new ChangeRoomName(1, ["A", "B"], "Shared");
+      await service.addChange(change, "alpha");
+      const other = new MongoChangeService(client);
+      await other.getChanges(0, [], [], "alpha");
+      const observation = await client
+        .db(config.dbName)
+        .collection<CurrentObservation>("observations")
+        .findOne({ projectId: "alpha", reporter: "A" });
+      if (!observation) throw new Error("Missing reporter A's observation");
+      let started!: () => void;
+      let release!: () => void;
+      const writing = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      // Pause an already-issued write after its ownership check. A later check
+      // cannot cancel this MongoDB operation; the identity fence must reject it.
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const updateOne = Collection.prototype.updateOne;
+      const write = jest
+        .spyOn(Collection.prototype, "updateOne")
+        .mockImplementationOnce(async function (this: Collection, ...args) {
+          started();
+          await gate;
+          return updateOne.apply(this, args);
+        });
+      const submission = service.addChange(
+        new ChangeRoomName(1, ["A"], "Shared"),
+        "alpha",
+      );
+      const rejected = expect(submission).rejects.toThrow(
+        "Change storage lease was lost",
+      );
+      await writing;
+      try {
+        await client
+          .db(config.dbName)
+          .collection<{ _id: string; expiresAt: Date }>("change_write_locks")
+          .updateOne({ _id: "alpha" }, { $set: { expiresAt: new Date(0) } });
+        if (removal === "withdrawal") {
+          expect(
+            await other.deleteObservations(
+              [observation.reports[0].observationId],
+              "alpha",
+            ),
+          ).toBe(1);
+        } else if (removal === "deletion") {
+          expect(await other.deleteChanges([change.changeId], "alpha")).toBe(1);
+        } else {
+          await other.reconcileChanges([change.changeId], "alpha");
+        }
+      } finally {
+        release();
+        await rejected;
+        write.mockRestore();
+      }
+      const expectedSupport = removal === "withdrawal" ? 1 : 0;
+      expect(await other.getObservations("alpha")).toHaveLength(
+        expectedSupport,
+      );
+      expect(await other.getChanges(2, [], [], "alpha")).toEqual([]);
+      const active = await other.getChanges(0, [], [], "alpha");
+      expect(active).toHaveLength(expectedSupport);
+      if (removal === "withdrawal")
+        expect([...active[0].reporters]).toEqual(["B"]);
+      // A tombstone permits a fresh lease to reuse the identity normally.
+      service = new MongoChangeService(client);
+      expect(await service.getObservations("alpha")).toHaveLength(
+        expectedSupport,
+      );
+      const fresh = new ChangeRoomName(1, ["A"], "Fresh");
+      await service.addChange(fresh, "alpha");
+      expect(
+        (await service.getChanges(0, [], [], "alpha")).find(
+          (c) => c.changeId === fresh.changeId,
+        )?.reporters.size,
+      ).toBe(1);
+    },
+  );
+  test.each(["deletion", "withdrawal", "repeated deletion"] as const)(
+    "stale definition upserts cannot undo parent %s",
+    async (removal) => {
+      const original = new ChangeRoomName(1, ["A"], "Name");
+      await service.addChange(original, "alpha");
+      const other = new MongoChangeService(client);
+      await other.getChanges(0, [], [], "alpha");
+      const observation = (await other.getObservations("alpha"))[0];
+      if (removal === "repeated deletion")
+        await other.deleteChanges([original.changeId], "alpha");
+      let started!: () => void;
+      let release!: () => void;
+      const writing = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let paused = false;
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const findOneAndUpdate = Collection.prototype.findOneAndUpdate;
+      const write = jest
+        .spyOn(Collection.prototype, "findOneAndUpdate")
+        .mockImplementation(async function (this: Collection, ...args) {
+          if (this.collectionName === "changes" && !paused) {
+            paused = true;
+            started();
+            await gate;
+          }
+          return findOneAndUpdate.apply(this, args) as ReturnType<
+            Collection["findOneAndUpdate"]
+          >;
+        });
+      const abandoned = new ChangeRoomName(1, ["A"], "Name");
+      const submission = service.addChange(abandoned, "alpha");
+      const rejected = expect(submission).rejects.toThrow(
+        "Change storage lease was lost",
+      );
+      await writing;
+      try {
+        await client
+          .db(config.dbName)
+          .collection<{ _id: string; expiresAt: Date }>("change_write_locks")
+          .updateOne({ _id: "alpha" }, { $set: { expiresAt: new Date(0) } });
+        if (removal !== "withdrawal")
+          await other.deleteChanges([original.changeId], "alpha");
+        else
+          await other.deleteObservations([observation.observationId], "alpha");
+      } finally {
+        release();
+        await rejected;
+        write.mockRestore();
+      }
+      expect(await other.getChanges(0, [], [], "alpha")).toEqual([]);
+      expect(await other.getObservations("alpha")).toEqual([]);
+      expect(
+        await client
+          .db(config.dbName)
+          .collection("changes")
+          .findOne({ changeId: abandoned.changeId }),
+      ).toBeNull();
+      expect(
+        await client
+          .db(config.dbName)
+          .collection("changes")
+          .findOne({ changeId: original.changeId }),
+      ).toEqual(expect.objectContaining({ deleted: true }));
+      service = new MongoChangeService(client);
+      expect(await service.getChanges(0, [], [], "alpha")).toEqual([]);
+      const fresh = new ChangeRoomName(1, ["A"], "Name");
+      await service.addChange(fresh, "alpha");
+      expect((await service.getChanges(0, [], [], "alpha"))[0].changeId).toBe(
+        fresh.changeId,
+      );
+      expect(fresh.changeId).not.toBe(abandoned.changeId);
+      expect(fresh.changeId).not.toBe(original.changeId);
+    },
+  );
+
+  test("normal cleanup leaves unrelated tombstones and orphans to startup repair", async () => {
+    const retired = new ChangeRoomName(1, ["A"], "Retired");
+    await service.addChange(retired, "alpha");
+    await service.deleteChanges([retired.changeId], "alpha");
+    const definitions = client.db(config.dbName).collection("changes");
+    const observations = client.db(config.dbName).collection("observations");
+    const definitionBefore = await definitions.findOne({
+      changeId: retired.changeId,
+    });
+    const observationBefore = await observations.findOne({
+      projectId: "alpha",
+      reporter: "A",
+    });
+    const orphan = new ChangeRoomName(8, [], "Unrelated orphan");
+    await definitions.insertOne({
+      ...changeBusinessToDb(orphan),
+      projectId: "alpha",
+    });
+    await service.addChange(
+      new ChangeRoomName(2, ["B"], "Independent"),
+      "alpha",
+    );
+    const replace = new ChangeRoomName(3, ["C"], "Before");
+    await service.addChange(replace, "alpha");
+    await service.addChange(new ChangeRoomName(3, ["C"], "After"), "alpha");
+    expect(await definitions.findOne({ changeId: replace.changeId })).toEqual(
+      expect.objectContaining({ deleted: true }),
+    );
+    const current = (await service.getObservations("alpha")).find(
+      (o) => o.changeId !== replace.changeId,
+    );
+    if (!current) throw new Error("Missing current observation");
+    await service.deleteObservations([current.observationId], "alpha");
+    expect(await definitions.findOne({ changeId: retired.changeId })).toEqual(
+      definitionBefore,
+    );
+    expect(
+      await observations.findOne({ projectId: "alpha", reporter: "A" }),
+    ).toEqual(observationBefore);
+    expect(
+      await definitions.findOne({ changeId: orphan.changeId }),
+    ).not.toHaveProperty("deleted", true);
+    service = new MongoChangeService(client);
+    await service.initialize();
+    expect(
+      await definitions.findOne({ changeId: orphan.changeId }),
+    ).toHaveProperty("deleted", true);
+    expect(
+      await observations.findOne({ projectId: "alpha", reporter: "A" }),
+    ).toEqual(observationBefore);
+  });
+  test("reactivation repairs dangling references to the retired ID without a full sweep", async () => {
+    const original = new ChangeRoomName(1, ["A"], "Name");
+    await service.addChange(original, "alpha");
+    const observations = client
+      .db(config.dbName)
+      .collection<CurrentObservation>("observations");
+    const prior = await observations.findOne({
+      projectId: "alpha",
+      reporter: "A",
+    });
+    if (!prior) throw new Error("Missing original observation");
+    await service.deleteChanges([original.changeId], "alpha");
+    // Simulate a late first observation write left by an expired holder.
+    await observations.insertOne({
+      projectId: "alpha",
+      reporter: "Late reporter",
+      property: prior.property,
+      legacy: false,
+      reports: prior.reports,
+    });
+    const fresh = new ChangeRoomName(1, ["A"], "Name");
+    await service.addChange(fresh, "alpha");
+    expect(
+      (await service.getObservations("alpha")).map((o) => o.changeId),
+    ).toEqual([fresh.changeId]);
+    expect(
+      (await service.getChanges(0, [], [], "alpha")).map((c) => c.changeId),
+    ).toEqual([fresh.changeId]);
+    expect(
+      await observations.findOne({
+        projectId: "alpha",
+        reporter: "Late reporter",
+      }),
+    ).toEqual(expect.objectContaining({ reports: [] }));
   });
 });

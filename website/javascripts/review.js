@@ -104,7 +104,7 @@ import * as model from "./review-model.js";
     elements.selectedLabel.textContent = state.stagedReview ? "selected to keep" : "selected";
     elements.previewSelected.textContent = state.stagedReview
       ? "Preview reviewed result"
-      : "Preview selected reports";
+      : "Preview selected changes";
     elements.showBaseline.textContent = state.stagedReview
       ? "Staged upstream"
       : "Current baseline";
@@ -132,7 +132,7 @@ import * as model from "./review-model.js";
           ? "During baseline review, leave unwanted reports unselected so they are discarded on apply."
           : count === 0
             ? "Select one or more reports first."
-            : "Permanently delete the selected reports without changing the baseline.";
+            : "Permanently delete the selected changes without changing the baseline.";
     elements.stageUpstream.title = busy
       ? "Wait for the current administrator action to finish."
       : !hasApiKey
@@ -150,14 +150,14 @@ import * as model from "./review-model.js";
           ? "Load an upstream update first."
           : state.previewedSelectionKey !== selectionKey()
             ? "Preview the reviewed result after changing the selection."
-            : "Apply the staged upstream map with the selected reports.";
+            : "Apply the staged upstream map with the selected changes.";
     elements.downloadSelected.title = busy
       ? "Wait for the current action to finish."
       : state.stagedReview
         ? "Download proposed maps before staging the published upstream update."
         : count === 0
           ? "Select one or more reports first."
-          : "Download a binary map containing exactly the selected reports.";
+          : "Download a binary map containing exactly the selected changes.";
 
     elements.adminActionHint.textContent = state.previewing
       ? "A map preview is currently being generated."
@@ -171,7 +171,7 @@ import * as model from "./review-model.js";
             ? "The preview matches the current selection. Apply it when the reviewed result is correct."
             : count === 0
               ? "Select reports to preview or delete, or load an upstream update to begin baseline review."
-              : "Preview or delete the selected reports, or load an upstream update to begin baseline review.";
+              : "Preview or delete the selected changes, or load an upstream update to begin baseline review.";
     elements.changeList.querySelectorAll(".change-preview").forEach(function (control) {
       control.disabled = busy;
     });
@@ -433,8 +433,8 @@ import * as model from "./review-model.js";
     elements.previewDescription.textContent = mode === "all"
       ? ids.length + " pending reports applied to the current baseline. Click a report to focus its room."
       : state.stagedReview
-        ? ids.length + " selected reports added to the staged upstream preview."
-        : ids.length + " selected reports applied to the baseline preview.";
+        ? ids.length + " selected changes added to the staged upstream preview."
+        : ids.length + " selected changes applied to the baseline preview.";
     await window.CrowdmapReviewMap.show(
       mode === "all" ? [] : ids,
       mode === "all" ? state.changes : state.changes.filter(function (change) {
@@ -454,7 +454,7 @@ import * as model from "./review-model.js";
     });
     elements.previewTitle.textContent = "Incoming upstream and reviewed result";
     elements.previewDescription.textContent =
-      "The left pane is staged upstream; the right pane adds the selected reports.";
+      "The left pane is staged upstream; the right pane adds the selected changes.";
     state.previewedSelectionKey = null;
     updateActions();
     await window.CrowdmapReviewMap.show(
@@ -763,8 +763,8 @@ import * as model from "./review-model.js";
     var keptCount = selectedIds.length;
     var removalCount = obsoleteIds.length;
     var confirmed = window.confirm(
-      "Apply the reviewed upstream update, keep " + keptCount + " selected report" +
-        (keptCount === 1 ? "" : "s") + ", and discard " + removalCount + " report" +
+      "Apply the reviewed upstream update, keep " + keptCount + " selected change" +
+        (keptCount === 1 ? "" : "s") + ", and discard " + removalCount + " change" +
         (removalCount === 1 ? "" : "s") + "?",
     );
     if (!confirmed) return;
@@ -836,7 +836,7 @@ import * as model from "./review-model.js";
 
   async function deleteSelected() {
     if (!elements.apiKey.value) {
-      showNotice("Enter the map administrator API key before deleting reports.", true);
+      showNotice("Enter the map administrator API key before deleting changes.", true);
       elements.apiKey.focus();
       return;
     }
@@ -847,7 +847,7 @@ import * as model from "./review-model.js";
       return sum + change.reporters;
     }, 0);
     var confirmed = window.confirm(
-      "Permanently delete " + selectedChanges.length + " selected report" +
+      "Permanently delete " + selectedChanges.length + " selected change" +
         (selectedChanges.length === 1 ? "" : "s") + " containing " +
         reporterCount + " reporter confirmation" + (reporterCount === 1 ? "" : "s") +
         "?\n\nThe baseline map will not be changed.",
@@ -870,13 +870,13 @@ import * as model from "./review-model.js";
         throw new Error(body.message || "Delete failed (HTTP " + response.status + ")");
       }
       var result = await response.json();
-      showNotice(result.deleted + " pending report" + (result.deleted === 1 ? "" : "s") + " deleted. The baseline map was not changed.", false);
+      showNotice(result.deleted + " pending change" + (result.deleted === 1 ? "" : "s") + " deleted. The baseline map was not changed.", false);
       await loadChanges();
     } catch (error) {
       showNotice(error.message, true);
     } finally {
       state.busyAction = null;
-      elements.deleteSelected.textContent = "Delete selected reports";
+      elements.deleteSelected.textContent = "Delete selected changes";
       updateActions();
     }
   }
@@ -893,7 +893,7 @@ import * as model from "./review-model.js";
     download.click();
     download.remove();
     showNotice(
-      "Downloading a binary map with " + state.selected.size + " selected report" +
+      "Downloading a binary map with " + state.selected.size + " selected change" +
         (state.selected.size === 1 ? "." : "s."),
       false,
     );

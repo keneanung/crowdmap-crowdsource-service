@@ -14,6 +14,10 @@ import {
   changeBusinessToDb,
   changeDbToBusiness,
 } from "../models/db/change.js";
+import {
+  withChangeWriteLock,
+  type ChangeWriteLease,
+} from "./changeWriteLock.js";
 
 export type ObservationResponse = Omit<ObservedReport, "order">;
 
@@ -209,47 +213,84 @@ export class MongoChangeService extends ChangeService {
     ]);
     // Resumable backfill: preserve every legacy vote, then clear the old
     // arrays only once that report's votes have all been stored successfully.
-    for await (const legacy of collection.find({ reporters: { $ne: [] } })) {
-      if (!legacy.projectId)
-        throw new Error("Legacy report has no project identity");
-      const property = observationProperty(changeDbToBusiness(legacy));
-      const timestamp = Number.parseInt(
-        legacy.changeId.replaceAll("-", "").slice(0, 12),
-        16,
-      );
-      for (const reporter of legacy.reporters) {
-        const identity = { projectId: legacy.projectId, reporter, property };
-        try {
-          await observations.updateOne(
-            {
-              ...identity,
-              legacy: { $ne: false },
-              "reports.changeId": { $ne: legacy.changeId },
-            },
-            {
-              $setOnInsert: { ...identity, legacy: true },
-              $addToSet: {
-                reports: observedReport(
-                  legacy.changeId,
-                  legacy.changeId,
-                  new Date(Number.isFinite(timestamp) ? timestamp : 0),
-                ),
+    this.observations = observations;
+    const projects = new Set([
+      ...(await collection.distinct("projectId")),
+      ...(await observations.distinct("projectId")),
+    ]);
+    for (const scope of projects) {
+      if (!scope) throw new Error("Stored changes have no project identity");
+      await withChangeWriteLock(
+        this.mongo,
+        config.dbName,
+        scope,
+        async (lease) => {
+          for await (const legacy of collection.find({
+            projectId: scope,
+            reporters: { $ne: [] },
+          })) {
+            if (!legacy.projectId)
+              throw new Error("Legacy report has no project identity");
+            const property = observationProperty(changeDbToBusiness(legacy));
+            const timestamp = Number.parseInt(
+              legacy.changeId.replaceAll("-", "").slice(0, 12),
+              16,
+            );
+            for (const reporter of legacy.reporters) {
+              const identity = {
+                projectId: legacy.projectId,
+                reporter,
+                property,
+              };
+              try {
+                await lease.assertHeld();
+                await observations.updateOne(
+                  lease.filter({
+                    ...identity,
+                    legacy: { $ne: false },
+                    "reports.changeId": { $ne: legacy.changeId },
+                  }),
+                  {
+                    $setOnInsert: { ...identity, legacy: true },
+                    $set: { writeFence: lease.fence },
+                    $addToSet: {
+                      reports: observedReport(
+                        legacy.changeId,
+                        legacy.changeId,
+                        new Date(Number.isFinite(timestamp) ? timestamp : 0),
+                      ),
+                    },
+                  },
+                  { upsert: true },
+                );
+              } catch (error) {
+                // Existing migrated support or a concurrent fresh observation wins.
+                if (
+                  !(error instanceof MongoServerError) ||
+                  error.code !== 11000
+                )
+                  throw error;
+              }
+            }
+            await lease.assertHeld();
+            await collection.updateOne(
+              lease.filter({
+                projectId: legacy.projectId,
+                changeId: legacy.changeId,
+              }),
+              {
+                $set: {
+                  reporters: [],
+                  numberOfReporters: 0,
+                  writeFence: lease.fence,
+                },
               },
-            },
-            { upsert: true },
-          );
-        } catch (error) {
-          // Existing migrated support or a concurrent fresh observation wins.
-          if (!(error instanceof MongoServerError) || error.code !== 11000)
-            throw error;
-        }
-      }
-      await collection.updateOne(
-        { projectId: legacy.projectId, changeId: legacy.changeId },
-        { $set: { reporters: [], numberOfReporters: 0 } },
+            );
+          }
+          await this.cleanupOrphans(collection, scope, lease);
+        },
       );
     }
-    this.observations = observations;
     return collection;
   }
 
@@ -266,36 +307,89 @@ export class MongoChangeService extends ChangeService {
   public async addChange(change: Change, projectId?: string): Promise<void> {
     const collection = await this.getCollection();
     const scope = this.projectId(projectId);
+    await withChangeWriteLock(
+      this.mongo,
+      config.dbName,
+      scope,
+      async (lease) => {
+        const previous = await this.observationCollection()
+          .find({
+            projectId: scope,
+            reporter: { $in: [...change.reporters] },
+            property: observationProperty(change),
+          })
+          .toArray();
+        const affected = new Set([
+          change.changeId,
+          ...previous.flatMap((o) => o.reports.map((r) => r.changeId)),
+        ]);
+        try {
+          await this.storeChange(collection, change, scope, lease, affected);
+        } finally {
+          await this.cleanupOrphans(collection, scope, lease, [...affected]);
+        }
+      },
+    );
+  }
+
+  private async storeChange(
+    collection: Collection<ChangeDb>,
+    change: Change,
+    scope: string,
+    lease: ChangeWriteLease,
+    affected: Set<string>,
+  ): Promise<void> {
     const identifyingParts = {
       projectId: scope,
       ...change.getIdentifyingParts(),
     };
-    let definition: ChangeDb | null;
-    try {
-      definition = await collection.findOneAndUpdate(
-        identifyingParts,
+    await lease.assertHeld();
+    const previous = await collection.findOneAndUpdate(
+      lease.filter(identifyingParts),
+      [
         {
-          $setOnInsert: {
-            ...changeBusinessToDb(change),
-            projectId: scope,
-            reporters: [],
-            numberOfReporters: 0,
+          $replaceWith: {
+            $mergeObjects: [
+              {
+                $literal: {
+                  ...changeBusinessToDb(change),
+                  projectId: scope,
+                  reporters: [],
+                  numberOfReporters: 0,
+                },
+              },
+              "$$ROOT",
+              {
+                writeFence: lease.fence,
+                deleted: false,
+                // A retained logical identity blocks stale inserts. Reactivation
+                // receives the new submission's ID instead of the deleted ID.
+                changeId: {
+                  $cond: [
+                    { $eq: ["$deleted", true] },
+                    { $literal: change.changeId },
+                    { $ifNull: ["$changeId", { $literal: change.changeId }] },
+                  ],
+                },
+              },
+            ],
           },
         },
-        { upsert: true, returnDocument: "after" },
-      );
-    } catch (error) {
-      if (!(error instanceof MongoServerError) || error.code !== 11000)
-        throw error;
-      definition = await collection.findOne(identifyingParts);
-    }
-    if (!definition) throw new Error("Could not store report definition");
+      ],
+      { upsert: true, returnDocument: "before" },
+    );
+    // Reactivation replaces the ID, so include references to the retired ID
+    // as well as the fresh one in this mutation's repair scope.
+    if (previous) affected.add(previous.changeId);
+    const definitionId =
+      previous && !previous.deleted ? previous.changeId : change.changeId;
+    affected.add(definitionId);
     const property = observationProperty(change);
     const observedAt = new Date();
     for (const reporter of change.reporters) {
       const identity = { projectId: scope, reporter, property };
       const observation = observedReport(
-        definition.changeId,
+        definitionId,
         change.changeId,
         observedAt,
       );
@@ -305,6 +399,7 @@ export class MongoChangeService extends ChangeService {
         {
           $set: {
             legacy: false,
+            writeFence: lease.fence,
             reports: [
               {
                 $mergeObjects: [
@@ -316,16 +411,14 @@ export class MongoChangeService extends ChangeService {
           },
         },
       ];
-      try {
-        await this.observationCollection().updateOne(identity, update, {
+      await lease.assertHeld();
+      await this.observationCollection().updateOne(
+        lease.filter(identity),
+        update,
+        {
           upsert: true,
-        });
-      } catch (error) {
-        if (!(error instanceof MongoServerError) || error.code !== 11000)
-          throw error;
-        // Concurrent first submissions can race on the unique identity index.
-        await this.observationCollection().updateOne(identity, update);
-      }
+        },
+      );
     }
   }
 
@@ -377,7 +470,9 @@ export class MongoChangeService extends ChangeService {
             from: "changes",
             localField: "_id",
             foreignField: "changeId",
-            pipeline: [{ $match: { projectId: scope } }],
+            pipeline: [
+              { $match: { projectId: scope, deleted: { $ne: true } } },
+            ],
             as: "definition",
           },
         },
@@ -418,17 +513,43 @@ export class MongoChangeService extends ChangeService {
     projectId?: string,
   ): Promise<number> {
     if (!ids.length) return 0;
-    await this.getCollection();
+    const collection = await this.getCollection();
     const scope = this.projectId(projectId);
-    const selected = (await this.getObservations(scope)).filter((o) =>
-      ids.includes(o.observationId),
+    return withChangeWriteLock(
+      this.mongo,
+      config.dbName,
+      scope,
+      async (lease) => {
+        const observations = await this.observationCollection()
+          .find({
+            projectId: scope,
+            "reports.observationId": { $in: ids },
+          })
+          .toArray();
+        const selected = observations.flatMap((o) =>
+          o.reports.filter((r) => ids.includes(r.observationId)),
+        );
+        const affected = [...new Set(selected.map((r) => r.changeId))];
+        try {
+          await lease.assertHeld();
+          await this.observationCollection().updateMany(
+            lease.filter({
+              projectId: scope,
+              "reports.observationId": { $in: ids },
+            }),
+            {
+              $pull: { reports: { observationId: { $in: ids } } },
+              $set: { writeFence: lease.fence, legacy: false },
+            },
+          );
+          return selected.length;
+        } finally {
+          await this.cleanupOrphans(collection, scope, lease, affected);
+        }
+      },
     );
-    await this.observationCollection().updateMany(
-      { projectId: scope, "reports.observationId": { $in: ids } },
-      { $pull: { reports: { observationId: { $in: ids } } } },
-    );
-    return selected.length;
   }
+
   public async applyChanges(
     apply: string[],
     projectId?: string,
@@ -446,13 +567,126 @@ export class MongoChangeService extends ChangeService {
     projectId?: string,
   ): Promise<number> {
     if (!changeIds.length) return 0;
-    await this.getCollection();
+    const collection = await this.getCollection();
     const scope = this.projectId(projectId);
-    const active = await this.getChanges(0, changeIds, [], scope);
-    await this.observationCollection().updateMany(
-      { projectId: scope, "reports.changeId": { $in: changeIds } },
-      { $pull: { reports: { changeId: { $in: changeIds } } } },
+    return withChangeWriteLock(
+      this.mongo,
+      config.dbName,
+      scope,
+      async (lease) => {
+        const active = await this.getChanges(0, changeIds, [], scope);
+        try {
+          await lease.assertHeld();
+          await collection.updateMany(
+            lease.filter({
+              projectId: scope,
+              changeId: { $in: changeIds },
+            }),
+            { $set: { deleted: true, writeFence: lease.fence } },
+          );
+          return active.length;
+        } finally {
+          await this.cleanupOrphans(collection, scope, lease, changeIds);
+        }
+      },
     );
-    return active.length;
+  }
+
+  /** Repair all stored records at startup, or only mutation-affected changes. */
+  private async cleanupOrphans(
+    collection: Collection<ChangeDb>,
+    scope: string,
+    lease: ChangeWriteLease,
+    changeIds?: string[],
+  ): Promise<void> {
+    if (changeIds?.length === 0) return;
+    await lease.assertHeld();
+    const observations = this.observationCollection();
+    // Parent deletion drives removal of dangling support. Preserve unrelated
+    // entries in migrated observations that still support multiple changes.
+    const dangling = observations.aggregate<{ observationId: string }>([
+      {
+        $match: {
+          projectId: scope,
+          ...(changeIds ? { "reports.changeId": { $in: changeIds } } : {}),
+        },
+      },
+      { $unwind: "$reports" },
+      ...(changeIds
+        ? [{ $match: { "reports.changeId": { $in: changeIds } } }]
+        : []),
+      {
+        $lookup: {
+          from: "changes",
+          localField: "reports.changeId",
+          foreignField: "changeId",
+          pipeline: [
+            { $match: { projectId: scope, deleted: { $ne: true } } },
+            { $limit: 1 },
+          ],
+          as: "definition",
+        },
+      },
+      { $match: { definition: { $size: 0 } } },
+      { $project: { _id: 0, observationId: "$reports.observationId" } },
+    ]);
+    for await (const report of dangling) {
+      await lease.assertHeld();
+      await observations.updateMany(
+        lease.filter({
+          projectId: scope,
+          "reports.observationId": report.observationId,
+        }),
+        {
+          $pull: { reports: { observationId: report.observationId } },
+          $set: { writeFence: lease.fence, legacy: false },
+        },
+      );
+    }
+    if (!changeIds) {
+      await lease.assertHeld();
+      // Only startup repairs pre-existing empty identities. Mutation paths
+      // stamp the fence when pulling reports, without rewriting retained tombstones.
+      await observations.updateMany(
+        lease.filter({
+          projectId: scope,
+          reports: { $size: 0 },
+          legacy: { $ne: false },
+        }),
+        { $set: { writeFence: lease.fence, legacy: false } },
+      );
+    }
+
+    const orphaned = collection.aggregate<{ changeId: string }>([
+      {
+        $match: {
+          projectId: scope,
+          deleted: { $ne: true },
+          ...(changeIds ? { changeId: { $in: changeIds } } : {}),
+        },
+      },
+      {
+        $lookup: {
+          from: "observations",
+          localField: "changeId",
+          foreignField: "reports.changeId",
+          pipeline: [{ $match: { projectId: scope } }, { $limit: 1 }],
+          as: "support",
+        },
+      },
+      { $match: { support: { $size: 0 } } },
+      { $project: { _id: 0, changeId: 1 } },
+    ]);
+    for await (const change of orphaned) {
+      await lease.assertHeld();
+      await collection.updateOne(
+        lease.filter({
+          projectId: scope,
+          changeId: change.changeId,
+          deleted: { $ne: true },
+        }),
+        { $set: { deleted: true, writeFence: lease.fence } },
+      );
+    }
   }
 }
