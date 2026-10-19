@@ -764,7 +764,7 @@ import * as model from "./review-model.js";
     var removalCount = obsoleteIds.length;
     var confirmed = window.confirm(
       "Apply the reviewed upstream update, keep " + keptCount + " selected change" +
-        (keptCount === 1 ? "" : "s") + ", and discard " + removalCount + " report" +
+        (keptCount === 1 ? "" : "s") + ", and discard " + removalCount + " change" +
         (removalCount === 1 ? "" : "s") + "?",
     );
     if (!confirmed) return;

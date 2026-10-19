@@ -35,6 +35,8 @@ import {
 export interface ChangeBase {
   // Monotonic project write fence; absent on records stored before fencing.
   writeFence?: number;
+  // Retired definitions retain their logical key/fence against stale upserts.
+  deleted?: boolean;
   _id?: ObjectId;
   projectId?: string;
   type: ChangeType;

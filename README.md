@@ -550,14 +550,18 @@ submission for that property replaces those legacy votes. The migration is
 resumable. Back up MongoDB before upgrading, stop older application instances,
 and complete the initial migration with one instance before scaling out.
 Downgrading requires restoring that backup because the old application reads
-the retired reporter arrays. Startup cleans existing unreferenced definitions
-and dangling observations after migration, including records left by interrupted
-writes. The same cleanup runs after support replacement, withdrawal, deletion,
-and baseline reconciliation. Cleanup preserves changes with remaining support
-and retains empty observation identities as fence tombstones. They contain no
-reports and contribute no support, but prevent expired writers from recreating
-withdrawn observations. A later valid submission reuses the identity with a
-newer fence.
+the retired reporter arrays. Startup repairs existing unreferenced definitions
+and dangling observations after migration, including records left by
+interrupted writes. After support replacement, withdrawal, deletion, and
+baseline reconciliation, cleanup visits only the affected change IDs. Full-
+project repair runs only at startup. Cleanup preserves changes with remaining
+support and retains empty observation identities as fence tombstones. They
+contain no reports and contribute no support, but prevent expired writers from
+recreating withdrawn observations. A later valid submission reuses the
+identity with a newer fence. Deleted logical change identities also retain a
+fence tombstone, excluded from review and map output. Reactivating one assigns
+a fresh change ID; a delayed old definition upsert cannot undo its retirement.
+Existing tombstones are not rewritten by unrelated mutations.
 
 A change is a distinct proposed map operation, identified by its target and
 complete payload. An observation is a reporter's current support for that
