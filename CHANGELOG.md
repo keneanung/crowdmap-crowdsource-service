@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.1](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.4.0...v1.4.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* clean up orphaned changes and fence observation writes ([#347](https://github.com/keneanung/crowdmap-crowdsource-service/issues/347)) ([b1260c6](https://github.com/keneanung/crowdmap-crowdsource-service/commit/b1260c6221017f645bc12e65aa72583220ca1547))
+* **deps:** bump uuid from 14.0.2 to 14.0.3 ([#348](https://github.com/keneanung/crowdmap-crowdsource-service/issues/348)) ([a6e9a6c](https://github.com/keneanung/crowdmap-crowdsource-service/commit/a6e9a6c1a9e12c040a7a8565d11fac2bd4a37492))
+
+
+### Other
+
+* **deps-dev:** bump @typescript-eslint/eslint-plugin from 8.71.1 to 8.71.2 ([#351](https://github.com/keneanung/crowdmap-crowdsource-service/issues/351)) ([59d4e98](https://github.com/keneanung/crowdmap-crowdsource-service/commit/59d4e981a3652deb78c3c9cb0bc49bf9c45b5118))
+* **deps-dev:** bump @typescript-eslint/parser from 8.71.1 to 8.71.2 ([#350](https://github.com/keneanung/crowdmap-crowdsource-service/issues/350)) ([6dea013](https://github.com/keneanung/crowdmap-crowdsource-service/commit/6dea01307d6732ba01da08aab86db13255519221))
+* **deps-dev:** bump prettier from 3.9.9 to 3.9.10 ([#349](https://github.com/keneanung/crowdmap-crowdsource-service/issues/349)) ([e2189f5](https://github.com/keneanung/crowdmap-crowdsource-service/commit/e2189f5c91764b6c3399312ede81d6be7fa3a844))
+* **deps-dev:** bump ts-jest from 29.4.14 to 29.4.15 ([#352](https://github.com/keneanung/crowdmap-crowdsource-service/issues/352)) ([cb5fa8e](https://github.com/keneanung/crowdmap-crowdsource-service/commit/cb5fa8ee1b025afca013418030d4696f2a930b76))
+
 ## [1.4.0](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.3.1...v1.4.0) (2026-10-16)
 
 
