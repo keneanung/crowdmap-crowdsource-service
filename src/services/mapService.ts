@@ -532,13 +532,17 @@ export class MapService {
           revision,
           snapshot.version,
           config.changelogModel,
+          config.changelogBaseUrl,
+          config.changelogInputFormat,
+          config.changelogMaxTokens,
+          config.changelogTimeoutMs,
           config.changelogReasoningEnabled,
           config.changelogPrompt,
           project.game,
           project.name,
           CHANGELOG_PROMPT_VERSION,
           "en",
-          Boolean(config.changelogApiKey),
+          config.changelogEnabled || Boolean(config.changelogApiKey),
         ]),
         async () => {
           const result =
@@ -560,6 +564,13 @@ export class MapService {
                 { game: project.game, mapName: project.name },
                 config.changelogReasoningEnabled,
                 config.changelogPrompt,
+                {
+                  baseUrl: config.changelogBaseUrl,
+                  enabled:
+                    config.changelogEnabled || Boolean(config.changelogApiKey),
+                  inputFormat: config.changelogInputFormat,
+                  maxTokens: config.changelogMaxTokens,
+                },
               ),
             ),
           );

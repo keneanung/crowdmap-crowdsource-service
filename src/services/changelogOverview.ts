@@ -188,3 +188,140 @@ function modelChange(fact: ChangelogFact) {
     ),
   };
 }
+
+/** Publication facts only: no endpoint rooms, IDs or housekeeping detail. */
+export function editorialOverview(
+  facts: ChangelogFact[],
+  context: ChangelogContext = {},
+) {
+  const additions = new Map<
+    number | null,
+    { area: string; rooms: number; normal_exits: number }
+  >();
+  const room_removals: { area: string; count: number }[] = [];
+  const room_moves: { from_area: string; to_area: string; rooms: number }[] =
+    [];
+  const normal = new Map<
+    string,
+    { area: string; direction: string; operation: string; count: number }
+  >();
+  const special = new Map<
+    string,
+    {
+      command: string;
+      operation: string;
+      areas: Map<number | null, { area: string; count: number }>;
+    }
+  >();
+  const renames: {
+    area: string;
+    rooms: { from: string | number; to: string | number }[];
+  }[] = [];
+  const areas: { operation: string; from: string | null; to: string | null }[] =
+    [];
+  let housekeeping = false;
+  for (const fact of facts) {
+    if (
+      fact.category === "rooms added" ||
+      fact.category === "normal exits added"
+    ) {
+      const group = additions.get(fact.areaId) ?? {
+        area: fact.areaName,
+        rooms: 0,
+        normal_exits: 0,
+      };
+      if (fact.category === "rooms added") group.rooms += fact.count;
+      else group.normal_exits += fact.count;
+      additions.set(fact.areaId, group);
+      continue;
+    }
+    if (fact.category === "rooms deleted") {
+      room_removals.push({ area: fact.areaName, count: fact.count });
+      continue;
+    }
+    if (fact.movement) {
+      room_moves.push({
+        from_area: fact.movement.fromAreaName,
+        to_area: fact.movement.toAreaName,
+        rooms: fact.count,
+      });
+      continue;
+    }
+    const names: { from: string | number; to: string | number }[] = [];
+    for (const d of fact.details) {
+      if (d.kind === "normalExit") {
+        const key = JSON.stringify([fact.areaId, d.direction, d.operation]);
+        const group = normal.get(key) ?? {
+          area: fact.areaName,
+          direction: d.direction,
+          operation: d.operation,
+          count: 0,
+        };
+        group.count++;
+        normal.set(key, group);
+      } else if (d.kind === "specialExit") {
+        const key = JSON.stringify([d.command, d.operation]);
+        const group = special.get(key) ?? {
+          command: d.command,
+          operation: d.operation,
+          areas: new Map<number | null, { area: string; count: number }>(),
+        };
+        const area = group.areas.get(fact.areaId) ?? {
+          area: fact.areaName,
+          count: 0,
+        };
+        area.count++;
+        group.areas.set(fact.areaId, area);
+        special.set(key, group);
+      } else if (d.kind === "roomProperty" && d.property === "name") {
+        names.push({ from: d.before, to: d.after });
+      } else if (d.kind === "area") {
+        areas.push({
+          operation: d.operation,
+          from: d.nameBefore,
+          to: d.nameAfter,
+        });
+      } else {
+        housekeeping = true;
+      }
+    }
+    if (names.length) renames.push({ area: fact.areaName, rooms: names });
+    if (!fact.details.length && fact.count) housekeeping = true;
+  }
+  const exits = [...normal.values()];
+  return {
+    ...context,
+    ...(additions.size ? { additions: [...additions.values()] } : {}),
+    ...(room_removals.length ? { room_removals } : {}),
+    ...(room_moves.length ? { room_moves } : {}),
+    ...(exits.some((e) => e.operation === "removed")
+      ? {
+          normal_exits_removed: exits
+            .filter((e) => e.operation === "removed")
+            .map(({ area, direction, count }) => ({ area, direction, count })),
+        }
+      : {}),
+    ...(exits.some((e) => e.operation === "changed")
+      ? {
+          normal_exits_changed: exits
+            .filter((e) => e.operation === "changed")
+            .map(({ area, direction, count }) => ({ area, direction, count })),
+        }
+      : {}),
+    ...(special.size
+      ? {
+          special_exits: [...special.values()].map((g) => ({
+            command: g.command,
+            operation: g.operation,
+            areas: [...g.areas.values()],
+          })),
+        }
+      : {}),
+    ...(renames.length ? { renames } : {}),
+    ...(areas.length ? { areas } : {}),
+    ...(housekeeping
+      ? { housekeeping: "Housekeeping updates were also applied." }
+      : {}),
+    ...(!facts.length ? { no_changes: true } : {}),
+  };
+}

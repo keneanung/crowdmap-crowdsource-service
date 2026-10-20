@@ -22,6 +22,10 @@ export interface ServiceConfig {
   trustProxy: number;
   changelogApiKey?: string;
   changelogModel: string;
+  changelogBaseUrl: string;
+  changelogEnabled: boolean;
+  changelogMaxTokens: number;
+  changelogInputFormat: "structured" | "editorial";
   changelogTimeoutMs: number;
   changelogReasoningEnabled?: boolean;
   changelogPrompt?: string;
@@ -222,34 +226,77 @@ export const loadConfig = (
     "platform.changelog.openrouter",
     changelog.openrouter,
   );
+  const api = objectOption("platform.changelog.api", changelog.api);
+  if (changelog.api !== undefined && changelog.openrouter !== undefined)
+    throw new Error(
+      "Configure either platform.changelog.api or openrouter, not both",
+    );
+  const endpoint = changelog.api === undefined ? openrouter : api;
+  const endpointPath =
+    changelog.api === undefined
+      ? "platform.changelog.openrouter"
+      : "platform.changelog.api";
+  const inputFormat = changelog.inputFormat ?? "structured";
+  if (inputFormat !== "structured" && inputFormat !== "editorial")
+    throw new Error(
+      "platform.changelog.inputFormat must be structured or editorial",
+    );
   const nonblankString = (name: string, value: unknown): string | undefined => {
     const text = optionalString(name, value)?.trim();
     if (text === "") return undefined;
     return text;
   };
   if (
-    openrouter.reasoningEnabled !== undefined &&
-    typeof openrouter.reasoningEnabled !== "boolean"
+    endpoint.reasoningEnabled !== undefined &&
+    typeof endpoint.reasoningEnabled !== "boolean"
+  )
+    throw new Error(`${endpointPath}.reasoningEnabled must be a boolean`);
+  const configuredBaseUrl = nonblankString(
+    `${endpointPath}.baseUrl`,
+    endpoint.baseUrl,
+  );
+  if (changelog.api !== undefined && configuredBaseUrl === undefined)
+    throw new Error("platform.changelog.api.baseUrl is required");
+  const baseUrl = configuredBaseUrl ?? "https://openrouter.ai/api/v1";
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(baseUrl);
+  } catch {
+    throw new Error(`${endpointPath}.baseUrl must be an HTTP(S) URL`);
+  }
+  if (
+    !["http:", "https:"].includes(parsedUrl.protocol) ||
+    parsedUrl.username ||
+    parsedUrl.password ||
+    parsedUrl.search ||
+    parsedUrl.hash
   )
     throw new Error(
-      "platform.changelog.openrouter.reasoningEnabled must be a boolean",
+      `${endpointPath}.baseUrl must be an HTTP(S) URL without credentials, query or fragment`,
     );
   const config: ServiceConfig = {
-    changelogApiKey: nonblankString(
-      "platform.changelog.openrouter.apiKey",
-      openrouter.apiKey,
+    changelogBaseUrl: baseUrl.replace(/\/+$/u, ""),
+    changelogEnabled:
+      changelog.api !== undefined ||
+      Boolean(nonblankString(`${endpointPath}.apiKey`, endpoint.apiKey)),
+    changelogInputFormat: inputFormat,
+    changelogMaxTokens: numberWithDefault(
+      `${endpointPath}.maxTokens`,
+      endpoint.maxTokens,
+      4096,
     ),
+    changelogApiKey: nonblankString(`${endpointPath}.apiKey`, endpoint.apiKey),
     changelogModel:
-      nonblankString("platform.changelog.openrouter.model", openrouter.model) ??
+      nonblankString(`${endpointPath}.model`, endpoint.model) ??
       "openrouter/free",
-    changelogReasoningEnabled: openrouter.reasoningEnabled,
+    changelogReasoningEnabled: endpoint.reasoningEnabled,
     changelogPrompt: nonblankString(
       "platform.changelog.prompt",
       changelog.prompt,
     ),
     changelogTimeoutMs: numberWithDefault(
-      "platform.changelog.openrouter.timeoutMs",
-      openrouter.timeoutMs,
+      `${endpointPath}.timeoutMs`,
+      endpoint.timeoutMs,
       60000,
     ),
     mapCacheMaxBytes: numberWithDefault(
@@ -357,7 +404,15 @@ export const validateConfig = (values: ServiceConfig): void => {
     values.changelogTimeoutMs > 2147483647
   )
     throw new Error(
-      "platform.changelog.openrouter.timeoutMs must be an integer between 1 and 2147483647",
+      "platform.changelog.openrouter.timeoutMs / platform.changelog.api.timeoutMs must be an integer between 1 and 2147483647",
+    );
+  if (
+    !Number.isInteger(values.changelogMaxTokens) ||
+    values.changelogMaxTokens < 1 ||
+    values.changelogMaxTokens > 2147483647
+  )
+    throw new Error(
+      "platform.changelog API maxTokens must be an integer between 1 and 2147483647",
     );
   for (const [name, value] of [
     ["maxBytes", values.mapCacheMaxBytes],

@@ -1009,6 +1009,18 @@ test("custom prompts replace editorial instructions, preserve typed data and iso
   ) as typeof body;
   expect(nextBody.messages[0].content).toBe("Write a brief German changelog.");
   expect(nextBody.messages[1].content).toBe(body.messages[1].content);
+  for (const [key, value] of [
+    ["changelogInputFormat", "editorial"],
+    ["changelogBaseUrl", "http://model:8080/v1"],
+    ["changelogMaxTokens", 768],
+  ] as const) {
+    const previousCalls = fetch.mock.calls.length;
+    jest.replaceProperty(config, key, value);
+    await service.getChangelog(2, version);
+    expect(fetch).toHaveBeenCalledTimes(previousCalls + 1);
+    await service.getChangelog(2, version);
+    expect(fetch).toHaveBeenCalledTimes(previousCalls + 1);
+  }
 });
 
 test("deterministic notes keep duplicate area names and map-wide General separate", () => {
@@ -1061,4 +1073,46 @@ test("prose continues to allow tabs, newlines and non-ASCII names", () => {
   expect(validateNotes("  Château\t😀\nNew rooms.  ").text).toBe(
     "Château\t😀\nNew rooms.",
   );
+});
+
+test("keyless compatible endpoints use editorial input and configured token limit", async () => {
+  const fetch = jest.fn<typeof global.fetch>().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: { content: "Hashan gained three rooms." },
+          },
+        ],
+      }),
+    ),
+  );
+  global.fetch = fetch;
+  const result = await generateNotes(
+    [fact],
+    undefined,
+    "local-qwen",
+    90000,
+    {},
+    undefined,
+    undefined,
+    {
+      baseUrl: "http://model:8080/v1/",
+      inputFormat: "editorial",
+      maxTokens: 768,
+    },
+  );
+  expect(result.notes.source).toBe("ai");
+  expect(fetch.mock.calls[0][0]).toBe("http://model:8080/v1/chat/completions");
+  expect(fetch.mock.calls[0][1]?.headers).not.toHaveProperty("Authorization");
+  const body = JSON.parse(fetch.mock.calls[0][1]?.body as string) as {
+    max_tokens: number;
+    messages: { content: string }[];
+  };
+  expect(body.max_tokens).toBe(768);
+  expect(JSON.parse(body.messages[1].content)).toEqual({
+    additions: [{ area: "Hashan", rooms: 3, normal_exits: 0 }],
+  });
+  expect(body.messages[0].content).toContain("housekeeping sentence");
 });

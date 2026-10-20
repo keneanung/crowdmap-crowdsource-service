@@ -299,6 +299,57 @@ test("OpenRouter configuration defaults and rejects malformed secrets or section
     changelogPrompt: undefined,
     changelogModel: "openrouter/free",
   });
+  await writeFile(
+    file,
+    base +
+      `  changelog: {inputFormat: editorial, api: {baseUrl: "http://model:8080/v1/", model: qwen, maxTokens: 768}}\n` +
+      projects,
+  );
+  expect(loadConfig(file)).toMatchObject({
+    changelogInputFormat: "editorial",
+    changelogBaseUrl: "http://model:8080/v1",
+    changelogEnabled: true,
+    changelogApiKey: undefined,
+    changelogMaxTokens: 768,
+  });
+  for (const api of [
+    {},
+    { baseUrl: "" },
+    { baseUrl: "   " },
+    { apiKey: "key", model: "local" },
+  ]) {
+    await writeFile(
+      file,
+      base + `  changelog: ${JSON.stringify({ api })}\n` + projects,
+    );
+    expect(() => loadConfig(file)).toThrow(
+      "platform.changelog.api.baseUrl is required",
+    );
+  }
+  await writeFile(
+    file,
+    base + `  changelog: {openrouter: {apiKey: key}}\n` + projects,
+  );
+  expect(loadConfig(file).changelogBaseUrl).toBe(
+    "https://openrouter.ai/api/v1",
+  );
+  for (const value of [
+    { inputFormat: "unknown" },
+    { api: [] },
+    { api: { baseUrl: "file:///tmp/test" } },
+    { api: { baseUrl: "http://user:secret@model/v1" } },
+    { api: { baseUrl: "http://model/v1?key=secret" } },
+    { api: { baseUrl: "http://model/v1", maxTokens: 0 } },
+    { api: { baseUrl: "http://model/v1", maxTokens: 1.5 } },
+    { api: { baseUrl: "http://model/v1", apiKey: 4 } },
+    { api: {}, openrouter: {} },
+  ]) {
+    await writeFile(
+      file,
+      base + `  changelog: ${JSON.stringify(value)}\n` + projects,
+    );
+    expect(() => loadConfig(file)).toThrow();
+  }
   for (const yaml of [
     "changelog: []",
     "changelog: {prompt: false}",
