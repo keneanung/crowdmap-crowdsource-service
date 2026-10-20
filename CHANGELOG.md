@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.4.1...v1.5.0) (2026-10-20)
+
+
+### Features
+
+* support compatible changelog APIs and editorial input ([#354](https://github.com/keneanung/crowdmap-crowdsource-service/issues/354)) ([8a7424a](https://github.com/keneanung/crowdmap-crowdsource-service/commit/8a7424a178c396b1deb2cdf73ecf102c743ca12f))
+
 ## [1.4.1](https://github.com/keneanung/crowdmap-crowdsource-service/compare/v1.4.0...v1.4.1) (2026-10-19)
 
 
