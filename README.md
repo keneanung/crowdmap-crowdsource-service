@@ -479,6 +479,7 @@ platform:
       # apiKey: "<deployment secret>" # Optional for authenticated endpoints.
 ```
 
+The generic `api` section requires an explicit, nonblank `baseUrl`.
 The service appends `/chat/completions` to `baseUrl`. Use the address reachable
 from the service container; `localhost` means that container itself. Configuring
 `api` enables generation even without a key; omit both API sections for
@@ -518,9 +519,10 @@ change examples sent for processing. See the
 sent, account settings to check, and suggested disclosure wording. Never commit
 the deployment key.
 
-When AI is disabled, or on provider errors, refusal, truncation, or invalid output
-produce deterministic prose. Requests default to a 60-second timeout covering
-the complete provider request, including reading its response. Configure
+The service produces deterministic prose when AI is disabled or when provider
+errors, refusal, truncation, or invalid output occur. Requests default to a
+60-second timeout covering the complete provider request, including reading its
+response. Configure
 `platform.changelog.openrouter.timeoutMs` with an integer from 1 to 2147483647
 milliseconds and restart the service to apply changes. Optional
 `platform.changelog.openrouter.reasoningEnabled` controls reasoning for models

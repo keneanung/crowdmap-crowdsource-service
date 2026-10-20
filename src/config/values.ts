@@ -251,9 +251,13 @@ export const loadConfig = (
     typeof endpoint.reasoningEnabled !== "boolean"
   )
     throw new Error(`${endpointPath}.reasoningEnabled must be a boolean`);
-  const baseUrl =
-    nonblankString(`${endpointPath}.baseUrl`, endpoint.baseUrl) ??
-    "https://openrouter.ai/api/v1";
+  const configuredBaseUrl = nonblankString(
+    `${endpointPath}.baseUrl`,
+    endpoint.baseUrl,
+  );
+  if (changelog.api !== undefined && configuredBaseUrl === undefined)
+    throw new Error("platform.changelog.api.baseUrl is required");
+  const baseUrl = configuredBaseUrl ?? "https://openrouter.ai/api/v1";
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(baseUrl);
