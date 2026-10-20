@@ -465,6 +465,42 @@ platform:
       timeoutMs: 60000
 ```
 
+Alternatively, configure any OpenAI-compatible Chat Completions endpoint:
+
+```yaml
+platform:
+  changelog:
+    inputFormat: editorial # structured (default) | editorial
+    api:
+      baseUrl: http://changelog-model:8080/v1
+      model: qwen4q3 # Must match the model alias on your server.
+      timeoutMs: 90000
+      maxTokens: 768
+      # apiKey: "<deployment secret>" # Optional for authenticated endpoints.
+```
+
+The service appends `/chat/completions` to `baseUrl`. Use the address reachable
+from the service container; `localhost` means that container itself. Configuring
+`api` enables generation even without a key; omit both API sections for
+deterministic notes. To use OpenRouter with the same configuration, set
+`baseUrl: https://openrouter.ai/api/v1` and supply its key and model. Use either
+`api` or the legacy `openrouter` section, never both. The legacy section retains
+its key-based enablement and defaults. Both sections accept `baseUrl`, `apiKey`,
+`model`, `timeoutMs`, `maxTokens` (default 4096), and optional `reasoningEnabled`.
+The latter sends OpenRouter's `reasoning.enabled` extension; omit it for servers
+that do not support it. Configure reasoning off in the local model server when
+using the benchmarked Qwen setup. This change does not deploy a model server.
+
+`inputFormat` is independent of the endpoint. `structured` preserves the complete
+existing overview. `editorial` groups navigation counts, source directions,
+commands, rename pairs, moves and area changes, and replaces housekeeping detail
+with “Housekeeping updates were also applied.” Other minor scalar, metadata,
+label, lock and drawing updates are also summarized as housekeeping. It omits
+IDs and endpoint room details. Each format has its own default prompt; editorial
+has no fixed word ceiling. Public deterministic notes and fallback retain the
+complete facts. Input format, endpoint, token limit, timeout, reasoning and prompt
+settings participate in caching. Restart after configuration changes.
+
 The exact current prompt and customization instructions are documented in
 [Changelog generation prompt](docs/changelog-prompt.md). Optional
 `platform.changelog.prompt` replaces the default editorial instructions; omit
@@ -482,7 +518,7 @@ change examples sent for processing. See the
 sent, account settings to check, and suggested disclosure wording. Never commit
 the deployment key.
 
-Missing credentials, provider errors, refusal, truncation, or invalid output
+When AI is disabled, or on provider errors, refusal, truncation, or invalid output
 produce deterministic prose. Requests default to a 60-second timeout covering
 the complete provider request, including reading its response. Configure
 `platform.changelog.openrouter.timeoutMs` with an integer from 1 to 2147483647
@@ -498,7 +534,7 @@ invoke or wait for AI. Changelog requests generate notes on demand.
 Changelogs share the existing process-local map cache's byte and entry limits,
 in a separate key namespace. Equivalent ordered selections share one concurrent
 request and reuse notes across reporters, thresholds, and map formats. Keys
-include project, baseline generation, model/router, prompt version,
+include project, baseline generation, endpoint, input format, generation settings, prompt version,
 language (English initially), and AI/deterministic mode. Provider-failure
 fallbacks expire after 60 seconds to allow recovery. Oversized-input deterministic
 notes remain cached until eviction because retrying cannot enable AI for that input. Successful notes remain
